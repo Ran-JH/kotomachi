@@ -244,6 +244,7 @@ function FeedbackDrawer({
   open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, onClose,
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
+  const [expandedAnalysisKey, setExpandedAnalysisKey] = useState<FeedbackLevelKey | null>(null);
   const userAudioRef = useRef<HTMLAudioElement | null>(null);
   const hasUserRecording = Boolean(userAudioUrl || userAudioBlob);
 
@@ -272,7 +273,12 @@ function FeedbackDrawer({
   };
 
   useEffect(() => {
-    if (!open) { userAudioRef.current?.pause(); userAudioRef.current = null; setTtsLoadingKey(null); }
+    if (!open) {
+      userAudioRef.current?.pause();
+      userAudioRef.current = null;
+      setTtsLoadingKey(null);
+      setExpandedAnalysisKey(null);
+    }
   }, [open]);
 
   if (!open || typeof document === "undefined") return null;
@@ -329,20 +335,24 @@ function FeedbackDrawer({
             FEEDBACK_LEVEL_META.map((meta) => {
               const level = feedback[meta.key];
               const isTtsLoading = ttsLoadingKey === meta.key;
+              const isExpanded = expandedAnalysisKey === meta.key;
               const levelLabels: Record<string, { label: string; subtitle: string }> = {
                 casual: { label: "カジュアル", subtitle: "親しい友人" },
                 business: { label: "ふつう", subtitle: "一般的な場面" },
                 formal: { label: "フォーマル", subtitle: "丁寧な場面" },
               };
               const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
+              const analysisText = level.analysis.trim();
+              const analysisLineCount = analysisText.split(/\r?\n/).length;
+              const shouldCollapseAnalysis = analysisLineCount > 3 || analysisText.length > 180;
 
               return (
-                <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-4 py-3">
-                  <header className="flex items-center gap-2 mb-2">
-                    <span className="text-sm">{meta.emoji}</span>
+                <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-4 py-3.5">
+                  <header className="flex items-center gap-2">
+                    <span className="text-xs">{meta.emoji}</span>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-[11px] font-medium text-[#28231A]">{labels.label}</h3>
-                      <p className="text-[8px] text-[#7A7060]">{labels.subtitle}</p>
+                      <h3 className="text-[11px] font-semibold text-[#28231A]">{labels.label}</h3>
+                      <p className="text-[8px] text-[#7A7060]/80">{labels.subtitle}</p>
                     </div>
                     <button
                       type="button"
@@ -354,12 +364,33 @@ function FeedbackDrawer({
                       {isTtsLoading ? <span className="animate-pulse">…</span> : <>🔊 聞く</>}
                     </button>
                   </header>
-                  <p className="text-[11px] font-medium text-[#2D4A1F] leading-relaxed border-l-2 border-[#C9A84C]/40 pl-2.5">
-                    {level.nativeSay}
-                  </p>
-                  <p className="text-[9px] text-[#7A7060] mt-2 leading-relaxed whitespace-pre-wrap">
-                    {level.analysis}
-                  </p>
+                  <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/50 px-3 py-2.5">
+                    <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">おすすめ</span>
+                    <p className="mt-1 text-[13px] font-medium text-[#2D4A1F] leading-relaxed whitespace-pre-wrap">
+                      {level.nativeSay}
+                    </p>
+                  </div>
+                  <div className="mt-2 px-1">
+                    <p
+                      className={`text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap transition-all ${
+                        shouldCollapseAnalysis && !isExpanded
+                          ? "max-h-[4.875em] overflow-hidden"
+                          : ""
+                      }`}
+                    >
+                      {analysisText}
+                    </p>
+                    {shouldCollapseAnalysis && (
+                      <button
+                        type="button"
+                        aria-expanded={isExpanded}
+                        onClick={() => setExpandedAnalysisKey(isExpanded ? null : meta.key)}
+                        className="mt-2 block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
+                      >
+                        {isExpanded ? "閉じる" : "詳しく"}
+                      </button>
+                    )}
+                  </div>
                 </article>
               );
             })
