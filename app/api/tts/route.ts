@@ -8,6 +8,7 @@ import {
   synthesizeVolcTts,
   VolcTtsError,
 } from "@/lib/volcengine";
+import { normalizeTextForTts } from "@/lib/tts-text";
 
 function logVolcError(label: string, err: unknown) {
   if (err instanceof VolcTtsError) {
@@ -43,6 +44,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "合成文本不能为空" }, { status: 400 });
     }
 
+    const ttsText = normalizeTextForTts(text);
+    if (!ttsText) {
+      return NextResponse.json(
+        { error: "没有可朗读的文本" },
+        { status: 400 }
+      );
+    }
+
     const safeNpcId = isNpcId(npcId) ? npcId : "misaki";
     const provider = (process.env.TTS_PROVIDER ?? "auto").toLowerCase();
     const volcConfigured = isVolcSpeechConfigured();
@@ -51,7 +60,7 @@ export async function POST(req: NextRequest) {
       npcId: safeNpcId,
       provider,
       volcConfigured,
-      textLength: text.length,
+      textLength: ttsText.length,
     });
 
     let audio: Buffer | null = null;
@@ -63,7 +72,7 @@ export async function POST(req: NextRequest) {
     if (tryVolc && volcConfigured) {
       try {
         console.log("[api/tts] 尝试火山 TTS...");
-        audio = await synthesizeVolcTts(text, safeNpcId);
+        audio = await synthesizeVolcTts(ttsText, safeNpcId);
         source = "volcano";
         console.log("[api/tts] 火山 TTS 成功", {
           bytes: audio.length,
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest) {
     if (!audio) {
       try {
         console.log("[api/tts] 尝试 Edge-TTS...");
-        audio = await synthesizeEdgeTts(text, safeNpcId);
+        audio = await synthesizeEdgeTts(ttsText, safeNpcId);
         source = "edge";
         console.log("[api/tts] Edge-TTS 成功", {
           bytes: audio.length,
