@@ -57,7 +57,13 @@ async function fetchAndPlayTts(text: string, npcId: NpcId): Promise<void> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   audio.onended = () => URL.revokeObjectURL(url);
-  await audio.play();
+  audio.onerror = () => URL.revokeObjectURL(url);
+  try {
+    await audio.play();
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
 }
 
 /* ============================================================
@@ -244,31 +250,48 @@ function FeedbackDrawer({
   open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, onClose,
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
+  const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
   const [expandedAnalysisKey, setExpandedAnalysisKey] = useState<FeedbackLevelKey | null>(null);
   const userAudioRef = useRef<HTMLAudioElement | null>(null);
+  const userTempAudioUrlRef = useRef<string | null>(null);
   const hasUserRecording = Boolean(userAudioUrl || userAudioBlob);
 
+  const revokeUserTempAudioUrl = useCallback(() => {
+    if (!userTempAudioUrlRef.current) return;
+    URL.revokeObjectURL(userTempAudioUrlRef.current);
+    userTempAudioUrlRef.current = null;
+  }, []);
+
   const playUserRecording = useCallback(() => {
+    revokeUserTempAudioUrl();
     if (userAudioUrl) {
       const audio = new Audio(userAudioUrl);
       userAudioRef.current = audio;
-      void audio.play();
+      void audio.play().catch(() => undefined);
       return;
     }
     if (userAudioBlob) {
       const url = URL.createObjectURL(userAudioBlob);
+      userTempAudioUrlRef.current = url;
       const audio = new Audio(url);
       userAudioRef.current = audio;
-      audio.onended = () => URL.revokeObjectURL(url);
-      void audio.play();
+      audio.onended = revokeUserTempAudioUrl;
+      audio.onerror = revokeUserTempAudioUrl;
+      void audio.play().catch(revokeUserTempAudioUrl);
     }
-  }, [userAudioBlob, userAudioUrl]);
+  }, [revokeUserTempAudioUrl, userAudioBlob, userAudioUrl]);
 
   const playLevelSample = async (key: FeedbackLevelKey, nativeSay: string) => {
     if (ttsLoadingKey) return;
+    const sampleText = nativeSay.trim();
+    if (!sampleText) {
+      setTtsErrorKey(key);
+      return;
+    }
+    setTtsErrorKey(null);
     setTtsLoadingKey(key);
-    try { await fetchAndPlayTts(nativeSay, npcId); }
-    catch (err) { console.error("[FeedbackDrawer] TTS 示范失败:", err); }
+    try { await fetchAndPlayTts(sampleText, npcId); }
+    catch { setTtsErrorKey(key); }
     finally { setTtsLoadingKey(null); }
   };
 
@@ -276,10 +299,12 @@ function FeedbackDrawer({
     if (!open) {
       userAudioRef.current?.pause();
       userAudioRef.current = null;
+      revokeUserTempAudioUrl();
       setTtsLoadingKey(null);
+      setTtsErrorKey(null);
       setExpandedAnalysisKey(null);
     }
-  }, [open]);
+  }, [open, revokeUserTempAudioUrl]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -370,6 +395,11 @@ function FeedbackDrawer({
                       {level.nativeSay}
                     </p>
                   </div>
+                  {ttsErrorKey === meta.key && (
+                    <p className="mt-1.5 px-1 text-[9px] text-[#9A6B2F]">
+                      音声を再生できませんでした。文字で確認してね。
+                    </p>
+                  )}
                   <div className="mt-2 px-1">
                     <p
                       className={`text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap transition-all ${
@@ -414,13 +444,23 @@ export function ChatBubble({
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [userAudioError, setUserAudioError] = useState(false);
 
   const [popover, setPopover] = useState<{
     selectedText: string; fullSentence: string; anchorRect: DOMRect;
   } | null>(null);
 
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const userAudioRef = useRef<HTMLAudioElement | null>(null);
+  const userTempAudioUrlRef = useRef<string | null>(null);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const hasUserRecording = sender === "user" && Boolean(userAudioUrl || userAudioBlob);
+
+  const revokeUserTempAudioUrl = useCallback(() => {
+    if (!userTempAudioUrlRef.current) return;
+    URL.revokeObjectURL(userTempAudioUrlRef.current);
+    userTempAudioUrlRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -428,6 +468,13 @@ export function ChatBubble({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, [drawerOpen]);
+
+  useEffect(() => {
+    return () => {
+      userAudioRef.current?.pause();
+      revokeUserTempAudioUrl();
+    };
+  }, [revokeUserTempAudioUrl]);
 
   const handleOpenFeedback = async () => {
     if (drawerOpen) { closeDrawer(); return; }
@@ -455,6 +502,32 @@ export function ChatBubble({
     if (npcAudioUrl) { new Audio(npcAudioUrl).play(); }
     else if (onPlayNpcAudio) { onPlayNpcAudio(); }
   };
+
+  const playUserAudio = useCallback(() => {
+    setUserAudioError(false);
+    userAudioRef.current?.pause();
+    revokeUserTempAudioUrl();
+
+    if (userAudioUrl) {
+      const audio = new Audio(userAudioUrl);
+      userAudioRef.current = audio;
+      void audio.play().catch(() => setUserAudioError(true));
+      return;
+    }
+
+    if (userAudioBlob) {
+      const url = URL.createObjectURL(userAudioBlob);
+      userTempAudioUrlRef.current = url;
+      const audio = new Audio(url);
+      userAudioRef.current = audio;
+      audio.onended = revokeUserTempAudioUrl;
+      audio.onerror = revokeUserTempAudioUrl;
+      void audio.play().catch(() => {
+        revokeUserTempAudioUrl();
+        setUserAudioError(true);
+      });
+    }
+  }, [revokeUserTempAudioUrl, userAudioBlob, userAudioUrl]);
 
   const handleTextSelection = useCallback(() => {
     const selection = window.getSelection();
@@ -509,7 +582,7 @@ export function ChatBubble({
 
             {/* 按钮区域：气泡外部下方，hover 淡入 */}
             <div
-              className={`flex transition-all duration-200 ${
+              className={`flex gap-2 transition-all duration-200 ${
                 isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none"
               } ${sender === "user" ? "justify-end" : "justify-start"}`}
             >
@@ -520,6 +593,15 @@ export function ChatBubble({
                   className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
                 >
                   ▶ 再生
+                </button>
+              )}
+              {hasUserRecording && (
+                <button
+                  type="button"
+                  onClick={playUserAudio}
+                  className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
+                >
+                  🔊 録音を聞く
                 </button>
               )}
               {sender === "user" && (
@@ -534,6 +616,11 @@ export function ChatBubble({
                 </button>
               )}
             </div>
+            {userAudioError && (
+              <p className="mt-1 text-right text-[9px] text-[#9A6B2F]">
+                録音を再生できませんでした。
+              </p>
+            )}
           </div>
         </div>
       </div>
