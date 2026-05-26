@@ -18,7 +18,6 @@ function logVolcError(label: string, err: unknown) {
       volcMessage: err.details.volcMessage,
       reqid: err.details.reqid,
       voiceType: err.details.voiceType,
-      rawBody: err.details.rawBody,
     });
     return;
   }
@@ -26,11 +25,12 @@ function logVolcError(label: string, err: unknown) {
     console.error(`[api/tts] ${label} — Error:`, {
       name: err.name,
       message: err.message,
-      stack: err.stack,
     });
     return;
   }
-  console.error(`[api/tts] ${label} — unknown:`, err);
+  console.error(`[api/tts] ${label} — unknown:`, {
+    message: String(err),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
       npcId: safeNpcId,
       provider,
       volcConfigured,
-      textPreview: text.slice(0, 40),
       textLength: text.length,
     });
 

@@ -1,6 +1,9 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
+const DEEPSEEK_TIMEOUT_MS = 8000;
+const ARK_TIMEOUT_MS = 10000;
+
 function getDeepSeekClient() {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return null;
@@ -40,9 +43,9 @@ export async function createChatCompletion(
 
   const deepseek = getDeepSeekClient();
   if (deepseek) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEEPSEEK_TIMEOUT_MS);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const response = await deepseek.chat.completions.create(
         {
           model: getDeepSeekModel(),
@@ -55,28 +58,38 @@ export async function createChatCompletion(
         },
         { signal: controller.signal }
       );
-      clearTimeout(timeoutId);
       const text = response.choices[0]?.message?.content?.trim();
       if (text) return text;
     } catch (err) {
       console.warn("DeepSeek 失败，尝试火山方舟 Fallback:", err);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
   const ark = getVolcArkClient();
   const arkModel = getVolcArkModel();
   if (ark && arkModel) {
-    const response = await ark.chat.completions.create({
-      model: arkModel,
-      messages,
-      temperature,
-      max_tokens,
-      ...(options?.jsonMode
-        ? { response_format: { type: "json_object" as const } }
-        : {}),
-    });
-    const text = response.choices[0]?.message?.content?.trim();
-    if (text) return text;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ARK_TIMEOUT_MS);
+    try {
+      const response = await ark.chat.completions.create(
+        {
+          model: arkModel,
+          messages,
+          temperature,
+          max_tokens,
+          ...(options?.jsonMode
+            ? { response_format: { type: "json_object" as const } }
+            : {}),
+        },
+        { signal: controller.signal }
+      );
+      const text = response.choices[0]?.message?.content?.trim();
+      if (text) return text;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   throw new Error(
