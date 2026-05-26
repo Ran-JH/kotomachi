@@ -7,6 +7,8 @@ import {
 
 export const runtime = "nodejs";
 
+const NO_SPEECH_MESSAGE = "声が聞こえませんでした。もう一度話すか、文字で入力してね。";
+
 export async function POST(req: NextRequest) {
   try {
     if (!isVolcSpeechConfigured()) {
@@ -37,11 +39,25 @@ export async function POST(req: NextRequest) {
     });
 
     const text = await transcribeVolcFlash(buffer, mimeType);
+    if (!text.trim()) {
+      return NextResponse.json({
+        text: "",
+        code: "NO_SPEECH",
+        message: NO_SPEECH_MESSAGE,
+      });
+    }
 
     return NextResponse.json({ text });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "转写失败";
     console.error("[api/stt] 识别失败:", message);
+    if (message.includes("未识别到语音") || message.includes("无有效文本")) {
+      return NextResponse.json({
+        text: "",
+        code: "NO_SPEECH",
+        message: NO_SPEECH_MESSAGE,
+      });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

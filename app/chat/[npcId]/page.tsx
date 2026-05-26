@@ -86,6 +86,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [memories, setMemories] = useState<string[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -94,10 +95,22 @@ export default function ChatPage() {
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
   const userAudioUrlsRef = useRef<string[]>([]);
   const welcomeTriggeredRef = useRef(false);
+  const voiceHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
   useEffect(() => { return () => { userAudioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url)); }; }, []);
+  useEffect(() => {
+    return () => {
+      if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
+    };
+  }, []);
+
+  const showVoiceHint = (message: string) => {
+    setVoiceHint(message);
+    if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
+    voiceHintTimerRef.current = setTimeout(() => setVoiceHint(null), 4000);
+  };
 
   useEffect(() => {
     welcomeTriggeredRef.current = false;
@@ -204,7 +217,7 @@ export default function ChatPage() {
     } finally { setIsTyping(false); }
   };
 
-  const handleSend = () => { void sendToNpc(inputText); };
+  const handleSend = () => { setVoiceHint(null); void sendToNpc(inputText); };
 
   const pickRecorderMimeType = () => {
     const candidates = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/mp4", "audio/webm"];
@@ -213,6 +226,8 @@ export default function ChatPage() {
 
   const startRecording = async () => {
     try {
+      setApiError(null);
+      setVoiceHint(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = pickRecorderMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -226,12 +241,28 @@ export default function ChatPage() {
           const formData = new FormData(); formData.append("audio", blob);
           const sttRes = await fetch("/api/stt", { method: "POST", body: formData });
           const sttData = await sttRes.json();
-          if (!sttRes.ok) { setApiError(sttData.error ?? "语音识别失败"); setIsTyping(false); return; }
+          if (!sttRes.ok) {
+            if (sttData.code === "NO_SPEECH") {
+              showVoiceHint(sttData.message ?? "声が聞こえませんでした。もう一度話すか、文字で入力してね。");
+            } else {
+              setApiError("音声の認識に失敗しました。文字入力で続けることもできます。");
+            }
+            setIsTyping(false);
+            return;
+          }
+          if (sttData.code === "NO_SPEECH" || !sttData.text?.trim()) {
+            showVoiceHint(sttData.message ?? "声が聞こえませんでした。もう一度話すか、文字で入力してね。");
+            setIsTyping(false);
+            return;
+          }
           await sendToNpc(sttData.text, blob);
-        } catch { setApiError("语音识别失败，请检查麦克风权限"); setIsTyping(false); }
+        } catch {
+          setApiError("音声の認識に失敗しました。文字入力で続けることもできます。");
+          setIsTyping(false);
+        }
       };
       recorder.start(); setIsRecording(true);
-    } catch { setApiError("无法访问麦克风，请允许浏览器录音权限"); }
+    } catch { setApiError("マイクにアクセスできませんでした。ブラウザの録音権限を確認してください。"); }
   };
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
@@ -336,10 +367,17 @@ export default function ChatPage() {
 
         {/* 底部输入区域 */}
         <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]">
+          {voiceHint && (
+            <div className="max-w-4xl mx-auto px-8 pt-3">
+              <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
+                {voiceHint}
+              </p>
+            </div>
+          )}
           <div className="max-w-4xl mx-auto px-8 py-3 flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setInputMode((prev) => (prev === "text" ? "voice" : "text"))}
+              onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
               className="w-9 h-9 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm transition-colors"
               title={inputMode === "text" ? "语音输入" : "文字输入"}
             >
@@ -351,7 +389,7 @@ export default function ChatPage() {
                 <input
                   type="text"
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
+                  onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="メッセージを入力…"
                   className="flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-5 py-2.5 text-sm outline-none focus:border-[rgba(40,35,26,0.2)] placeholder:text-[#7A7060]/50 transition-colors"
