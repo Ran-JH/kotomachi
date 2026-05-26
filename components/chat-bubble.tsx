@@ -452,12 +452,16 @@ export function ChatBubble({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className={`flex items-start gap-3 max-w-[70%] ${sender === "user" ? "flex-row-reverse" : ""}`}>
+        <div
+          className={`flex items-start gap-3 min-w-0 ${
+            sender === "user" ? "max-w-[82vw] sm:max-w-[70%] flex-row-reverse" : "max-w-[70%]"
+          }`}
+        >
           {/* 头像 */}
           <div className="shrink-0 mt-0.5">{avatar}</div>
 
           {/* 气泡 + 外部按钮 */}
-          <div className="flex flex-col">
+          <div className={`flex flex-col ${sender === "user" ? "min-w-0 max-w-full" : ""}`}>
             {/* 气泡本体：Figma primary 色 + card 色 + 精致圆角阴影 */}
             <div
               ref={bubbleRef}
@@ -465,7 +469,7 @@ export function ChatBubble({
               onDoubleClick={handleDoubleClick}
               className={`rounded-xl px-5 py-3.5 text-[13px] leading-relaxed select-text transition-colors duration-200 ${
                 sender === "user"
-                  ? "bg-[#2D4A1F] text-[#F3EDE0]"
+                  ? "bg-[#2D4A1F] text-[#F3EDE0] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                   : "bg-[#FAF6EE] text-[#28231A] border border-[rgba(40,35,26,0.1)] shadow-[0_1px_3px_rgba(40,35,26,0.04)] hover:border-[rgba(40,35,26,0.15)]"
               }`}
             >
