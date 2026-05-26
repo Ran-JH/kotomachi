@@ -107,9 +107,9 @@ export default function Home() {
                 preserveAspectRatio="xMidYMid meet"
                 style={{
                   filter: activeId === zone.id
-                    ? "drop-shadow(0 0 24px rgba(201,168,76,0.6)) brightness(1.05)"
-                    : "drop-shadow(0 4px 12px rgba(40,35,26,0.12))",
-                  transition: "filter 0.3s ease",
+                    ? "drop-shadow(0 0 30px rgba(201,168,76,0.72)) drop-shadow(0 10px 22px rgba(40,35,26,0.16)) brightness(1.08)"
+                    : "drop-shadow(0 4px 12px rgba(40,35,26,0.12)) brightness(1)",
+                  transition: "filter 0.35s ease",
                 }}
               />
               {/* 透明热区，负责事件 */}
@@ -159,12 +159,12 @@ export default function Home() {
               <div
                 className={`transition-all duration-300 ease-out
                   ${isActive
-                    ? "opacity-100 -translate-y-4 pointer-events-auto"
+                    ? "opacity-100 -translate-y-5 pointer-events-auto"
                     : "opacity-0 -translate-y-2 pointer-events-none"
                   }`}
               >
-                <div className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-4 py-3
-                  shadow-[0_4px_20px_rgba(40,35,26,0.1)] min-w-[180px]">
+                <div className="bg-[#FAF6EE]/95 border border-[rgba(40,35,26,0.16)] rounded-xl px-4 py-3
+                  shadow-[0_10px_28px_rgba(40,35,26,0.14),0_2px_6px_rgba(40,35,26,0.08)] min-w-[188px] backdrop-blur-sm">
                 {/* 头像 + 姓名 */}
                 <div className="flex items-center gap-2.5 mb-1.5">
                   <img
@@ -180,8 +180,11 @@ export default function Home() {
                   </div>
                 </div>
                 {/* 心里话 */}
-                <p className="text-[10px] text-[#7A7060] leading-relaxed pl-0.5">
+                <p className="text-[10px] text-[#6F6556] leading-relaxed pl-0.5">
                   ☁️ {npcState.thought}
+                </p>
+                <p className="mt-2 inline-flex items-center rounded-full bg-[#E8E0CE]/70 px-2.5 py-1 text-[9px] font-medium tracking-wide text-[#2D4A1F]">
+                  話してみる
                 </p>
                 {/* 小三角 */}
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2
@@ -199,8 +202,8 @@ export default function Home() {
         <p className="text-base text-[#7A7060] font-serif tracking-[0.25em] font-light">
           {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
         </p>
-        <p className="text-[11px] text-[#7A7060]/40 tracking-wider font-light">
-          建物クリックして、住人に会いに行こう
+        <p className="inline-flex rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/55 px-4 py-2 text-[12px] text-[#6F6556] shadow-[0_2px_10px_rgba(40,35,26,0.04)]">
+          気になるお店をクリックして、住人と話してみよう。
         </p>
       </div>
     </main>
