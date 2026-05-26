@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ====== Figma Design Tokens ======
+   background     #F3EDE0   页面底色（米白）
+   foreground     #28231A   主文字（深棕黑）
+   card           #FAF6EE   卡片底色（暖白）
+   primary        #2D4A1F   主色（深绿）
+   primary-fg     #F3EDE0   主色上文字
+   secondary      #E8E0CE   次色（暖灰）
+   secondary-fg   #4A4438   次色上文字
+   muted          #D8CFBC   弱化色
+   muted-fg       #7A7060   弱化文字
+   accent         #C9A84C   琥珀强调
+   border         rgba(40,35,26,0.1)
+   input-bg       #EDE7D8   输入框底色
+   radius         0.75rem   圆角基准
+   sidebar        #1E2A16   侧边栏
+   sidebar-fg     #D4C8A8   侧边栏文字
+   sidebar-accent #253318   侧边栏选中
+   sidebar-primary #C9A84C  侧边栏强调
+   sidebar-border rgba(255,255,255,0.06)
+   ========================== */
+
+:root {
+  --background: #F3EDE0;
+  --foreground: #28231A;
+  --card: #FAF6EE;
+  --primary: #2D4A1F;
+  --primary-foreground: #F3EDE0;
+  --secondary: #E8E0CE;
+  --secondary-foreground: #4A4438;
+  --muted: #D8CFBC;
+  --muted-foreground: #7A7060;
+  --accent: #C9A84C;
+  --border: rgba(40, 35, 26, 0.1);
+  --input-background: #EDE7D8;
+  --radius: 0.75rem;
+  --sidebar: #1E2A16;
+  --sidebar-foreground: #D4C8A8;
+  --sidebar-accent: #253318;
+  --sidebar-primary: #C9A84C;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+}
+
+body {
+  font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+h1, h2, h3,
+.font-serif {
+  font-family: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", serif;
+}
+
+/* 建议抽屉：自底部滑入 */
+@keyframes feedback-slide-up {
+  from { transform: translateY(100%); opacity: 0.92; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-up {
+  animation: feedback-slide-up 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* 选中文本样式 */
+::selection {
+  background: rgba(201, 168, 76, 0.25);
+  color: #28231A;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(40, 35, 26, 0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(40, 35, 26, 0.2); }
