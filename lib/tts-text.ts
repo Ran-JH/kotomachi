@@ -1,21 +1,36 @@
-const EMOJI_AND_DECORATION_PATTERN =
-  /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu;
+function isEmojiOrDecoration(char: string): boolean {
+  const codePoint = char.codePointAt(0);
+  if (codePoint === undefined) return false;
+
+  return (
+    (codePoint >= 0x1f300 && codePoint <= 0x1faff) ||
+    (codePoint >= 0x2600 && codePoint <= 0x27bf) ||
+    codePoint === 0xfe0f ||
+    codePoint === 0x200d
+  );
+}
+
+function stripEmojiAndDecoration(text: string): string {
+  return Array.from(text)
+    .filter((char) => !isEmojiOrDecoration(char))
+    .join("");
+}
 
 export function normalizeTextForTts(text: string): string {
-  return text
+  return stripEmojiAndDecoration(text)
     .replace(/[（(]\s*笑\s*[）)]/g, "、")
     .replace(/[（(]\s*笑/g, "、")
     .replace(/笑\s*[）)]/g, "、")
     .replace(/(^|[\s　。、！？!?])笑(?=($|[\s　。、！？!?]))/g, "$1、")
     .replace(/(^|[\s　。、！？!?])[wｗ]+(?=($|[\s　。、！？!?]))/gi, "$1、")
     .replace(/(?<![A-Za-z])[wｗ]+(?=($|[\s　。、！？!?]))/g, "、")
-    .replace(EMOJI_AND_DECORATION_PATTERN, "")
     .replace(/[ \t　]+/g, " ")
     .replace(/、{2,}/g, "、")
     .replace(/、([。！？!?])/g, "$1")
     .replace(/([。！？!?])、/g, "$1")
     .replace(/\s*([。、！？!?])\s*/g, "$1")
-    .replace(/^、|、$/g, "")
+    .replace(/、{2,}/g, "、")
+    .replace(/^、+|、+$/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
