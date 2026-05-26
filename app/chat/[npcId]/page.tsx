@@ -88,6 +88,7 @@ export default function ChatPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -105,6 +106,7 @@ export default function ChatPage() {
       if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
     };
   }, []);
+  useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
 
   const showVoiceHint = (message: string) => {
     setVoiceHint(message);
@@ -268,29 +270,29 @@ export default function ChatPage() {
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
 
   const stage = getInteractionStage(messages.length);
+  const renderSidebarContent = (closeOnNavigate = false) => {
+    const handleNavigate = closeOnNavigate ? () => setIsSidebarOpen(false) : undefined;
 
-  return (
-    <div className="flex h-screen bg-[#F3EDE0]">
-      {/* ====== 左侧 NPC 侧边栏 — Figma sidebar tokens ====== */}
-      <aside className="w-56 shrink-0 bg-[#1E2A16] flex flex-col text-[#D4C8A8]">
+    return (
+      <>
         {/* 品牌标题 */}
         <div className="px-5 pt-6 pb-4 border-b border-[rgba(255,255,255,0.06)]">
-          <Link href="/" className="group">
+          <Link href="/" className="group" onClick={handleNavigate}>
             <h1 className="text-base font-light tracking-widest text-[#D4C8A8] group-hover:text-[#C9A84C] transition-colors font-serif">
               言街 Kotomachi
             </h1>
-          
           </Link>
         </div>
 
         {/* NPC 列表 */}
-        <nav className="flex-1 py-3 space-y-0.5">
+        <nav className="flex-1 py-3 space-y-0.5 overflow-y-auto">
           {NPC_LIST.map((npc) => {
             const isActive = npc.id === npcId;
             return (
               <Link
                 key={npc.id}
                 href={`/chat/${npc.id}`}
+                onClick={handleNavigate}
                 className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 ${
                   isActive
                     ? "bg-[#253318] border-l-2 border-[#C9A84C]"
@@ -312,21 +314,60 @@ export default function ChatPage() {
         <div className="p-3 border-t border-[rgba(255,255,255,0.06)]">
           <Link
             href="/"
+            onClick={handleNavigate}
             className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] text-[10px] text-[#D4C8A8]/50 hover:text-[#D4C8A8]/80 transition-colors"
           >
             ← 地図に戻る
           </Link>
         </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#F3EDE0]">
+      {/* ====== 移动端 NPC drawer ====== */}
+      <button
+        type="button"
+        aria-label="NPC メニューを閉じる"
+        aria-hidden={!isSidebarOpen}
+        tabIndex={isSidebarOpen ? 0 : -1}
+        onClick={() => setIsSidebarOpen(false)}
+        className={`fixed inset-0 z-40 bg-black/30 transition-opacity md:hidden ${
+          isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+      />
+      <aside
+        aria-label="NPC navigation"
+        aria-hidden={!isSidebarOpen}
+        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+          isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full"
+        }`}
+      >
+        {renderSidebarContent(true)}
+      </aside>
+
+      {/* ====== 左侧 NPC 侧边栏 — Figma sidebar tokens ====== */}
+      <aside className="hidden w-56 shrink-0 bg-[#1E2A16] md:flex md:flex-col text-[#D4C8A8]">
+        {renderSidebarContent()}
       </aside>
 
       {/* ====== 右侧聊天主区域 — 自适应宽屏 ====== */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* 顶部栏 */}
-        <div className="flex items-center justify-between px-8 py-4 bg-[#FAF6EE] border-b border-[rgba(40,35,26,0.08)]">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 py-4 md:px-8 bg-[#FAF6EE] border-b border-[rgba(40,35,26,0.08)]">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              aria-label="NPC メニューを開く"
+              onClick={() => setIsSidebarOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8E0CE] text-sm text-[#28231A] transition-colors hover:bg-[#D8CFBC] md:hidden"
+            >
+              ☰
+            </button>
             <img src={NPC_AVATARS[npcId]} alt={NPC_NAMES[npcId]} className="w-9 h-9 rounded-full object-cover" />
-            <div>
-              <span className="font-medium text-sm text-[#28231A] block">{NPC_NAMES[npcId]}</span>
+            <div className="min-w-0">
+              <span className="font-medium text-sm text-[#28231A] block truncate">{NPC_NAMES[npcId]}</span>
               <span className="text-[9px] text-[#7A7060]">
                 常時オンライン · {stage === 0 ? "文字モード" : stage === 1 ? "音声返信" : "音声会話"}
               </span>
@@ -336,12 +377,12 @@ export default function ChatPage() {
         </div>
 
         {apiError && (
-          <div className="mx-8 mt-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-[10px] text-red-700">{apiError}</div>
+          <div className="mx-4 mt-3 px-4 py-2 md:mx-8 bg-red-50 border border-red-200 rounded-lg text-[10px] text-red-700">{apiError}</div>
         )}
 
         {/* 聊天消息区域 — max-w-4xl 居中 */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-8 py-6 space-y-4">
+          <div className="max-w-4xl mx-auto px-4 py-6 md:px-8 space-y-4">
             {messages.map((msg) => (
               <ChatBubble
                 key={msg.id}
@@ -368,17 +409,17 @@ export default function ChatPage() {
         {/* 底部输入区域 */}
         <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]">
           {voiceHint && (
-            <div className="max-w-4xl mx-auto px-8 pt-3">
+            <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
                 {voiceHint}
               </p>
             </div>
           )}
-          <div className="max-w-4xl mx-auto px-8 py-3 flex items-center gap-3">
+          <div className="max-w-4xl mx-auto px-4 py-3 md:px-8 flex items-center gap-3">
             <button
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
-              className="w-9 h-9 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm transition-colors"
+              className="w-9 h-9 shrink-0 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm transition-colors"
               title={inputMode === "text" ? "语音输入" : "文字输入"}
             >
               {inputMode === "text" ? "🎙️" : "⌨️"}
@@ -392,14 +433,14 @@ export default function ChatPage() {
                   onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="メッセージを入力…"
-                  className="flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-5 py-2.5 text-sm outline-none focus:border-[rgba(40,35,26,0.2)] placeholder:text-[#7A7060]/50 transition-colors"
+                  className="min-w-0 flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm outline-none focus:border-[rgba(40,35,26,0.2)] placeholder:text-[#7A7060]/50 transition-colors"
                   disabled={isTyping}
                 />
                 <button
                   type="button"
                   onClick={handleSend}
                   disabled={isTyping || !inputText.trim()}
-                  className="text-sm font-medium text-[#F3EDE0] px-5 py-2.5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:opacity-30"
+                  className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:opacity-30"
                 >
                   送信
                 </button>
