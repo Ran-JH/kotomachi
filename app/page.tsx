@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getNpcState, getTimeOfDay, getWorldContext, NPC_AVATARS, type NpcId } from "@/lib/npc";
 
@@ -62,9 +62,16 @@ const TIME_BG: Record<string, string> = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const timeOfDay = getTimeOfDay();
   const worldContext = getWorldContext();
   const [hoveredId, setHoveredId] = useState<NpcId | null>(null);
+  const [focusedId, setFocusedId] = useState<NpcId | null>(null);
+  const activeId = hoveredId ?? focusedId;
+
+  const openChat = (npcId: NpcId) => {
+    router.push(`/chat/${npcId}`);
+  };
 
   return (
     <main
@@ -99,7 +106,7 @@ export default function Home() {
                 height={795}
                 preserveAspectRatio="xMidYMid meet"
                 style={{
-                  filter: hoveredId === zone.id
+                  filter: activeId === zone.id
                     ? "drop-shadow(0 0 24px rgba(201,168,76,0.6)) brightness(1.05)"
                     : "drop-shadow(0 4px 12px rgba(40,35,26,0.12))",
                   transition: "filter 0.3s ease",
@@ -112,10 +119,22 @@ export default function Home() {
                 width={zone.width}
                 height={795}
                 fill="transparent"
-                className="cursor-pointer"
+                role="link"
+                tabIndex={0}
+                focusable="true"
+                aria-label={`${zone.npc}と話す`}
+                className="cursor-pointer outline-none"
                 onMouseEnter={() => setHoveredId(zone.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                onClick={() => { window.location.href = `/chat/${zone.id}`; }}
+                onFocus={() => setFocusedId(zone.id)}
+                onBlur={() => setFocusedId(null)}
+                onClick={() => openChat(zone.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openChat(zone.id);
+                  }
+                }}
               />
             </g>
           ))}
@@ -124,26 +143,28 @@ export default function Home() {
         {/* NPC 信息卡 — hover 时浮现 */}
         {BUILDING_ZONES.map((zone) => {
           const npcState = getNpcState(zone.id);
-          const isHovered = hoveredId === zone.id;
+          const isActive = activeId === zone.id;
           // 信息卡定位：基于热区中心点的百分比
           const centerPercent = ((zone.x + zone.width / 2) / 2529) * 100;
 
           return (
             <div
               key={`card-${zone.id}`}
-              className={`absolute z-20 transition-all duration-300 ease-out
-                ${isHovered
-                  ? "opacity-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-                }`}
+              className="absolute z-20 -translate-x-1/2 -translate-y-full"
               style={{
                 left: `${centerPercent}%`,
                 top: "0",
-                transform: `translate(-50%, -100%) translateY(-16px)`,
               }}
             >
-              <div className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-4 py-3
-                shadow-[0_4px_20px_rgba(40,35,26,0.1)] min-w-[180px]">
+              <div
+                className={`transition-all duration-300 ease-out
+                  ${isActive
+                    ? "opacity-100 -translate-y-4 pointer-events-auto"
+                    : "opacity-0 -translate-y-2 pointer-events-none"
+                  }`}
+              >
+                <div className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-4 py-3
+                  shadow-[0_4px_20px_rgba(40,35,26,0.1)] min-w-[180px]">
                 {/* 头像 + 姓名 */}
                 <div className="flex items-center gap-2.5 mb-1.5">
                   <img
@@ -166,6 +187,7 @@ export default function Home() {
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2
                   w-3 h-3 bg-[#FAF6EE] border-r border-b border-[rgba(40,35,26,0.1)]
                   rotate-45" />
+                </div>
               </div>
             </div>
           );
