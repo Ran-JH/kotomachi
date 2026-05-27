@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createChatCompletion } from "@/lib/llm";
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const { userText } = await req.json();

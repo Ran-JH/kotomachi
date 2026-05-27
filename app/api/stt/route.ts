@@ -9,6 +9,9 @@ export const runtime = "nodejs";
 
 const NO_SPEECH_MESSAGE = "声が聞こえませんでした。もう一度話すか、文字で入力してね。";
 
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+const AUDIO_TOO_LARGE_MESSAGE = "録音が少し長すぎるみたいです。短めに録り直してみてください。";
+
 export async function POST(req: NextRequest) {
   try {
     if (!isVolcSpeechConfigured()) {
@@ -26,6 +29,17 @@ export async function POST(req: NextRequest) {
 
     if (!audio || !(audio instanceof Blob)) {
       return NextResponse.json({ error: "未收到音频" }, { status: 400 });
+    }
+
+    if (audio.size > MAX_AUDIO_BYTES) {
+      return NextResponse.json(
+        {
+          error: AUDIO_TOO_LARGE_MESSAGE,
+          code: "AUDIO_TOO_LARGE",
+          message: AUDIO_TOO_LARGE_MESSAGE,
+        },
+        { status: 413 },
+      );
     }
 
     const mimeType = audio.type || "audio/webm";

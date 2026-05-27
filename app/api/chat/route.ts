@@ -3,6 +3,8 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { createChatCompletion } from "@/lib/llm";
 import { getTimeOfDay } from "@/lib/npc";
 
+export const runtime = "nodejs";
+
 function buildSystemPrompt(npcId: string, memories: string[], conversationCount: number, lifeArc?: string, lifeArcState?: string, crossMentions?: string[], worldDescription?: string, worldReaction?: string): string {
   const memoryLine = memories?.length ? memories.join("、") : "なし";
 

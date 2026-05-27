@@ -226,9 +226,22 @@ function getArcRecord(npcId: NpcId): ArcRecord | null {
 }
 
 /** 保存弧线记录（仅客户端） */
+function safeSetLocalStorageItem(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn("[npc] localStorage write failed", {
+      key,
+      reason: error instanceof Error ? error.name : "unknown",
+    });
+    return false;
+  }
+}
+
 function saveArcRecord(npcId: NpcId, record: ArcRecord): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(`kotomachi_arc_${npcId}`, JSON.stringify(record));
+  safeSetLocalStorageItem(`kotomachi_arc_${npcId}`, JSON.stringify(record));
 }
 
 /** 找到下一条弧线（循环） */

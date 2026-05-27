@@ -3,6 +3,8 @@ import { createChatCompletion } from "@/lib/llm";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { getTimeOfDay } from "@/lib/npc";
 
+export const runtime = "nodejs";
+
 /** NPC 人设描述，用于生成符合角色性格的欢迎语 */
 const NPC_PERSONALITIES: Record<string, string> = {
   misaki: `你叫「美咲」(Misaki)，24岁，下北泽咖啡馆的暖心咖啡师。性格温柔、善于倾听。使用日常敬语（丁寧語），偶尔混用轻松口语。像大姐姐一样温暖知性地关心对方。`,

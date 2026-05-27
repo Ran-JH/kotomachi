@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createChatCompletion } from "@/lib/llm";
 
+export const runtime = "nodejs";
+
 const SYSTEM_PROMPT: ChatCompletionMessageParam = {
   role: "system",
   content: `你不是教材里的严肃日语老师，而是一个随和的口语陪练朋友。

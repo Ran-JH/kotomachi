@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { FeedbackLevel, FeedbackResponse } from "@/lib/feedback-types";
 import { createChatCompletion } from "@/lib/llm";
 
+export const runtime = "nodejs";
+
 /** 兼容旧字段 explain，统一为 analysis */
 function pickAnalysis(raw: Partial<FeedbackLevel> | undefined): string {
   if (typeof raw?.analysis === "string" && raw.analysis.trim()) {
