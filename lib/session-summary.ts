@@ -64,6 +64,11 @@ export interface SessionSummaryCard {
   id: string;
   createdAt: string;
   npcId: NpcId;
+  sourceMessageIds: string[];
+  fromMessageId?: string;
+  toMessageId?: string;
+  sourceFingerprint: string;
+  sourceUserMessageCount: number;
   title: string;
   topicSummary: string;
   reusableExpressions: ReusableExpression[];
@@ -95,6 +100,14 @@ export interface SessionSummaryApiCard {
   expressionUpgrades: ExpressionUpgrade[];
   reviewWords: ReviewWord[];
   nextTalkPrompt: string;
+}
+
+export interface SummarySourceInfo {
+  sourceMessageIds: string[];
+  fromMessageId?: string;
+  toMessageId?: string;
+  sourceFingerprint: string;
+  sourceUserMessageCount: number;
 }
 
 const SUMMARY_CARDS_KEY = "kotomachi.summaryCards.v1";
@@ -153,11 +166,39 @@ function byOpenedDesc(a: { openedAt?: string }, b: { openedAt?: string }): numbe
   return new Date(b.openedAt ?? 0).getTime() - new Date(a.openedAt ?? 0).getTime();
 }
 
+function hashString(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 export function createSummaryId(prefix: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createSummarySourceInfo(
+  npcId: NpcId,
+  messages: SessionSummaryMessage[],
+): SummarySourceInfo {
+  const sourceMessageIds = messages.map((message, index) => message.id ?? `${message.role}-${index}`);
+  const sourceUserMessageCount = messages.filter((message) => message.role === "user").length;
+  const fingerprintPayload = messages
+    .map((message) => [message.role, message.content.trim()].join(":"))
+    .join("|");
+
+  return {
+    sourceMessageIds,
+    fromMessageId: sourceMessageIds[0],
+    toMessageId: sourceMessageIds[sourceMessageIds.length - 1],
+    sourceFingerprint: `${npcId}:${hashString(fingerprintPayload)}`,
+    sourceUserMessageCount,
+  };
 }
 
 export function loadSummaryCards(npcId?: NpcId): SessionSummaryCard[] {
@@ -167,9 +208,25 @@ export function loadSummaryCards(npcId?: NpcId): SessionSummaryCard[] {
     .sort(byCreatedDesc);
 }
 
+export function findSummaryCardByFingerprint(
+  npcId: NpcId,
+  sourceFingerprint: string,
+): SessionSummaryCard | null {
+  return (
+    loadSummaryCards(npcId).find((card) => card.sourceFingerprint === sourceFingerprint) ?? null
+  );
+}
+
 export function saveSummaryCard(card: SessionSummaryCard): SessionSummaryCard[] {
   const cards = loadList<SessionSummaryCard>(SUMMARY_CARDS_KEY);
-  const next = [card, ...cards.filter((item) => item.id !== card.id)].slice(0, MAX_SUMMARY_CARDS);
+  const next = [
+    card,
+    ...cards.filter((item) => {
+      if (item.id === card.id) return false;
+      if (item.npcId === card.npcId && item.sourceFingerprint === card.sourceFingerprint) return false;
+      return true;
+    }),
+  ].slice(0, MAX_SUMMARY_CARDS);
   saveList(SUMMARY_CARDS_KEY, next);
   return next;
 }
