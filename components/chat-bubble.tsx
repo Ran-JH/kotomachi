@@ -8,6 +8,7 @@ import {
   type FeedbackResponse,
 } from "@/lib/feedback-types";
 import { NPC_AVATARS, type NpcId } from "@/lib/npc";
+import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
 
 /* ============================================================
    Figma Design Tokens → Tailwind 映射
@@ -84,6 +85,11 @@ interface WordPopoverProps {
   onClose: () => void;
 }
 
+function clampNumber(value: number, min: number, max: number): number {
+  if (max < min) return min;
+  return Math.min(Math.max(value, min), max);
+}
+
 function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPopoverProps) {
   const [data, setData] = useState<ExplainResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -135,23 +141,52 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
     };
   }, [onClose]);
 
-  const style: React.CSSProperties = (() => {
+  const popoverLayout: {
+    style: React.CSSProperties;
+    cardStyle: React.CSSProperties;
+    placement: "top" | "bottom";
+  } = (() => {
     const gap = 10;
-    const left = anchorRect.left + anchorRect.width / 2;
-    const top = anchorRect.top - gap;
+    const margin = 12;
+    const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
+    const viewportHeight = typeof window === "undefined" ? 720 : window.innerHeight;
+    const width = Math.min(240, Math.max(180, viewportWidth - margin * 2));
+    const anchorCenter = anchorRect.left + anchorRect.width / 2;
+    const left = clampNumber(anchorCenter, margin + width / 2, viewportWidth - margin - width / 2);
+    const spaceAbove = Math.max(0, anchorRect.top - margin - gap);
+    const spaceBelow = Math.max(0, viewportHeight - anchorRect.bottom - margin - gap);
+    const placement = spaceAbove < 190 && spaceBelow >= spaceAbove ? "bottom" : "top";
+    const availableHeight = placement === "bottom" ? spaceBelow : spaceAbove;
+    const top = placement === "bottom" ? anchorRect.bottom + gap : anchorRect.top - gap;
+
     return {
-      position: "fixed",
-      left: `${left}px`,
-      top: `${top}px`,
-      transform: "translate(-50%, -100%)",
-      zIndex: 90,
+      placement,
+      style: {
+        position: "fixed",
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${width}px`,
+        transform: placement === "bottom" ? "translateX(-50%)" : "translate(-50%, -100%)",
+        zIndex: 90,
+      },
+      cardStyle: {
+        maxHeight: `${Math.max(140, availableHeight - 12)}px`,
+      },
     };
   })();
 
   return createPortal(
-    <div ref={popoverRef} style={style} className="w-56">
+    <div ref={popoverRef} style={popoverLayout.style}>
+      {popoverLayout.placement === "bottom" && (
+        <div className="flex justify-center -mb-px">
+          <div className="w-2 h-2 bg-[#FAF6EE] border-l border-t border-[rgba(40,35,26,0.1)] rotate-45 translate-y-1" />
+        </div>
+      )}
       {/* popover 卡片：Figma card 底色 + 精致阴影 */}
-      <div className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-3.5 py-2.5 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)]">
+      <div
+        className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-3.5 py-2.5 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)] overflow-y-auto overscroll-contain"
+        style={popoverLayout.cardStyle}
+      >
         {loading ? (
           <p className="text-[10px] text-[#7A7060] animate-pulse text-center py-1.5">
             読み込み中…
@@ -159,38 +194,40 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
         ) : data && (
           <>
             {/* 单词 + 读音 + 发音按钮 */}
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[13px] font-medium text-[#28231A]">{selectedText}</span>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="min-w-0">
+                <span className="block text-[13px] font-medium text-[#28231A] leading-snug break-words">{selectedText}</span>
                 {data.pronunciation && (
-                  <>
+                  <div className="mt-0.5 flex items-center gap-1.5">
                     <span className="text-[9px] text-[#7A7060]">{data.pronunciation}</span>
                     <button
                       type="button"
                       onClick={() => { void fetchAndPlayTts(selectedText, "misaki"); }}
-                      className="text-[9px] hover:text-[#2D4A1F] text-[#7A7060] transition-colors"
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060] hover:bg-[#E8E0CE]/80 hover:text-[#2D4A1F] transition-colors"
                       title="発音を聞く"
                     >
-                      🔊
+                      <VolumeIcon size={12} />
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="text-[9px] text-[#7A7060]/40 hover:text-[#28231A] transition-colors leading-none"
+                className="shrink-0 text-[9px] text-[#7A7060]/45 hover:text-[#28231A] transition-colors leading-none"
               >
                 ✕
               </button>
             </div>
 
             {/* 简短释义 */}
-            <p className="text-[11px] text-[#2D4A1F] font-medium leading-snug">{data.translation}</p>
+            <p className="rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2 text-[11px] text-[#2D4A1F] font-medium leading-snug">
+              {data.translation}
+            </p>
 
             {/* 整句翻译 */}
             <div className="border-t border-[rgba(40,35,26,0.08)] pt-1.5 mt-1.5">
-              <p className="text-[9px] text-[#7A7060] leading-relaxed">
+              <p className="text-[9px] text-[#7A7060] leading-relaxed break-words">
                 {data.sentence_meaning}
               </p>
             </div>
@@ -212,7 +249,7 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="text-[9px] text-[#7A7060] leading-relaxed">
+                    <p className="text-[9px] text-[#7A7060] leading-relaxed break-words">
                       {data.nuance_explanation}
                     </p>
                   </div>
@@ -223,9 +260,11 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
         )}
       </div>
       {/* 小三角 */}
-      <div className="flex justify-center -mt-px">
-        <div className="w-2 h-2 bg-[#FAF6EE] border-r border-b border-[rgba(40,35,26,0.1)] rotate-45 -translate-y-1" />
-      </div>
+      {popoverLayout.placement === "top" && (
+        <div className="flex justify-center -mt-px">
+          <div className="w-2 h-2 bg-[#FAF6EE] border-r border-b border-[rgba(40,35,26,0.1)] rotate-45 -translate-y-1" />
+        </div>
+      )}
     </div>,
     document.body
   );
@@ -252,8 +291,10 @@ function FeedbackDrawer({
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
   const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
   const [expandedAnalysisKey, setExpandedAnalysisKey] = useState<FeedbackLevelKey | null>(null);
+  const [overflowingAnalysisKeys, setOverflowingAnalysisKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
   const userAudioRef = useRef<HTMLAudioElement | null>(null);
   const userTempAudioUrlRef = useRef<string | null>(null);
+  const analysisRefs = useRef<Partial<Record<FeedbackLevelKey, HTMLParagraphElement | null>>>({});
   const hasUserRecording = Boolean(userAudioUrl || userAudioBlob);
 
   const revokeUserTempAudioUrl = useCallback(() => {
@@ -295,6 +336,26 @@ function FeedbackDrawer({
     finally { setTtsLoadingKey(null); }
   };
 
+  const setAnalysisRef = useCallback((key: FeedbackLevelKey) => (node: HTMLParagraphElement | null) => {
+    analysisRefs.current[key] = node;
+  }, []);
+
+  const measureAnalysisOverflow = useCallback(() => {
+    const next: Partial<Record<FeedbackLevelKey, boolean>> = {};
+    FEEDBACK_LEVEL_META.forEach((meta) => {
+      const node = analysisRefs.current[meta.key];
+      if (!node) return;
+      next[meta.key] = node.scrollHeight > node.clientHeight + 1;
+    });
+    setOverflowingAnalysisKeys(next);
+  }, []);
+
+  useEffect(() => {
+    if (!open || loading || !feedback) return;
+    const frame = requestAnimationFrame(measureAnalysisOverflow);
+    return () => cancelAnimationFrame(frame);
+  }, [open, loading, feedback, measureAnalysisOverflow]);
+
   useEffect(() => {
     if (!open) {
       userAudioRef.current?.pause();
@@ -303,22 +364,23 @@ function FeedbackDrawer({
       setTtsLoadingKey(null);
       setTtsErrorKey(null);
       setExpandedAnalysisKey(null);
+      setOverflowingAnalysisKeys({});
     }
   }, [open, revokeUserTempAudioUrl]);
 
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+    <div className="fixed inset-0 z-[100] flex flex-col justify-end px-2 sm:px-0">
       <button type="button" aria-label="閉じる" className="absolute inset-0 bg-[#28231A]/15" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="feedback-drawer-title"
-        className="relative mx-auto w-full max-w-xl max-h-[70vh] flex flex-col rounded-t-2xl bg-[#F3EDE0] shadow-[0_-6px_32px_rgba(40,35,26,0.12)] border-t border-[rgba(40,35,26,0.08)] animate-slide-up"
+        className="relative mx-auto w-full max-w-xl max-h-[calc(100dvh-1rem)] sm:max-h-[70vh] flex flex-col rounded-t-2xl bg-[#F3EDE0] shadow-[0_-6px_32px_rgba(40,35,26,0.12)] border-t border-[rgba(40,35,26,0.08)] animate-slide-up"
       >
         {/* 头部 */}
-        <div className="shrink-0 px-6 pt-5 pb-3 border-b border-[rgba(40,35,26,0.08)]">
+        <div className="shrink-0 px-4 sm:px-6 pt-5 pb-3 border-b border-[rgba(40,35,26,0.08)]">
           <button
             type="button"
             onClick={onClose}
@@ -335,7 +397,7 @@ function FeedbackDrawer({
           {/* 用户原句 */}
           <div className="mt-3 rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3 py-2">
             <span className="text-[8px] font-medium text-[#7A7060] uppercase tracking-wider">あなたの言葉</span>
-            <p className="text-xs text-[#28231A] mt-0.5 leading-relaxed">{userText}</p>
+            <p className="text-xs text-[#28231A] mt-0.5 leading-relaxed break-words [overflow-wrap:anywhere]">{userText}</p>
           </div>
 
           {hasUserRecording && (
@@ -344,13 +406,14 @@ function FeedbackDrawer({
               onClick={playUserRecording}
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2D4A1F] text-[#F3EDE0] py-2 text-[10px] font-medium hover:bg-[#2D4A1F]/90 transition-colors"
             >
-              🔊 自分の発音を聞く
+              <VolumeIcon size={13} />
+              <span>自分の発音を聞く</span>
             </button>
           )}
         </div>
 
         {/* 三档场合卡片 */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-3 space-y-2">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-5 py-3 space-y-2">
           {loading ? (
             <div className="py-10 text-center">
               <p className="text-xs text-[#7A7060] animate-pulse">分析中…</p>
@@ -368,13 +431,12 @@ function FeedbackDrawer({
               };
               const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
               const analysisText = level.analysis.trim();
-              const analysisLineCount = analysisText.split(/\r?\n/).length;
-              const shouldCollapseAnalysis = analysisLineCount > 3 || analysisText.length > 180;
+              const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
 
               return (
-                <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-4 py-3.5">
+                <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3.5 sm:px-4 py-3.5">
                   <header className="flex items-center gap-2">
-                    <span className="text-xs">{meta.emoji}</span>
+                    <span className="h-8 w-1 shrink-0 rounded-full bg-[#C9A84C]/65" aria-hidden="true" />
                     <div className="flex-1 min-w-0">
                       <h3 className="text-[11px] font-semibold text-[#28231A]">{labels.label}</h3>
                       <p className="text-[8px] text-[#7A7060]/80">{labels.subtitle}</p>
@@ -383,15 +445,15 @@ function FeedbackDrawer({
                       type="button"
                       disabled={!!ttsLoadingKey}
                       onClick={() => playLevelSample(meta.key, level.nativeSay)}
-                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] text-[8px] font-medium text-[#2D4A1F] hover:border-[rgba(40,35,26,0.15)] disabled:opacity-40 transition-colors"
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] text-[8px] font-medium text-[#2D4A1F] hover:border-[rgba(40,35,26,0.15)] disabled:opacity-40 transition-colors whitespace-nowrap"
                       title="発音を聞く"
                     >
-                      {isTtsLoading ? <span className="animate-pulse">…</span> : <>🔊 聞く</>}
+                      {isTtsLoading ? <span className="animate-pulse">…</span> : <><VolumeIcon size={11} /> 聞く</>}
                     </button>
                   </header>
                   <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/50 px-3 py-2.5">
                     <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">おすすめ</span>
-                    <p className="mt-1 text-[13px] font-medium text-[#2D4A1F] leading-relaxed whitespace-pre-wrap">
+                    <p className="mt-1 text-[13px] font-medium text-[#2D4A1F] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {level.nativeSay}
                     </p>
                   </div>
@@ -402,15 +464,16 @@ function FeedbackDrawer({
                   )}
                   <div className="mt-2 px-1">
                     <p
-                      className={`text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap transition-all ${
-                        shouldCollapseAnalysis && !isExpanded
+                      ref={setAnalysisRef(meta.key)}
+                      className={`text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
+                        !isExpanded
                           ? "max-h-[4.875em] overflow-hidden"
                           : ""
                       }`}
                     >
                       {analysisText}
                     </p>
-                    {shouldCollapseAnalysis && (
+                    {hasOverflowingAnalysis && (
                       <button
                         type="button"
                         aria-expanded={isExpanded}
@@ -545,7 +608,11 @@ export function ChatBubble({
   }, [handleTextSelection]);
 
   const avatar = sender === "user"
-    ? <span className="text-lg">👤</span>
+    ? (
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8E0CE] text-[#7A7060]">
+        <UserIcon size={15} />
+      </span>
+    )
     : <img src={NPC_AVATARS[npcId]} alt="" className="w-8 h-8 rounded-full object-cover" />;
 
   return (
@@ -592,7 +659,8 @@ export function ChatBubble({
                   onClick={playStandardAudio}
                   className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
                 >
-                  ▶ 再生
+                  <VolumeIcon size={11} />
+                  <span>再生</span>
                 </button>
               )}
               {hasUserRecording && (
@@ -601,7 +669,8 @@ export function ChatBubble({
                   onClick={playUserAudio}
                   className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
                 >
-                  🔊 録音を聞く
+                  <VolumeIcon size={11} />
+                  <span>録音を聞く</span>
                 </button>
               )}
               {sender === "user" && (
@@ -612,7 +681,8 @@ export function ChatBubble({
                     drawerOpen ? "!opacity-100" : ""
                   }`}
                 >
-                  💡 提案
+                  <LightbulbIcon size={11} />
+                  <span>表現ヒント</span>
                 </button>
               )}
             </div>

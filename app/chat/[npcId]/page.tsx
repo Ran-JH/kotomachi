@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
+import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import {
   getLocalNPCMemories,
   getLastChatTime,
@@ -16,7 +17,7 @@ import {
   incrementConversationCount,
   type StoredMessage,
 } from "@/lib/memory";
-import { isNpcId, NPC_NAMES, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
+import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
 
 /* ============================================================
    Figma Design Tokens
@@ -59,12 +60,6 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
 ];
-
-function getInteractionStage(messageCount: number): number {
-  if (messageCount >= 12) return 2;
-  if (messageCount >= 5) return 1;
-  return 0;
-}
 
 function formatTimeDiff(lastTime: number): string | null {
   const diffMs = Date.now() - lastTime;
@@ -272,7 +267,7 @@ export default function ChatPage() {
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
 
-  const stage = getInteractionStage(messages.length);
+  const currentNpc = NPC_LIST.find((npc) => npc.id === npcId) ?? NPC_LIST[1];
   const renderSidebarContent = (closeOnNavigate = false) => {
     const handleNavigate = closeOnNavigate ? () => setIsSidebarOpen(false) : undefined;
 
@@ -298,14 +293,20 @@ export default function ChatPage() {
                 onClick={handleNavigate}
                 className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 ${
                   isActive
-                    ? "bg-[#253318] border-l-2 border-[#C9A84C]"
-                    : "border-l-2 border-transparent hover:bg-[#253318]/50 hover:border-[rgba(255,255,255,0.06)]"
+                    ? "bg-[#253318] border-l-2 border-[#C9A84C] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                    : "border-l-2 border-transparent hover:bg-[#253318]/45 hover:border-[rgba(255,255,255,0.08)]"
                 }`}
               >
-                <img src={NPC_AVATARS[npc.id]} alt={npc.name} className="w-9 h-9 rounded-full object-cover" />
+                <img
+                  src={NPC_AVATARS[npc.id]}
+                  alt={npc.name}
+                  className={`w-9 h-9 rounded-full object-cover transition-shadow ${
+                    isActive ? "ring-1 ring-[#C9A84C]/55" : "ring-1 ring-transparent"
+                  }`}
+                />
                 <div className="flex-1 min-w-0">
                   <span className={`text-xs block truncate ${isActive ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]"}`}>{npc.name}</span>
-                  <span className="text-[8px] text-[#D4C8A8]/40 block truncate">{npc.subname} · {npc.location}</span>
+                  <span className="text-[8px] text-[#D4C8A8]/40 block truncate">{npc.subname}・{npc.location}</span>
                 </div>
                 {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C]" />}
               </Link>
@@ -336,14 +337,14 @@ export default function ChatPage() {
         aria-hidden={!isSidebarOpen}
         tabIndex={isSidebarOpen ? 0 : -1}
         onClick={() => setIsSidebarOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/30 transition-opacity md:hidden ${
+        className={`fixed inset-0 z-40 bg-[#28231A]/25 transition-opacity duration-200 md:hidden ${
           isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       />
       <aside
         aria-label="NPC navigation"
         aria-hidden={!isSidebarOpen}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
           isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
@@ -364,19 +365,18 @@ export default function ChatPage() {
               type="button"
               aria-label="NPC メニューを開く"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8E0CE] text-sm text-[#28231A] transition-colors hover:bg-[#D8CFBC] md:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8E0CE] text-sm text-[#28231A] transition-colors hover:bg-[#D8CFBC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:hidden"
             >
-              ☰
+              <MenuIcon size={17} />
             </button>
-            <img src={NPC_AVATARS[npcId]} alt={NPC_NAMES[npcId]} className="w-9 h-9 rounded-full object-cover" />
+            <img src={NPC_AVATARS[npcId]} alt={currentNpc.name} className="w-9 h-9 rounded-full object-cover" />
             <div className="min-w-0">
-              <span className="font-medium text-sm text-[#28231A] block truncate">{NPC_NAMES[npcId]}</span>
-              <span className="text-[9px] text-[#7A7060]">
-                常時オンライン · {stage === 0 ? "文字モード" : stage === 1 ? "音声返信" : "音声会話"}
+              <span className="font-medium text-sm text-[#28231A] block truncate">{currentNpc.name}</span>
+              <span className="text-[9px] text-[#7A7060] block truncate">
+                {currentNpc.subname}・{currentNpc.location} · 文字モード
               </span>
             </div>
           </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
         </div>
 
         {apiError && (
@@ -385,7 +385,7 @@ export default function ChatPage() {
 
         {/* 聊天消息区域 — max-w-4xl 居中 */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-4 py-6 md:px-8 space-y-4">
+          <div className="max-w-4xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
             {messages.map((msg) => (
               <ChatBubble
                 key={msg.id}
@@ -410,7 +410,7 @@ export default function ChatPage() {
         </div>
 
         {/* 底部输入区域 */}
-        <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]">
+        <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/95">
           {voiceHint && (
             <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
@@ -418,14 +418,15 @@ export default function ChatPage() {
               </p>
             </div>
           )}
-          <div className="max-w-4xl mx-auto px-4 py-3 md:px-8 flex items-center gap-3">
+          <div className="max-w-4xl mx-auto px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-8 flex items-center gap-3">
             <button
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
-              className="w-9 h-9 shrink-0 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm transition-colors"
+              disabled={isTyping}
+              className="w-9 h-9 shrink-0 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm text-[#28231A] transition-colors disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
               title={inputMode === "text" ? "语音输入" : "文字输入"}
             >
-              {inputMode === "text" ? "🎙️" : "⌨️"}
+              {inputMode === "text" ? <MicIcon size={17} /> : <KeyboardIcon size={17} />}
             </button>
 
             {inputMode === "text" ? (
@@ -436,16 +437,16 @@ export default function ChatPage() {
                   onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="メッセージを入力…"
-                  className="min-w-0 flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm outline-none focus:border-[rgba(40,35,26,0.2)] placeholder:text-[#7A7060]/50 transition-colors"
+                  className="min-w-0 flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm outline-none focus:bg-[#F3EDE0] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                   disabled={isTyping}
                 />
                 <button
                   type="button"
                   onClick={handleSend}
                   disabled={isTyping || !inputText.trim()}
-                  className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:opacity-30"
+                  className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
                 >
-                  送信
+                  {isTyping ? "送信中…" : "送信"}
                 </button>
               </>
             ) : (
@@ -456,11 +457,13 @@ export default function ChatPage() {
                 onMouseLeave={isRecording ? stopRecording : undefined}
                 onTouchStart={(e) => { e.preventDefault(); void startRecording(); }}
                 onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all ${
-                  isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98]" : "bg-[#E8E0CE] text-[#28231A] active:bg-[#2D4A1F] active:text-[#F3EDE0]"
+                disabled={isTyping}
+                className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
+                  isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] active:bg-[#2D4A1F] active:text-[#F3EDE0]"
                 }`}
               >
-                {isRecording ? "話しています… 離して送信" : "長押しして話す"}
+                <MicIcon size={15} />
+                <span>{isRecording ? "話しています… 離して送信" : "長押しして話す"}</span>
               </button>
             )}
           </div>
