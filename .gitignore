@@ -35,6 +35,10 @@ yarn-error.log*
 .env.local
 .env*.local
 
+# private local notes
+docs/private/
+*.local.md
+ 
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -3,7 +3,9 @@
 ## 用途
 
 这份文档用于记录使用 Kotomachi / 言街 时观察到的真实或演练问题。
-它的作用不是写流水账，而是把模糊的体验感受转成可执行的迭代任务、prompt eval case 和面试叙事材料。
+它的作用不是写流水账，而是把模糊的体验感受转成可执行的迭代任务、prompt eval case 和公开项目复盘材料。
+
+在作品集阶段，这份日志也服务于 README 和公开项目说明：它为“如何发现问题、判断优先级、做产品取舍并验证修复”提供可追溯证据。
 
 不要记录真实用户隐私。如果某条记录来自测试场景，请明确标注为“示例”或“演练”。
 
@@ -23,7 +25,7 @@
 - Diagnosis / 诊断：
 - Fix / 修复：
 - Eval Case / 评估用例：
-- Interview Story / 面试叙事：
+- Public Note / 公开复盘：
 - 严重程度：Low / Medium / High
 - 状态：Open / Fixed / Needs eval / Won't fix
 ```
@@ -39,20 +41,20 @@
 - TTS / STT 失败时缺少温和降级。
 - LocalStorage 记忆显得错误、过旧或过强。
 - 移动端 / 窄屏布局难用。
-- 作品集或面试叙事缺少可讲的证据链。
+- 作品集复盘缺少可追溯的证据链。
 
 ## 工作流
 
 ```txt
-Observation -> Diagnosis -> Fix -> Eval Case -> Interview Story
-观察 -> 诊断 -> 修复 -> 评估用例 -> 面试叙事
+Observation -> Diagnosis -> Fix -> Eval Case -> Public Note
+观察 -> 诊断 -> 修复 -> 评估用例 -> 公开复盘
 ```
 
 - Observation：产品中实际发生了什么。
 - Diagnosis：为什么这是问题，责任属于哪一层。
 - Fix：最小可验证的产品或工程改动。
 - Eval Case：可复用的回归检查用例。
-- Interview Story：如何把这个判断讲成产品和工程能力。
+- Public Note：如何把这个判断沉淀成公开项目复盘材料。
 
 ## 示例条目
 
@@ -69,7 +71,7 @@ Observation -> Diagnosis -> Fix -> Eval Case -> Interview Story
 - Diagnosis / 诊断：聊天层和学习反馈层发生了泄漏。
 - Fix / 修复：`/api/chat` 只负责共情和接话；语言替换建议放到 `💡 提案`。
 - Eval Case / 评估用例：用户混合输入时，NPC 必须用纯日语自然回应，不出现中文、英文解释或纠错。
-- Interview Story / 面试叙事：我把社交聊天和学习反馈拆成两个交互层，让用户能持续输出而不被纠错打断。
+- Public Note / 公开复盘：这个 case 说明主聊天和学习反馈需要保持边界，避免输出被纠错打断。
 - 严重程度：High
 - 状态：示例
 
@@ -86,6 +88,6 @@ Observation -> Diagnosis -> Fix -> Eval Case -> Interview Story
 - Diagnosis / 诊断：反馈层应该先给可直接模仿的日语表达，再补充轻量解释。
 - Fix / 修复：让 `nativeSay` 成为卡片视觉重点，解释默认短一些，必要时折叠。
 - Eval Case / 评估用例：打开 `💡 提案` 后，用户应先看到三档推荐表达，而不是长段分析。
-- Interview Story / 面试叙事：我把反馈设计成低压力辅助层，而不是打分或批改面板。
+- Public Note / 公开复盘：这个 case 说明反馈面板应该优先给可模仿表达，而不是制造批改感。
 - 严重程度：Medium
 - 状态：示例
