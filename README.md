@@ -2,6 +2,94 @@
 
 低压力、日常日语会话练习空间 — 在安静的街角，和邻居们慢慢说日语。
 
+Kotomachi / 言街 是一个 AI-native 日语口语练习产品。它把温和的 NPC 日常聊天和可选的学习反馈分成两个层，让用户可以先安心开口，而不是一说错就被主聊天流打断纠正。
+
+## 在线 Demo
+
+- Live Demo：`<Vercel URL>`
+
+## 作品集概览
+
+### 核心功能
+
+- 街角地图首页，包含咖啡馆、便利店、居酒屋三个可点击 NPC 入口。
+- 三位 NPC 的 LINE 风格聊天：美咲、木村、大将。
+- 支持用户使用中文、英文、日语或混合语言输入。
+- 主聊天中 NPC 始终用自然日语回应。
+- NPC 回复和提案例句支持 TTS 播放。
+- 支持 STT 语音输入，并对未识别到语音的情况做温和降级。
+- `💡 提案` 面板提供カジュアル / ふつう / フォーマル三档表达建议。
+- 支持划词查词浮窗。
+- 基于 LocalStorage 的轻量记忆、熟悉度和聊天记录。
+- 根据历史对话生成冷启动欢迎语。
+- DeepSeek / 火山方舟 LLM fallback，以及火山 TTS / Edge-TTS 语音 fallback。
+
+### 产品设计原则
+
+- 低压力口语输出优先。
+- NPC 聊天层和学习反馈层分离。
+- NPC 负责接话和延续对话，不在主聊天中主动纠错。
+- 用户可以输入中文、英文、日语或混合语言。
+- 主聊天中的 NPC 回复保持自然日语。
+- 学习建议只出现在可选辅助层，例如 `💡 提案`、划词查词和未来的总结卡。
+
+### 技术栈
+
+- Next.js App Router
+- React
+- TypeScript
+- Tailwind CSS
+- LocalStorage 轻量记忆与状态
+- Vercel 部署
+
+### AI 架构
+
+- LLM：DeepSeek 作为主对话模型，火山方舟作为 fallback。
+- TTS：火山 TTS 作为主语音服务，Edge-TTS 作为 fallback。
+- STT：火山 ASR 用于语音输入。
+- Feedback：生成カジュアル / ふつう / フォーマル三档结构化表达建议。
+- Explain：为划词内容提供读音、释义、整句含义和语感解释。
+- Memory：轻量事实提取 + 按 NPC 区分的 LocalStorage 记忆。
+- Welcome：用户隔一段时间回来时，根据历史对话生成冷启动欢迎语。
+
+### 截图
+
+- Homepage：TODO
+- Chat：TODO
+- Feedback suggestions：TODO
+- Word explanation：TODO
+
+### 本地运行
+
+```powershell
+npm install
+copy .env.example .env.local
+npm run dev
+```
+
+打开 [http://localhost:3000](http://localhost:3000)。
+
+不要提交 `.env.local`。本地 secrets 放在 `.env.local`，线上 secrets 配在 Vercel Environment Variables。
+
+### 当前限制
+
+- 暂不引入数据库或 Auth，当前状态有意保持轻量和本地化。
+- 暂不支持 WebRTC 实时语音通话。
+- 暂不引入 Live2D / 虚拟人层。
+- 暂不做发音打分。
+- 暂不引入复杂 RAG 或向量数据库。
+- 移动端适配仍在逐步完善。
+- Prompt 行为目前主要通过手动 case 和 experience log 评估，还不是完整自动化 eval suite。
+
+### Roadmap
+
+- 完善移动端和窄屏适配。
+- 增加轻量练习总结卡。
+- 扩充 prompt eval cases。
+- 继续降低 `💡 提案` 面板的信息密度。
+- 将较大的聊天页和气泡组件逐步拆成更小的组件 / hooks。
+- 基于 experience log 整理更清楚的作品集和面试叙事。
+
 ## 核心产品决策
 
 ### 多语言输入

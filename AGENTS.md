@@ -32,13 +32,35 @@ Core product layers:
 - This project is developed on Windows.
 - Use PowerShell syntax for commands.
 - Do not use `&&`; use `;` for command sequencing.
-- Do not default to running `npm run build`.
+- 当前 Windows Codex 环境中，不运行 `npm run build`。
 - Do not run long commands unless the user explicitly asks.
 - If a command may take a long time, ask first or provide the exact command for the user to run manually.
 - If a command hangs, report it as a possible execution-environment or subprocess-management issue; do not directly infer that the code is broken.
 - Avoid touching `.env.local` or printing secrets.
 - Do not introduce new dependencies unless the task explicitly requires them.
 - Prefer read-only inspection before making changes.
+
+## 当前 Codex 执行限制
+
+- 除非用户给出非常明确的单次授权，否则 Codex 不在本项目中执行 Git 写操作：
+  - `git checkout`
+  - `git switch`
+  - `git branch`
+  - `git add`
+  - `git commit`
+  - `git push`
+  - `git reset`
+  - `git clean`
+- Codex 可以：
+  - 修改用户明确要求修改的文件；
+  - 运行只读搜索和检查命令；
+  - 运行 `git status --short`；
+  - 运行 `git diff`；
+  - 汇报修改内容；
+  - 给出用户可在本机运行的验证命令。
+- build、commit、push 通常由用户通过 GitHub Desktop、Trae 或本机终端完成。
+- 不修改 `.env.local`。
+- 不输出 secrets、access token、API key、Authorization header 或真实环境变量值。
 
 ## Coding Policy
 
