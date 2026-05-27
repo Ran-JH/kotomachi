@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
+import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
 import {
   getLocalNPCMemories,
   getLastChatTime,
@@ -18,6 +19,17 @@ import {
   type StoredMessage,
 } from "@/lib/memory";
 import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
+import {
+  createSummaryId,
+  deleteSummaryCard,
+  loadRecentExpressionHints,
+  loadRecentLookups,
+  loadSummaryCards,
+  saveSummaryCard,
+  type SessionSummaryApiCard,
+  type SessionSummaryCard,
+  type SessionSummaryMessage,
+} from "@/lib/session-summary";
 
 /* ============================================================
    Figma Design Tokens
@@ -61,6 +73,22 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
 ];
 
+function formatSummaryDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(date);
+}
+
+function getUpgradeSourceLabel(source: string): string {
+  if (source === "expression_hint") return "前に見たヒントから";
+  if (source === "non_japanese_span") return "入力から";
+  return "会話から";
+}
+
+function getWordSourceLabel(source: string): string {
+  return source === "looked_up" ? "調べたことば" : "会話から";
+}
+
 function formatTimeDiff(lastTime: number): string | null {
   const diffMs = Date.now() - lastTime;
   const diffHours = diffMs / (1000 * 60 * 60);
@@ -84,6 +112,10 @@ export default function ChatPage() {
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [summaryCards, setSummaryCards] = useState<SessionSummaryCard[]>([]);
+  const [selectedSummaryCard, setSelectedSummaryCard] = useState<SessionSummaryCard | null>(null);
+  const [isSummaryGenerating, setIsSummaryGenerating] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -114,6 +146,9 @@ export default function ChatPage() {
 
   useEffect(() => {
     welcomeTriggeredRef.current = false;
+    setSummaryCards(loadSummaryCards(npcId));
+    setSelectedSummaryCard(null);
+    setSummaryError(null);
     const storedMemories = getLocalNPCMemories(npcId);
     setMemories(storedMemories);
     const history = loadChatHistory(npcId);
@@ -268,6 +303,185 @@ export default function ChatPage() {
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
 
   const currentNpc = NPC_LIST.find((npc) => npc.id === npcId) ?? NPC_LIST[1];
+  const userMessageCount = messages.filter((message) => message.sender === "user").length;
+  const canCreateSummary = userMessageCount >= 2 && !isSummaryGenerating;
+
+  const handleOpenSummaryCard = (card: SessionSummaryCard, closeDrawer = false) => {
+    setSelectedSummaryCard(card);
+    setSummaryError(null);
+    if (closeDrawer) setIsSidebarOpen(false);
+  };
+
+  const handleDeleteSummaryCard = (cardId: string) => {
+    deleteSummaryCard(cardId);
+    setSummaryCards(loadSummaryCards(npcId));
+    setSelectedSummaryCard(null);
+  };
+
+  const buildSummaryCard = (apiCard: SessionSummaryApiCard): SessionSummaryCard => ({
+    schemaVersion: 1,
+    id: createSummaryId("summary"),
+    createdAt: new Date().toISOString(),
+    npcId,
+    title: apiCard.title,
+    topicSummary: apiCard.topicSummary,
+    reusableExpressions: apiCard.reusableExpressions ?? [],
+    expressionUpgrades: apiCard.expressionUpgrades ?? [],
+    reviewWords: apiCard.reviewWords ?? [],
+    nextTalkPrompt: apiCard.nextTalkPrompt,
+  });
+
+  const handleCreateSummary = async () => {
+    if (!canCreateSummary) return;
+    setIsSummaryGenerating(true);
+    setSummaryError(null);
+
+    const recentMessages: SessionSummaryMessage[] = messages
+      .filter((message) => message.sender === "user" || message.sender === "assistant")
+      .slice(-16)
+      .map((message) => ({
+        id: message.id,
+        role: message.sender,
+        content: message.text,
+      }));
+
+    const userMessages = messages
+      .filter((message) => message.sender === "user")
+      .slice(-10)
+      .map((message) => ({ id: message.id, text: message.text }));
+
+    try {
+      const res = await fetch("/api/session-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schemaVersion: 1,
+          npcId,
+          messages: recentMessages,
+          recentLookups: loadRecentLookups(npcId, 5),
+          recentExpressionHints: loadRecentExpressionHints(npcId, 5),
+          nonJapaneseSpans: detectNonJapaneseSpans(userMessages),
+        }),
+      });
+      const data = (await res.json()) as { card?: SessionSummaryApiCard; error?: string };
+      if (!res.ok || !data.card) {
+        throw new Error(data.error ?? "ふりかえりを作れませんでした。");
+      }
+      const card = buildSummaryCard(data.card);
+      saveSummaryCard(card);
+      setSummaryCards(loadSummaryCards(npcId));
+      setSelectedSummaryCard(card);
+      setIsSidebarOpen(false);
+    } catch (error) {
+      setSummaryError(error instanceof Error ? error.message : "ふりかえりを作れませんでした。");
+    } finally {
+      setIsSummaryGenerating(false);
+    }
+  };
+
+  const renderSummaryDetail = () => {
+    if (!selectedSummaryCard) return null;
+    const card = selectedSummaryCard;
+
+    return (
+      <div className="fixed inset-0 z-30 flex justify-end">
+        <button
+          type="button"
+          aria-label="ふりかえりを閉じる"
+          className="absolute inset-0 bg-[#28231A]/10"
+          onClick={() => setSelectedSummaryCard(null)}
+        />
+        <aside className="relative flex h-full w-full max-w-md flex-col bg-[#F3EDE0] border-l border-[rgba(40,35,26,0.08)] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
+          <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-4">
+            <button
+              type="button"
+              onClick={() => setSelectedSummaryCard(null)}
+              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-xs text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+              aria-label="閉じる"
+            >
+              ✕
+            </button>
+            <p className="text-[9px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · ふりかえり</p>
+            <h2 className="mt-1 pr-8 text-sm font-medium text-[#28231A]">{card.title}</h2>
+          </header>
+
+          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 text-[#28231A]">
+            <section>
+              <h3 className="text-[10px] font-semibold text-[#2D4A1F]">今日の話</h3>
+              <p className="mt-1 text-xs leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
+            </section>
+
+            {card.reusableExpressions.length > 0 && (
+              <section>
+                <h3 className="text-[10px] font-semibold text-[#2D4A1F]">そのまま使える表現</h3>
+                <div className="mt-2 space-y-2">
+                  {card.reusableExpressions.map((item, index) => (
+                    <div key={`${item.expression}-${index}`} className="rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-3 py-2">
+                      <p className="text-xs font-medium text-[#28231A]">{item.expression}</p>
+                      {item.note && <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{item.note}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {card.expressionUpgrades.length > 0 && (
+              <section>
+                <h3 className="text-[10px] font-semibold text-[#2D4A1F]">次はこう言える</h3>
+                <div className="mt-2 space-y-2">
+                  {card.expressionUpgrades.map((item, index) => (
+                    <div key={`${item.original}-${index}`} className="rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-3 py-2">
+                      <p className="text-[9px] text-[#7A7060]">{getUpgradeSourceLabel(item.source)}</p>
+                      <p className="mt-1 text-[10px] text-[#7A7060] line-through decoration-[#C9A84C]/50">{item.original}</p>
+                      <p className="mt-1 text-xs font-medium text-[#2D4A1F]">{item.suggestion}</p>
+                      {item.note && <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{item.note}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {card.reviewWords.length > 0 && (
+              <section>
+                <h3 className="text-[10px] font-semibold text-[#2D4A1F]">今日のことば</h3>
+                <div className="mt-2 space-y-2">
+                  {card.reviewWords.map((item, index) => (
+                    <div key={`${item.word}-${index}`} className="rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-3 py-2">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-xs font-medium text-[#28231A]">{item.word}</p>
+                        <span className="shrink-0 text-[8px] text-[#C9A84C]">{getWordSourceLabel(item.source)}</span>
+                      </div>
+                      {item.reading && <p className="mt-0.5 text-[9px] text-[#7A7060]">{item.reading}</p>}
+                      <p className="mt-1 text-[10px] leading-relaxed text-[#4A4438]">{item.meaning}</p>
+                      {item.example && <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{item.example}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {card.nextTalkPrompt && (
+              <section className="rounded-xl bg-[#E8E0CE]/65 px-3 py-3">
+                <h3 className="text-[10px] font-semibold text-[#2D4A1F]">次に話してみること</h3>
+                <p className="mt-1 text-xs leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
+              </section>
+            )}
+          </div>
+
+          <footer className="shrink-0 border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={() => handleDeleteSummaryCard(card.id)}
+              className="text-[10px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
+            >
+              このカードを削除
+            </button>
+          </footer>
+        </aside>
+      </div>
+    );
+  };
+
   const renderSidebarContent = (closeOnNavigate = false) => {
     const handleNavigate = closeOnNavigate ? () => setIsSidebarOpen(false) : undefined;
 
@@ -313,6 +527,49 @@ export default function ChatPage() {
             );
           })}
         </nav>
+
+        <section className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-[10px] font-medium tracking-wide text-[#D4C8A8]">ふりかえり</h2>
+          </div>
+          <button
+            type="button"
+            disabled={!canCreateSummary}
+            onClick={handleCreateSummary}
+            className="w-full rounded-lg bg-[#C9A84C]/90 px-3 py-2 text-[10px] font-medium text-[#1E2A16] transition-colors hover:bg-[#C9A84C] disabled:cursor-not-allowed disabled:bg-[rgba(255,255,255,0.05)] disabled:text-[#D4C8A8]/35"
+          >
+            {isSummaryGenerating ? "作っています…" : "今の会話から作る"}
+          </button>
+          {userMessageCount < 2 && (
+            <p className="mt-2 text-[8px] leading-relaxed text-[#D4C8A8]/40">
+              もう少し話すと、ふりかえりを作れます。
+            </p>
+          )}
+          {summaryError && (
+            <p className="mt-2 text-[8px] leading-relaxed text-[#C9A84C]/80">
+              {summaryError}
+            </p>
+          )}
+          <div className="mt-3 space-y-1.5">
+            {summaryCards.slice(0, 5).length > 0 ? (
+              summaryCards.slice(0, 5).map((card) => (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => handleOpenSummaryCard(card, closeOnNavigate)}
+                  className="w-full rounded-lg border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-left transition-colors hover:bg-[rgba(255,255,255,0.07)]"
+                >
+                  <span className="block truncate text-[9px] text-[#D4C8A8]">{card.title}</span>
+                  <span className="mt-0.5 block text-[8px] text-[#D4C8A8]/40">{formatSummaryDate(card.createdAt)}</span>
+                </button>
+              ))
+            ) : (
+              <p className="text-[8px] leading-relaxed text-[#D4C8A8]/35">
+                会話のあとに、ここへふりかえりが残ります。
+              </p>
+            )}
+          </div>
+        </section>
 
         {/* 底部返回 */}
         <div className="p-3 border-t border-[rgba(255,255,255,0.06)]">
@@ -389,6 +646,7 @@ export default function ChatPage() {
             {messages.map((msg) => (
               <ChatBubble
                 key={msg.id}
+                messageId={msg.id}
                 sender={msg.sender}
                 text={msg.text}
                 npcId={npcId}
@@ -469,6 +727,7 @@ export default function ChatPage() {
           </div>
         </div>
       </main>
+      {renderSummaryDetail()}
     </div>
   );
 }

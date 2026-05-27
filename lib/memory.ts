@@ -5,35 +5,9 @@ const MIGRATION_DONE_KEY = "kotomachi_migration_done";
 const NPC_IDS = ["kimura", "misaki", "taisho"];
 const KEY_SUFFIXES = ["facts", "last_time", "history", "count"];
 
-function safeSetItem(key: string, value: string): boolean {
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch (error) {
-    console.warn("[memory] localStorage write failed", {
-      key,
-      reason: error instanceof Error ? error.name : "unknown",
-    });
-    return false;
-  }
-}
-
-function safeRemoveItem(key: string): void {
-  try {
-    localStorage.removeItem(key);
-  } catch (error) {
-    console.warn("[memory] localStorage cleanup failed", {
-      key,
-      reason: error instanceof Error ? error.name : "unknown",
-    });
-  }
-}
-
 function migrateOldKeys(): void {
   if (typeof window === "undefined") return;
   if (localStorage.getItem(MIGRATION_DONE_KEY)) return;
-
-  let migrationCompleted = true;
 
   for (const npcId of NPC_IDS) {
     for (const suffix of KEY_SUFFIXES) {
@@ -41,17 +15,12 @@ function migrateOldKeys(): void {
       const newKey = `kotomachi_${suffix}_${npcId}`;
       const value = localStorage.getItem(oldKey);
       if (value !== null) {
-        if (safeSetItem(newKey, value)) {
-          safeRemoveItem(oldKey);
-        } else {
-          migrationCompleted = false;
-        }
+        localStorage.setItem(newKey, value);
+        localStorage.removeItem(oldKey);
       }
     }
   }
-  if (migrationCompleted) {
-    safeSetItem(MIGRATION_DONE_KEY, "1");
-  }
+  localStorage.setItem(MIGRATION_DONE_KEY, "1");
 }
 
 // 模块加载时自动执行迁移
@@ -74,13 +43,13 @@ export function saveLocalNPCMemory(npcId: string, fact: string): void {
   const current = getLocalNPCMemories(npcId);
   if (current.includes(fact)) return;
   const next = [...current, fact].slice(-MAX_MEMORIES);
-  safeSetItem(`kotomachi_facts_${npcId}`, JSON.stringify(next));
+  localStorage.setItem(`kotomachi_facts_${npcId}`, JSON.stringify(next));
 }
 
 /** 批量覆盖事实数组（由 welcome API 返回的合并结果直接写入） */
 export function saveLocalNPCFacts(npcId: string, facts: string[]): void {
   if (typeof window === "undefined") return;
-  safeSetItem(
+  localStorage.setItem(
     `kotomachi_facts_${npcId}`,
     JSON.stringify(facts.slice(0, MAX_MEMORIES))
   );
@@ -98,7 +67,7 @@ export function getLastChatTime(npcId: string): number | null {
 /** 将当前时间戳写入，标记"最后一次聊天" */
 export function saveLastChatTime(npcId: string): void {
   if (typeof window === "undefined") return;
-  safeSetItem(`kotomachi_last_time_${npcId}`, String(Date.now()));
+  localStorage.setItem(`kotomachi_last_time_${npcId}`, String(Date.now()));
 }
 
 export function getChatHistoryKey(npcId: string): string {
@@ -125,7 +94,7 @@ export function loadChatHistory(npcId: string): StoredMessage[] {
 export function saveChatHistory(npcId: string, history: StoredMessage[]): void {
   if (typeof window === "undefined") return;
   const trimmed = history.slice(-20);
-  safeSetItem(getChatHistoryKey(npcId), JSON.stringify(trimmed));
+  localStorage.setItem(getChatHistoryKey(npcId), JSON.stringify(trimmed));
 }
 
 /** 读取与某 NPC 的对话次数（轻量熟悉度指标） */
@@ -141,5 +110,5 @@ export function getConversationCount(npcId: string): number {
 export function incrementConversationCount(npcId: string): void {
   if (typeof window === "undefined") return;
   const current = getConversationCount(npcId);
-  safeSetItem(`kotomachi_count_${npcId}`, String(current + 1));
+  localStorage.setItem(`kotomachi_count_${npcId}`, String(current + 1));
 }

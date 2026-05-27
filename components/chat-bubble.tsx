@@ -8,6 +8,13 @@ import {
   type FeedbackResponse,
 } from "@/lib/feedback-types";
 import { NPC_AVATARS, type NpcId } from "@/lib/npc";
+import {
+  createSummaryId,
+  markExpressionHintPlayed,
+  saveExpressionHintRecord,
+  saveLookupHistory,
+  type ExpressionHintStyle,
+} from "@/lib/session-summary";
 import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
 
 /* ============================================================
@@ -32,6 +39,7 @@ import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
    ============================================================ */
 
 interface ChatBubbleProps {
+  messageId: string;
   sender: "user" | "assistant";
   text: string;
   npcId: NpcId;
@@ -79,6 +87,8 @@ interface ExplainResult {
 }
 
 interface WordPopoverProps {
+  npcId: NpcId;
+  messageId: string;
   selectedText: string;
   fullSentence: string;
   anchorRect: DOMRect;
@@ -90,7 +100,7 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPopoverProps) {
+function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect, onClose }: WordPopoverProps) {
   const [data, setData] = useState<ExplainResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -108,7 +118,20 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
         });
         if (!res.ok) throw new Error("explain failed");
         const json = (await res.json()) as ExplainResult;
-        if (!cancelled) setData(json);
+        if (!cancelled) {
+          setData(json);
+          saveLookupHistory({
+            schemaVersion: 1,
+            id: createSummaryId("lookup"),
+            npcId,
+            word: selectedText,
+            reading: json.pronunciation,
+            meaning: json.translation,
+            sourceSentence: fullSentence,
+            messageId,
+            createdAt: new Date().toISOString(),
+          });
+        }
       } catch {
         if (!cancelled) {
           setData({
@@ -124,7 +147,7 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
     };
     void fetchExplain();
     return () => { cancelled = true; };
-  }, [selectedText, fullSentence]);
+  }, [fullSentence, messageId, npcId, selectedText]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -202,7 +225,7 @@ function WordPopover({ selectedText, fullSentence, anchorRect, onClose }: WordPo
                     <span className="text-[9px] text-[#7A7060]">{data.pronunciation}</span>
                     <button
                       type="button"
-                      onClick={() => { void fetchAndPlayTts(selectedText, "misaki"); }}
+                      onClick={() => { void fetchAndPlayTts(selectedText, npcId); }}
                       className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060] hover:bg-[#E8E0CE]/80 hover:text-[#2D4A1F] transition-colors"
                       title="発音を聞く"
                     >
@@ -283,10 +306,11 @@ interface FeedbackDrawerProps {
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   onClose: () => void;
+  onSuggestionPlayed?: (key: FeedbackLevelKey) => void;
 }
 
 function FeedbackDrawer({
-  open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, onClose,
+  open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, onClose, onSuggestionPlayed,
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
   const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
@@ -324,6 +348,7 @@ function FeedbackDrawer({
 
   const playLevelSample = async (key: FeedbackLevelKey, nativeSay: string) => {
     if (ttsLoadingKey) return;
+    onSuggestionPlayed?.(key);
     const sampleText = nativeSay.trim();
     if (!sampleText) {
       setTtsErrorKey(key);
@@ -500,14 +525,19 @@ function FeedbackDrawer({
    ChatBubble 主组件
    ============================================================ */
 
+function mapFeedbackKeyToStyle(key: FeedbackLevelKey): ExpressionHintStyle {
+  return key === "business" ? "normal" : key;
+}
+
 export function ChatBubble({
-  sender, text, npcId, userAudioBlob, userAudioUrl, npcAudioUrl, onPlayNpcAudio, isVoiceMessage,
+  messageId, sender, text, npcId, userAudioBlob, userAudioUrl, npcAudioUrl, onPlayNpcAudio, isVoiceMessage,
 }: ChatBubbleProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [userAudioError, setUserAudioError] = useState(false);
+  const [feedbackRecordId, setFeedbackRecordId] = useState<string | null>(null);
 
   const [popover, setPopover] = useState<{
     selectedText: string; fullSentence: string; anchorRect: DOMRect;
@@ -518,6 +548,32 @@ export function ChatBubble({
   const userTempAudioUrlRef = useRef<string | null>(null);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const hasUserRecording = sender === "user" && Boolean(userAudioUrl || userAudioBlob);
+
+  const recordExpressionHintOpened = useCallback((nextFeedback: FeedbackResponse): string => {
+    const id = feedbackRecordId ?? createSummaryId("hint");
+    saveExpressionHintRecord({
+      schemaVersion: 1,
+      id,
+      userMessageId: messageId,
+      npcId,
+      originalText: text,
+      suggestions: {
+        casual: nextFeedback.casual.nativeSay,
+        normal: nextFeedback.business.nativeSay,
+        formal: nextFeedback.formal.nativeSay,
+      },
+      openedAt: new Date().toISOString(),
+      playedStyles: [],
+    });
+    setFeedbackRecordId(id);
+    return id;
+  }, [feedbackRecordId, messageId, npcId, text]);
+
+  const recordSuggestionPlayed = useCallback((key: FeedbackLevelKey) => {
+    if (feedbackRecordId) {
+      markExpressionHintPlayed(feedbackRecordId, mapFeedbackKeyToStyle(key));
+    }
+  }, [feedbackRecordId]);
 
   const revokeUserTempAudioUrl = useCallback(() => {
     if (!userTempAudioUrlRef.current) return;
@@ -542,7 +598,10 @@ export function ChatBubble({
   const handleOpenFeedback = async () => {
     if (drawerOpen) { closeDrawer(); return; }
     setDrawerOpen(true);
-    if (feedback) return;
+    if (feedback) {
+      if (!feedbackRecordId) recordExpressionHintOpened(feedback);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/feedback", {
@@ -550,14 +609,18 @@ export function ChatBubble({
         body: JSON.stringify({ userText: text }),
       });
       if (!res.ok) throw new Error("feedback failed");
-      setFeedback((await res.json()) as FeedbackResponse);
+      const nextFeedback = (await res.json()) as FeedbackResponse;
+      setFeedback(nextFeedback);
+      recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
-      setFeedback({
+      const fallbackFeedback: FeedbackResponse = {
         casual: { nativeSay: text, analysis: "【カジュアル】友達との会話にはこんな言い方もあります。" },
         business: { nativeSay: text, analysis: "【ふつう】普段の会話に適した言い方です。" },
         formal: { nativeSay: text, analysis: "【フォーマル】より丁寧な言い方をするとこうなります。" },
-      });
+      };
+      setFeedback(fallbackFeedback);
+      recordExpressionHintOpened(fallbackFeedback);
     } finally { setLoading(false); }
   };
 
@@ -697,6 +760,8 @@ export function ChatBubble({
 
       {popover && (
         <WordPopover
+          npcId={npcId}
+          messageId={messageId}
           selectedText={popover.selectedText}
           fullSentence={popover.fullSentence}
           anchorRect={popover.anchorRect}
@@ -707,6 +772,7 @@ export function ChatBubble({
       <FeedbackDrawer
         open={drawerOpen} loading={loading} userText={text} feedback={feedback}
         npcId={npcId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} onClose={closeDrawer}
+        onSuggestionPlayed={recordSuggestionPlayed}
       />
     </>
   );

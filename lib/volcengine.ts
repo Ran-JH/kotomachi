@@ -4,22 +4,6 @@ import type { NpcId } from "@/lib/npc";
 const TTS_URL = "https://openspeech.bytedance.com/api/v1/tts";
 const ASR_FLASH_URL =
   "https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash";
-const VOLC_TTS_TIMEOUT_MS = 15000;
-const VOLC_STT_TIMEOUT_MS = 20000;
-
-async function fetchWithTimeout(
-  input: string,
-  init: RequestInit,
-  timeoutMs: number
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
 
 export function isVolcSpeechConfigured(): boolean {
   const appId = process.env.VOLCENGINE_SPEECH_APP_ID;
@@ -107,6 +91,7 @@ export class VolcTtsError extends Error {
       volcMessage?: string;
       reqid: string;
       voiceType: string;
+      rawBody?: unknown;
     }
   ) {
     super(message);
@@ -152,37 +137,30 @@ export async function synthesizeVolcTts(
     npcId,
     voiceType,
     cluster,
+    appId,
     textLength: text.length,
-    timeoutMs: VOLC_TTS_TIMEOUT_MS,
+    tokenPrefix: token.slice(0, 6) + "***",
   });
 
   let res: Response;
   let rawText: string;
 
   try {
-    res = await fetchWithTimeout(
-      TTS_URL,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer;${token}`,
-        },
-        body: JSON.stringify(body),
+    res = await fetch(TTS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer;${token}`,
       },
-      VOLC_TTS_TIMEOUT_MS
-    );
+      body: JSON.stringify(body),
+    });
     rawText = await res.text();
   } catch (networkErr) {
-    const message =
-      networkErr instanceof Error ? networkErr.message : String(networkErr);
-    console.error("[Volc TTS] fetch 网络异常（无法连接火山）:", {
-      reqid,
-      npcId,
-      voiceType,
-      timeoutMs: VOLC_TTS_TIMEOUT_MS,
-      message,
-    });
+    console.error("[Volc TTS] fetch 网络异常（无法连接火山）:", networkErr);
+    if (networkErr instanceof Error) {
+      console.error("[Volc TTS] 网络错误 message:", networkErr.message);
+      console.error("[Volc TTS] 网络错误 stack:", networkErr.stack);
+    }
     throw networkErr;
   }
 
@@ -198,17 +176,17 @@ export async function synthesizeVolcTts(
   try {
     data = JSON.parse(rawText) as typeof data;
   } catch (parseErr) {
-    const parseMessage =
-      parseErr instanceof Error ? parseErr.message : String(parseErr);
     console.error("[Volc TTS] 响应不是合法 JSON", {
       httpStatus: res.status,
       httpStatusText: res.statusText,
-      parseMessage,
+      rawTextPreview: rawText.slice(0, 500),
+      parseErr,
     });
     throw new VolcTtsError(`火山 TTS 返回非 JSON (HTTP ${res.status})`, {
       httpStatus: res.status,
       reqid,
       voiceType,
+      rawBody: rawText.slice(0, 500),
     });
   }
 
@@ -228,6 +206,7 @@ export async function synthesizeVolcTts(
       volcOperation: data.operation,
       voiceType,
       cluster,
+      appId,
       hint:
         data.message?.includes("grant not found") ||
         data.message?.includes("authenticate") ||
@@ -240,12 +219,15 @@ export async function synthesizeVolcTts(
               ? "未开通音色：控制台对 BV702/BV524 等音色下单（0元）"
               : "见上方 volcMessage",
     });
+    console.error("[Volc TTS] 完整响应 body:", JSON.stringify(data, null, 2));
+
     throw new VolcTtsError(errMsg, {
       httpStatus: res.status,
       code: data.code,
       volcMessage: data.message,
       reqid: data.reqid ?? reqid,
       voiceType,
+      rawBody: data,
     });
   }
 
@@ -347,15 +329,11 @@ async function transcribeVolcFlashOnce(
     requestId,
   });
 
-  const res = await fetchWithTimeout(
-    ASR_FLASH_URL,
-    {
-      method: "POST",
-      headers: getAsrHeaders(requestId),
-      body: JSON.stringify(body),
-    },
-    VOLC_STT_TIMEOUT_MS
-  );
+  const res = await fetch(ASR_FLASH_URL, {
+    method: "POST",
+    headers: getAsrHeaders(requestId),
+    body: JSON.stringify(body),
+  });
 
   const statusCode = res.headers.get("X-Api-Status-Code");
   const statusMessage = res.headers.get("X-Api-Message");
@@ -398,8 +376,6 @@ export async function transcribeVolcFlash(
     allowed: STT_ALLOWED_LANGUAGES,
     priority,
     mimeType,
-    bytes: audioBytes.length,
-    timeoutMs: VOLC_STT_TIMEOUT_MS,
   });
 
   for (const langShort of priority) {
@@ -413,6 +389,7 @@ export async function transcribeVolcFlash(
         console.log("[Volc STT] 识别成功", {
           langShort,
           volcLanguage: result.volcLanguage,
+          textPreview: result.text.slice(0, 50),
         });
         return postProcessSttText(result.text);
       }
