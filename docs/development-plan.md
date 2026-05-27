@@ -600,6 +600,8 @@ Drawer 内容结构：
 
 ## C1. 练习总结卡片
 
+详细规格见 [`docs/session-summary-spec.md`](session-summary-spec.md)。后续实现时以该文档中的 `ふりかえり / Session Summary Card` 范围、数据模型和验收标准为准。
+
 ### 目标
 
 让用户每次练习结束后感到“我完成了一次练习，并且学到了一点东西”。
