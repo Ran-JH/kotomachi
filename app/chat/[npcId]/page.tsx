@@ -100,7 +100,10 @@ export default function ChatPage() {
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
-  useEffect(() => { return () => { userAudioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url)); }; }, []);
+  useEffect(() => {
+    const audioUrls = userAudioUrlsRef.current;
+    return () => { audioUrls.forEach((url) => URL.revokeObjectURL(url)); };
+  }, []);
   useEffect(() => {
     return () => {
       if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
