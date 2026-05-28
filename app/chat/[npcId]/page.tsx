@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatSummaryDetail } from "@/components/chat-summary-detail";
-import { ChatSummaryList } from "@/components/chat-summary-list";
 import { ChatToast } from "@/components/chat-toast";
 import { TimeDivider, shouldShowTimeDivider } from "@/components/chat-time-divider";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -672,11 +671,18 @@ export default function ChatPage() {
   );
   const renderSidebarContent = (closeOnNavigate = false) => {
     const handleNavigate = closeOnNavigate ? () => setIsSidebarOpen(false) : undefined;
+    const formatSidebarDate = (value: string) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return new Intl.DateTimeFormat(uiLanguage === "zh" ? "zh-CN" : "en-US", {
+        month: "numeric",
+        day: "numeric",
+      }).format(date);
+    };
 
     return (
       <>
-        {/* 品牌标题 */}
-        <div className="px-5 pt-6 pb-4 border-b border-[rgba(255,255,255,0.06)]">
+        <div className="px-5 pt-5 pb-3 border-b border-[rgba(255,255,255,0.06)]">
           <Link href="/" className="group" onClick={handleNavigate}>
             <h1 className="font-brand text-base font-light tracking-widest text-[#D4C8A8] group-hover:text-[#C9A84C] transition-colors">
               言街 Kotomachi
@@ -686,84 +692,103 @@ export default function ChatPage() {
             language={uiLanguage}
             onChange={handleLanguageChange}
             variant="dark"
-            className="mt-3"
+            className="mt-2.5"
           />
         </div>
 
-        {/* NPC 列表 */}
-        <nav className="flex-1 py-3 space-y-0.5 overflow-y-auto">
-          <h2 className="px-5 pb-2 text-[10px] font-semibold tracking-wide text-[#D4C8A8]/60">
-            {copy.sidebar.residents}
-          </h2>
-          {NPC_LIST.map((npc) => {
-            const isActive = npc.id === npcId;
-            return (
-              <Link
-                key={npc.id}
-                href={`/chat/${npc.id}`}
-                onClick={handleNavigate}
-                className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 ${
-                  isActive
-                    ? "bg-[#253318] border-l-2 border-[#C9A84C] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-                    : "border-l-2 border-transparent hover:bg-[#253318]/45 hover:border-[rgba(255,255,255,0.08)]"
-                }`}
-              >
-                <img
-                  src={NPC_AVATARS[npc.id]}
-                  alt={npc.name}
-                  className={`w-9 h-9 rounded-full object-cover transition-shadow ${
-                    isActive ? "ring-1 ring-[#C9A84C]/55" : "ring-1 ring-transparent"
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <span className={`text-xs block truncate ${isActive ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]"}`}>{npc.name}</span>
-                  <span className="text-[8px] text-[#D4C8A8]/40 block truncate">{npc.subname}・{npc.location}</span>
-                </div>
-                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C]" />}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
-          <div className="mb-2">
-            <h2 className="text-[11px] font-semibold tracking-wide text-[#D4C8A8]">{copy.sidebar.savedSectionTitle}</h2>
-            <p className="mt-0.5 text-[8px] text-[#D4C8A8]/45">{copy.sidebar.savedSubtitle}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { handleOpenSavedPanel(); if (closeOnNavigate) setIsSidebarOpen(false); }}
-            className={`w-full rounded-lg px-3 py-2 text-[10px] font-medium transition-colors ${
-              isSavedPanelOpen
-                ? "bg-[#C9A84C]/90 text-[#1E2A16]"
-                : "bg-[rgba(255,255,255,0.05)] text-[#D4C8A8] hover:bg-[rgba(255,255,255,0.08)]"
-            }`}
-          >
-            {copy.sidebar.savedOpen}
-          </button>
-        </div>
-
-        <ChatSummaryList
-          copy={copy}
-          cards={summaryCards}
-          canCreateSummary={canCreateSummary}
-          isSummaryGenerating={isSummaryGenerating}
-          closeOnOpen={closeOnNavigate}
-          onCreateSummary={handleCreateSummary}
-          onOpenSummaryCard={handleOpenSummaryCard}
-        />
-
-        {/* 底部返回 */}
-        <div className="p-3 border-t border-[rgba(255,255,255,0.06)]">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4.5">
           <Link
             href="/"
             onClick={handleNavigate}
-            className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] text-[10px] text-[#D4C8A8]/55 hover:text-[#D4C8A8]/85 transition-colors"
+            className="flex items-center rounded-lg px-3 py-2 text-[12px] text-[#D4C8A8]/86 transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[#D4C8A8]"
           >
-            <span>{copy.sidebar.backToMap}</span>
-            <span className="text-[8px] text-[#D4C8A8]/35">{copy.sidebar.backToMapJp}</span>
+            {copy.sidebar.backToMap}
           </Link>
+
+          <section className="space-y-1.5">
+            <h2 className="px-3 text-[10px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/50">
+              {copy.sidebar.residents}
+            </h2>
+            <nav className="space-y-0.5">
+              {NPC_LIST.map((npc) => {
+                const isActive = npc.id === npcId;
+                return (
+                  <Link
+                    key={npc.id}
+                    href={`/chat/${npc.id}`}
+                    onClick={handleNavigate}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+                      isActive
+                        ? "bg-[rgba(255,255,255,0.09)]"
+                        : "hover:bg-[rgba(255,255,255,0.05)]"
+                    }`}
+                  >
+                    <img
+                      src={NPC_AVATARS[npc.id]}
+                      alt={npc.name}
+                      className={`w-8 h-8 rounded-full object-cover shrink-0 ${
+                        isActive ? "ring-1 ring-[#C9A84C]/55" : "ring-1 ring-[rgba(255,255,255,0.1)]"
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-[12px] block truncate ${isActive ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/88"}`}>{npc.name}</span>
+                      <span className="text-[9px] text-[#D4C8A8]/40 block truncate">{npc.subname}・{npc.location}</span>
+                    </div>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] shrink-0" />}
+                  </Link>
+                );
+              })}
+            </nav>
+          </section>
+
+          <section className="space-y-1.5 border-t border-[rgba(255,255,255,0.06)] pt-4">
+            <h2 className="px-3 text-[10px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/50">
+              {copy.sidebar.learningSection}
+            </h2>
+            <button
+              type="button"
+              onClick={() => { handleOpenSavedPanel(); if (closeOnNavigate) setIsSidebarOpen(false); }}
+              className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                isSavedPanelOpen
+                  ? "bg-[rgba(255,255,255,0.09)]"
+                  : "hover:bg-[rgba(255,255,255,0.05)]"
+              }`}
+            >
+              <span className={`text-[12px] block ${isSavedPanelOpen ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>
+                {copy.sidebar.savedTitle}
+              </span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/52 block">{copy.sidebar.savedSubtitle}</span>
+            </button>
+          </section>
+
+          <section className="space-y-1.5 border-t border-[rgba(255,255,255,0.06)] pt-4">
+            <div className="flex items-baseline gap-1.5">
+              <h2 className="px-3 text-[10px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/50">
+                {copy.sidebar.reviewTitle}
+              </h2>
+              <span className="text-[9px] text-[#D4C8A8]/38">{copy.sidebar.reviewSubtitle}</span>
+            </div>
+            <div className="space-y-0.5">
+              {summaryCards.slice(0, 5).map((card) => (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => handleOpenSummaryCard(card, closeOnNavigate)}
+                  className="w-full rounded-lg px-3 py-2 text-left cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.05)] active:bg-[rgba(255,255,255,0.08)]"
+                >
+                  <span className="block max-h-[2.6em] overflow-hidden text-[12px] leading-snug text-[#D4C8A8]/88 break-words">{card.title}</span>
+                  <span className="mt-0.5 block text-[9px] text-[#D4C8A8]/52">{formatSidebarDate(card.createdAt)}</span>
+                </button>
+              ))}
+              {summaryCards.length === 0 && (
+                <p className="px-3 text-[10px] leading-relaxed text-[#D4C8A8]/40">
+                  {copy.sidebar.emptyReview}
+                </p>
+              )}
+            </div>
+          </section>
         </div>
+
       </>
     );
   };
@@ -857,6 +882,24 @@ export default function ChatPage() {
 
         {/* 底部输入区域 */}
         <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/95">
+          <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/85 px-3 py-2">
+              <p className="text-[10px] text-[#7A7060]">{copy.sidebar.reviewDescription}</p>
+              <button
+                type="button"
+                disabled={isSummaryGenerating}
+                aria-disabled={!canCreateSummary}
+                onClick={handleCreateSummary}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors disabled:cursor-not-allowed ${
+                  canCreateSummary
+                    ? "bg-[#E8E0CE] text-[#2D4A1F] hover:bg-[#D8CFBC]"
+                    : "bg-[#E8E0CE]/55 text-[#7A7060]/70"
+                }`}
+              >
+                {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
+              </button>
+            </div>
+          </div>
           {voiceHint && (
             <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
