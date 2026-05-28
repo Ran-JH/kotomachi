@@ -9,6 +9,7 @@ import { ChatSummaryList } from "@/components/chat-summary-list";
 import { ChatToast } from "@/components/chat-toast";
 import { TimeDivider, shouldShowTimeDivider } from "@/components/chat-time-divider";
 import { LanguageToggle } from "@/components/language-toggle";
+import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
 import { getUiCopy } from "@/lib/ui-copy";
@@ -25,6 +26,11 @@ import {
   type StoredMessage,
 } from "@/lib/memory";
 import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
+import {
+  loadSavedItems,
+  removeSavedItem,
+  type SavedItem,
+} from "@/lib/saved-items";
 import {
   createSummarySourceInfo,
   createSummaryId,
@@ -187,6 +193,8 @@ export default function ChatPage() {
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false);
   const [summaryToast, setSummaryToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
   const copy = getUiCopy(uiLanguage);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -220,6 +228,16 @@ export default function ChatPage() {
   const handleLanguageChange = (language: UiLanguage) => {
     setUiLanguage(language);
     saveUiLanguage(language);
+  };
+
+  const handleOpenSavedPanel = () => {
+    setSavedItems(loadSavedItems());
+    setIsSavedPanelOpen(true);
+  };
+
+  const handleDeleteSavedItem = (id: string) => {
+    const next = removeSavedItem(id);
+    setSavedItems(next);
   };
 
   const showVoiceHint = (message: string) => {
@@ -707,6 +725,24 @@ export default function ChatPage() {
           })}
         </nav>
 
+        <div className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
+          <div className="mb-2">
+            <h2 className="text-[11px] font-semibold tracking-wide text-[#D4C8A8]">{copy.sidebar.savedSectionTitle}</h2>
+            <p className="mt-0.5 text-[8px] text-[#D4C8A8]/45">{copy.sidebar.savedSubtitle}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { handleOpenSavedPanel(); if (closeOnNavigate) setIsSidebarOpen(false); }}
+            className={`w-full rounded-lg px-3 py-2 text-[10px] font-medium transition-colors ${
+              isSavedPanelOpen
+                ? "bg-[#C9A84C]/90 text-[#1E2A16]"
+                : "bg-[rgba(255,255,255,0.05)] text-[#D4C8A8] hover:bg-[rgba(255,255,255,0.08)]"
+            }`}
+          >
+            {copy.sidebar.savedOpen}
+          </button>
+        </div>
+
         <ChatSummaryList
           copy={copy}
           cards={summaryCards}
@@ -884,6 +920,14 @@ export default function ChatPage() {
       </main>
       <ChatToast toast={summaryToast} />
       {renderSummaryDetail()}
+      {isSavedPanelOpen && (
+        <SavedItemsPanel
+          copy={copy}
+          items={savedItems}
+          onDelete={handleDeleteSavedItem}
+          onClose={() => setIsSavedPanelOpen(false)}
+        />
+      )}
     </div>
   );
 }
