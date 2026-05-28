@@ -328,7 +328,7 @@
 - 期望表现: 能区分对话太短、重复生成、服务失败等状态；模型输出波动时优先使用结构兼容 fallback，而不是直接整卡失败。
 - 手动测试: 用真实短对话和混合语言对话分别生成回顾卡片；模拟 API JSON 解析失败时确认 UI 有可恢复路径。
 - 相关文件: `app/chat/[npcId]/page.tsx`, `app/api/session-summary/route.ts`, `lib/session-summary.ts`
-- 状态: Open
+- 状态: Fixed
 
 ### REG-SUMMARY-010 - 回顾卡片标题、词语、下次话题结构不能异常
 
@@ -340,7 +340,19 @@
 - 期望表现: 标题总结话题；词语区只放词或短语；下次话题具体、可继续聊。
 - 手动测试: 输入包含英文残句和问词义的对话，生成回顾卡片，检查标题、今日词语、下次话题三处。
 - 相关文件: `app/api/session-summary/route.ts`, `lib/session-summary.ts`, `app/chat/[npcId]/page.tsx`
-- 状态: Open
+- 状态: Fixed
+
+### REG-SUMMARY-011 - 回顾卡片应优先使用真实学习信号
+
+- ID: REG-SUMMARY-011
+- 类型: 内容质量 / evidence
+- 区域: 回顾卡片
+- 风险: 模型自由总结时可能忽略用户查过的词、打开过的表达提示或非日语表达缺口，导致卡片看起来像泛泛总结。
+- 坏表现: 有 recentLookups 却不进入“今日词语”；有英文残句却没有进入“下次可以这样说”；下次话题只写“继续聊这个话题”。
+- 期望表现: recentLookups 优先进入“今日词语”；nonJapaneseSpans 和 expression hints 优先进入表达升级；下次话题具体可接话。
+- 手动测试: 带 `夜勤`、`誘惑` 查词记录生成卡片；再用英文残句输入生成卡片，检查 evidence 是否被使用。
+- 相关文件: `app/api/session-summary/route.ts`, `lib/session-summary.ts`
+- 状态: Fixed
 
 ## 语音 / TTS / STT
 
