@@ -270,7 +270,8 @@ function isGenericUpgradeNote(value: string): boolean {
 function hasConcreteLearningPoint(note: string): boolean {
   const text = note.trim();
   if (text.length < 18) return false;
-  const hasQuoteLike = /[`「」『』"']/u.test(text);
+  const quoteLikeChars = ["`", "「", "」", "『", "』", '"', '"', "'"];
+  const hasQuoteLike = quoteLikeChars.some((c) => text.includes(c));
   const hasGrammarCue = includesAny(text, ["〜", "たい", "ないで", "確認できて", "安心しました"]);
   const hasArrowCue = includesAny(text, ["→", "对应", "整理为", "转成"]);
   const hasSpecificWord = includesAny(text, ["feel relaxed", "confirm", "finished", "寝たい", "ないで"]);

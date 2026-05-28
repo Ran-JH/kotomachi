@@ -1077,6 +1077,22 @@ Always report:
 
 ---
 
+## 6.1 Saved Learning Items（Pack M / N）
+
+为保证学习链路可积累，同时不破坏低压力聊天体验，新增轻量路线：
+
+- **Pack M1**：Saved Items LocalStorage helper（仅数据层）
+- **Pack M2**：从查词 popover 收藏词语（Save Word）
+- **Pack M3**：从表达提示收藏句子（Save Expression）
+- **Pack M4**：Sidebar 收藏入口与列表面板（Saved Panel）
+- **Pack N1**：meaning / note / explanation 跟随 UI language（不翻译日语学习内容）
+
+约束：
+
+- 先做 localStorage MVP；
+- 不引入账号、云同步、数据库；
+- 不做打卡或高压力复习机制。
+
 ## 7. 一句话总结
 
 Kotomachi 后续不应该走“继续堆功能”的路线，而应该走：
