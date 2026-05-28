@@ -229,7 +229,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
       )}
       {/* popover 卡片：Figma card 底色 + 精致阴影 */}
       <div
-        className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-3.5 py-2.5 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)] overflow-y-auto overscroll-contain"
+        className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-3.5 py-3 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)] overflow-y-auto overscroll-contain"
         style={popoverLayout.cardStyle}
       >
         {loading ? (
@@ -239,16 +239,18 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         ) : data && (
           <>
             {/* 单词 + 读音 + 发音按钮 */}
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-start justify-between gap-2 mb-2.5">
               <div className="min-w-0">
-                <span className="font-ja block text-[13px] font-medium text-[#28231A] leading-snug break-words">{selectedText}</span>
+                <p className="text-[8px] font-medium text-[#7A7060] tracking-wide">查词</p>
+                <span className="font-ja mt-0.5 block text-[14px] font-medium text-[#28231A] leading-snug break-words">{selectedText}</span>
                 {data.pronunciation && (
-                  <div className="mt-0.5 flex items-center gap-1.5">
-                    <span className="font-ja text-[9px] text-[#7A7060]">{data.pronunciation}</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[8px] font-medium text-[#7A7060]">读音</span>
+                    <span className="font-ja text-[10px] text-[#4A4438]">{data.pronunciation}</span>
                     <button
                       type="button"
                       onClick={() => { void fetchAndPlayTts(selectedText, npcId); }}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060] hover:bg-[#E8E0CE]/80 hover:text-[#2D4A1F] transition-colors"
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] transition-colors"
                       aria-label={copy.explain.listen}
                       title={copy.explain.listen}
                     >
@@ -268,19 +270,19 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             </div>
 
             {/* 简短释义 */}
-            <div className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2">
-              <p className="text-[8px] font-medium text-[#7A7060]">{copy.explain.shortMeaning}</p>
-              <p className="mt-0.5 text-[11px] text-[#2D4A1F] font-medium leading-snug">{data.translation}</p>
+            <div className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2.5">
+              <p className="text-[9px] font-medium text-[#7A7060]">{copy.explain.shortMeaning}</p>
+              <p className="mt-1 text-[12px] text-[#2D4A1F] font-medium leading-snug break-words">{data.translation}</p>
             </div>
 
             {/* 整句翻译 */}
-            <div className="border-t border-[rgba(40,35,26,0.08)] pt-1.5 mt-1.5">
-              <p className="font-ui text-[8px] font-medium text-[#7A7060]">{copy.explain.sentenceMeaning}</p>
-              <p className="font-ui text-[9px] text-[#7A7060] leading-relaxed break-words">
+            <div className="border-t border-[rgba(40,35,26,0.08)] pt-2 mt-2">
+              <p className="font-ui text-[9px] font-medium text-[#7A7060]">{copy.explain.sentenceMeaning}</p>
+              <p className="font-ui mt-0.5 text-[10px] text-[#4A4438] leading-relaxed break-words">
                 {data.sentence_meaning}
               </p>
               {explainError && (
-                <p className="font-ui mt-1.5 rounded-md bg-[#F3EDE0]/80 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060]">
+                <p className="font-ui mt-1.5 rounded-md bg-[#F3EDE0]/65 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060]">
                   {copy.explain.error}
                 </p>
               )}
@@ -288,11 +290,11 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
 
             {/* 詳しく ▼ — 琥珀强调色，平滑展开 */}
             {showNuance && (
-              <div className="border-t border-[rgba(40,35,26,0.08)] pt-1.5 mt-1.5">
+              <div className="border-t border-[rgba(40,35,26,0.08)] pt-2 mt-2">
                 <button
                   type="button"
                   onClick={() => setExpanded(!expanded)}
-                  className="flex items-center gap-1 text-[9px] text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
+                  className="flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
                 >
                   <span>{expanded ? copy.explain.hideExplanation : copy.explain.showExplanation}</span>
                   <span className={`transition-transform duration-300 text-[7px] ${expanded ? "rotate-180" : ""}`}>▼</span>
@@ -303,7 +305,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="font-ui text-[9px] text-[#7A7060] leading-relaxed break-words">
+                    <p className="text-[9px] font-medium text-[#7A7060] mb-0.5">语感说明</p>
+                    <p className="font-ui text-[10px] text-[#4A4438] leading-relaxed break-words">
                       {data.nuance_explanation}
                     </p>
                   </div>
