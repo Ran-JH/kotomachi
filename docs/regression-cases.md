@@ -196,6 +196,18 @@
 - 相关文件: `components/chat-bubble.tsx`, `lib/session-summary.ts`, `app/api/session-summary/route.ts`
 - 状态: Fixed
 
+### REG-EXPLAIN-005 - 基础解释成功时详情区不应显示失败
+
+- ID: REG-EXPLAIN-005
+- 类型: UI / API fallback
+- 区域: 划词查词
+- 风险: 用户看到简义和句中意思后，展开区却显示“解释失败”，会认为功能不可靠。
+- 坏表现: 查词基础解释能显示，但详情区域出现“解释失败，请稍后再试”。
+- 期望表现: 如果详情失败，基础解释仍保留；详情区不显示无意义展开按钮，可用温和提示说明详情暂时不可用。
+- 手动测试: 划选一个常用词，模拟详情生成失败，确认词义和句中意思不被覆盖。
+- 相关文件: `components/chat-bubble.tsx`, `app/api/explain/route.ts`
+- 状态: Open
+
 ## 回顾卡片 / Session Summary Cards
 
 ### REG-SUMMARY-001 - 同一批聊天不能生成多张重复回顾卡片
@@ -293,6 +305,30 @@
 - 手动测试: 在桌面端和手机端打开回顾卡片，检查日语推荐表达可读性。
 - 相关文件: `app/chat/[npcId]/page.tsx`, `app/globals.css`
 - 状态: Fixed
+
+### REG-SUMMARY-009 - 回顾卡片生成失败应有可恢复路径
+
+- ID: REG-SUMMARY-009
+- 类型: 稳定性 / API fallback
+- 区域: 回顾卡片生成
+- 风险: LLM JSON 输出波动、evidence 为空或 payload 小异常会导致整张卡片生成失败。
+- 坏表现: 点击生成后只出现“回顾卡片生成失败，请稍后再试。”
+- 期望表现: 能区分对话太短、重复生成、服务失败等状态；模型输出波动时优先使用结构兼容 fallback，而不是直接整卡失败。
+- 手动测试: 用真实短对话和混合语言对话分别生成回顾卡片；模拟 API JSON 解析失败时确认 UI 有可恢复路径。
+- 相关文件: `app/chat/[npcId]/page.tsx`, `app/api/session-summary/route.ts`, `lib/session-summary.ts`
+- 状态: Open
+
+### REG-SUMMARY-010 - 回顾卡片标题、词语、下次话题结构不能异常
+
+- ID: REG-SUMMARY-010
+- 类型: 内容结构 / UI
+- 区域: 回顾卡片详情
+- 风险: 卡片虽然生成成功，但标题、词语和下次话题没有复习价值。
+- 坏表现: 标题直接截取英文残句；“今日词语”放整句；“下次可以聊”泛泛写继续练习。
+- 期望表现: 标题总结话题；词语区只放词或短语；下次话题具体、可继续聊。
+- 手动测试: 输入包含英文残句和问词义的对话，生成回顾卡片，检查标题、今日词语、下次话题三处。
+- 相关文件: `app/api/session-summary/route.ts`, `lib/session-summary.ts`, `app/chat/[npcId]/page.tsx`
+- 状态: Open
 
 ## 语音 / TTS / STT
 
