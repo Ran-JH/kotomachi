@@ -55,8 +55,9 @@ export function detectNonJapaneseSpans(messages: SourceMessage[]): SummaryNonJap
 
   messages.forEach((message) => {
     let index = 0;
-    const englishMatches = message.text.matchAll(ENGLISH_PATTERN);
-    for (const match of englishMatches) {
+    ENGLISH_PATTERN.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = ENGLISH_PATTERN.exec(message.text)) !== null) {
       const span = match[0].trim();
       if (span.length < 2) continue;
       spans.push({

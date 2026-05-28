@@ -144,22 +144,26 @@ function normalizeExpressionUpgrades(value: unknown): ExpressionUpgrade[] {
 
 function normalizeReviewWords(value: unknown): ReviewWord[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      const raw = item as Record<string, unknown>;
-      const word = truncate(pickString(raw.word), 80);
-      const meaning = truncate(pickString(raw.meaning), 120);
-      if (!word || !meaning) return null;
-      return {
-        word,
-        reading: truncate(pickString(raw.reading), 80) || undefined,
-        meaning,
-        example: truncate(pickString(raw.example), 160) || undefined,
-        source: normalizeWordSource(raw.source),
-      };
-    })
-    .filter((item): item is ReviewWord => Boolean(item))
-    .slice(0, 5);
+  const words: ReviewWord[] = [];
+
+  for (const item of value) {
+    const raw = item as Record<string, unknown>;
+    const word = truncate(pickString(raw.word), 80);
+    const meaning = truncate(pickString(raw.meaning), 120);
+    if (!word || !meaning) continue;
+
+    words.push({
+      word,
+      reading: truncate(pickString(raw.reading), 80) || undefined,
+      meaning,
+      example: truncate(pickString(raw.example), 160) || undefined,
+      source: normalizeWordSource(raw.source),
+    });
+
+    if (words.length >= 5) break;
+  }
+
+  return words;
 }
 
 const BASIC_REVIEW_WORDS = [
