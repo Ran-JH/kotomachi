@@ -7,32 +7,51 @@
 
 ## 0. 当前阶段判断
 
-Kotomachi / 言街 已经不是一个只有概念的 demo，而是一个已经把产品理念落进代码的 AI-native 日语口语练习项目。当前代码中已经存在以下核心产品层：
+Kotomachi / 言街 已从早期 AI 日语聊天 demo 进入阶段性 MVP。项目已经完成从 chat prototype 到 learning-assets MVP 的阶段推进。
 
-**2026-05-27 状态更新：** 项目已经部署到 Vercel，当前阶段从本地 demo 推进为线上作品集 MVP。后续重点应从“继续增加功能”转为“稳定线上体验、记录真实使用问题、积累 prompt eval cases、整理公开项目复盘”。
+**2026-05-28 MVP 里程碑更新：** 项目已完成核心学习资产闭环，当前状态为 MVP / prototype ready for small user testing。
 
-- 街角地图首页
-- 3 个 NPC 入口
+已完成的里程碑：
+
+- NPC chat with life arc, shared world state, memory, and time-aware greetings
+- Expression hints quality pass（三档表达建议 + 收藏 + 缓存 + 重新生成）
+- Word explanation quality pass（划词查词 + 收藏）
+- Review card quality pass（回顾卡片生成 + 详情 + 历史列表）
+- Saved Items MVP（localStorage helper + 收藏词语 + 收藏表达 + 收藏面板 + 去重 + 容量限制）
+- Review Cards panel（回顾卡片面板 + 历史列表）
+- Saved Items panel（按类型筛选 + 查看详情 + 删除）
+- Input action menu for review card creation（输入区 "+" 菜单）
+- Sidebar learning asset navigation（住人 / 学习 / 底部导航统一）
+- UI language toggle（中文 / English）
+- Responsive sidebar / mobile drawer
+- Expression hint cache with versioning and regenerate
+- STT post-processing（标点 + 大小写）
+- Chat prompt format unification + Kimura persona correction
+
+当前已实现的核心产品层：
+
+- 街角地图首页（SVG 建筑 + hover + 时段背景 + 环境旁白）
+- 3 个 NPC 入口（美咲 / 木村 / 大将）
 - LINE 风格聊天界面
 - 多语言输入，NPC 纯日语回复
 - NPC 生活弧线与共享世界状态
-- LocalStorage 轻量记忆
-- 冷启动记忆唤醒
+- LocalStorage 轻量记忆 + 冷启动记忆唤醒
 - TTS / STT 语音交互
-- 划词查词
-- `💡 提案` 口语建议层
+- 划词查词 + 收藏词语
+- 表达提示 + 收藏表达
+- 回顾卡片 + 面板 + 历史列表
+- 收藏面板（筛选 / 详情 / 删除）
 - DeepSeek / 火山方舟 / 火山语音 / Edge-TTS 等 AI 能力集成
 
-当前主要问题不是“功能不够”，而是：
+当前主要问题不是"功能不够"，而是：
 
-1. 工程管理还没有完全收束；
-2. UI 信息层级和入口感还不够清楚；
-3. 学习反馈的呈现方式偏重、偏密；
-4. 用户完成练习后缺少“我进步了”的总结感；
-5. 上线 Vercel 前还需要处理环境变量、timeout、错误降级、Git 管理等稳定性问题；
-6. 后续 NPC / 教学体验需要通过真实使用日志持续迭代，而不是凭直觉一次性大改 prompt。
+1. 代码拆分和 hook 抽象还未完成；
+2. 移动端体验仍在持续优化；
+3. Prompt eval 目前基于手动 cases，还不是自动化 suite；
+4. 学习内容解释语言尚未跟随 UI language（Pack N1）；
+5. 首次用户缺少轻量引导（Pack O）。
 
-本阶段目标不是继续堆新功能，而是把项目推进到：
+本阶段目标：
 
 > 稳定可部署、体验清楚、可长期迭代、可公开展示，并能讲清楚产品与工程逻辑的状态。
 

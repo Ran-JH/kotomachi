@@ -139,25 +139,27 @@ MVP key：
 
 ## Pack Plan
 
-### Pack M1: Saved Items LocalStorage helper
+### Pack M1: Saved Items LocalStorage helper ✅
 
-- 新增 saved item types / helper
+- 新增 saved item types / helper（`lib/saved-items.ts`）
 - 仅做数据层与最小调用，不扩 UI
 
-### Pack M2: Save Word from Explain Popover
+### Pack M2: Save Word from Explain Popover ✅
 
 - 在查词 popover 收藏词语
-- 收藏按钮放在读音/释义行旁边
+- 收藏按钮放在简短释义下方
 
-### Pack M3: Save Expression from Expression Hints
+### Pack M3: Save Expression from Expression Hints ✅
 
 - 在表达提示收藏推荐句
 - 每档建议卡片增加收藏按钮
+- 含 M3.1 缓存、M3.2 缓存安全补丁、M3.3 收藏状态同步修复
 
-### Pack M4: Saved Items Sidebar Panel
+### Pack M4: Saved Items Sidebar Panel ✅
 
 - sidebar 增加收藏入口与列表
 - 按类型筛选、查看详情、删除
+- 含 M4.1 可读性优化、M4.2 视觉整合、M4.3 sidebar 信息架构 polish
 
 ### Pack N1: Generated Explanation Language
 
