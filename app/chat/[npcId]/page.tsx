@@ -734,7 +734,7 @@ export default function ChatPage() {
             {copy.sidebar.backToMap}
           </Link>
 
-          <section className="space-y-1.5 pt-1">
+          <section className="space-y-1.5 pt-2.5">
             <h2 className="px-3 text-[11px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/58">
               {copy.sidebar.residents}
             </h2>
