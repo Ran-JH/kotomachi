@@ -342,6 +342,38 @@ interface FeedbackDrawerProps {
   onSuggestionPlayed?: (key: FeedbackLevelKey) => void;
 }
 
+function parseFeedbackAnalysisSections(analysis: string): {
+  usage: string;
+  reason: string;
+  details: string;
+} {
+  const text = analysis.trim();
+  if (!text) return { usage: "", reason: "", details: "" };
+
+  const usageMatch = text.match(/\[(?:场合|場合)\]\s*([\s\S]*?)(?=\[(?:原句|理由|補足|备注|備考)\]|$)/i);
+  const reasonMatch = text.match(/\[(?:原句|理由|補足|备注|備考)\]\s*([\s\S]*?)(?=$)/i);
+  const usage = usageMatch ? usageMatch[1].trim() : "";
+  const reason = reasonMatch ? reasonMatch[1].trim() : "";
+
+  if (usage || reason) {
+    return {
+      usage,
+      reason,
+      details: "",
+    };
+  }
+
+  const sentences = text
+    .split(/\n+|(?<=[。！？!?])\s*/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return {
+    usage: sentences[0] ?? "",
+    reason: sentences[1] ?? "",
+    details: sentences.slice(2).join(" "),
+  };
+}
+
 function FeedbackDrawer({
   open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, feedbackError, uiLanguage, onClose, onSuggestionPlayed,
 }: FeedbackDrawerProps) {
@@ -493,7 +525,15 @@ function FeedbackDrawer({
               const isExpanded = expandedAnalysisKey === meta.key;
               const levelLabels = copy.feedback.levels;
               const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
+              const zhLabels: Record<FeedbackLevelKey, { label: string; subtitle: string }> = {
+                casual: { label: "亲近随和", subtitle: "カジュアル" },
+                business: { label: "普通自然", subtitle: "ふつう" },
+                formal: { label: "严肃正式", subtitle: "フォーマル" },
+              };
+              const displayLabels = uiLanguage === "zh" ? zhLabels[meta.key] : labels;
               const analysisText = level.analysis.trim();
+              const analysisSections = parseFeedbackAnalysisSections(analysisText);
+              const detailText = analysisSections.details;
               const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
 
               return (
@@ -501,22 +541,22 @@ function FeedbackDrawer({
                   <header className="flex items-center gap-2">
                     <span className="h-8 w-1 shrink-0 rounded-full bg-[#C9A84C]/65" aria-hidden="true" />
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-[11px] font-semibold text-[#28231A]">{labels.label}</h3>
-                      <p className="text-[8px] text-[#7A7060]/80">{labels.subtitle}</p>
+                      <h3 className="text-[12px] font-semibold text-[#28231A]">{displayLabels.label}</h3>
+                      <p className="text-[9px] text-[#7A7060]/85">{displayLabels.subtitle}</p>
                     </div>
                     <button
                       type="button"
                       disabled={!!ttsLoadingKey}
                       onClick={() => playLevelSample(meta.key, level.nativeSay)}
-                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] text-[8px] font-medium text-[#2D4A1F] hover:border-[rgba(40,35,26,0.15)] disabled:opacity-40 transition-colors whitespace-nowrap"
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] disabled:opacity-40 transition-colors whitespace-nowrap"
                       title={copy.feedback.listen}
                     >
                       {isTtsLoading ? <span className="animate-pulse">…</span> : <><VolumeIcon size={11} /> {copy.feedback.listen}</>}
                     </button>
                   </header>
-                  <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/50 px-3 py-2.5">
-                    <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">{copy.feedback.recommended}</span>
-                    <p className="font-ja mt-1 text-[14px] font-medium text-[#2D4A1F] leading-[1.85] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                  <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/55 px-3 py-2.5">
+                    <span className="text-[9px] font-medium text-[#7A7060] tracking-wide">{copy.feedback.recommended}</span>
+                    <p className="font-ja mt-1 text-[15px] sm:text-[16px] font-medium text-[#2D4A1F] leading-[1.8] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {level.nativeSay}
                     </p>
                   </div>
@@ -525,23 +565,39 @@ function FeedbackDrawer({
                       {copy.feedback.listenFailure}
                     </p>
                   )}
-                  <div className="mt-2 px-1">
-                    <p
-                      ref={setAnalysisRef(meta.key)}
-                      className={`font-ui text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
-                        !isExpanded
-                          ? "max-h-[4.875em] overflow-hidden"
-                          : ""
-                      }`}
-                    >
-                      {analysisText}
-                    </p>
-                    {hasOverflowingAnalysis && (
+                  <div className="mt-2.5 space-y-2">
+                    {analysisSections.usage && (
+                      <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
+                        <p className="text-[9px] font-medium text-[#7A7060]">使用场景</p>
+                        <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
+                          {analysisSections.usage}
+                        </p>
+                      </div>
+                    )}
+                    {analysisSections.reason && (
+                      <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
+                        <p className="text-[9px] font-medium text-[#7A7060]">为什么这样说</p>
+                        <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
+                          {analysisSections.reason}
+                        </p>
+                      </div>
+                    )}
+                    {detailText && (
+                      <p
+                        ref={setAnalysisRef(meta.key)}
+                        className={`font-ui text-[10px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
+                          !isExpanded ? "max-h-[4.8em] overflow-hidden" : ""
+                        }`}
+                      >
+                        {detailText}
+                      </p>
+                    )}
+                    {detailText && hasOverflowingAnalysis && (
                       <button
                         type="button"
                         aria-expanded={isExpanded}
                         onClick={() => setExpandedAnalysisKey(isExpanded ? null : meta.key)}
-                        className="mt-2 block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
+                        className="block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
                       >
                         {isExpanded ? copy.feedback.hideDetails : copy.feedback.showDetails}
                       </button>
