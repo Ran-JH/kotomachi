@@ -77,6 +77,8 @@ export function getChatHistoryKey(npcId: string): string {
 export interface StoredMessage {
   role: "user" | "assistant";
   content: string;
+  /** ISO timestamp. Older LocalStorage records may not have this field. */
+  createdAt?: string;
 }
 
 export function loadChatHistory(npcId: string): StoredMessage[] {

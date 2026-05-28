@@ -60,6 +60,7 @@ interface ChatMessage {
   sender: "user" | "assistant";
   text: string;
   type: "text" | "voice";
+  createdAt?: string;
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   npcAudioUrl?: string | null;
@@ -177,6 +178,64 @@ function getUpgradeSourceLabel(source: string, copy: UiCopy): string {
 
 function getWordSourceLabel(source: string, copy: UiCopy): string {
   return source === "looked_up" ? copy.summary.lookedUp : copy.summary.fromConversation;
+}
+
+const MESSAGE_TIME_DIVIDER_GAP_MS = 15 * 60 * 1000;
+
+function parseMessageTime(value?: string): number | null {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function shouldShowTimeDivider(
+  previousMessage: ChatMessage | undefined,
+  message: ChatMessage,
+): boolean {
+  const currentTime = parseMessageTime(message.createdAt);
+  if (currentTime === null) return false;
+
+  const previousTime = parseMessageTime(previousMessage?.createdAt);
+  if (previousTime === null) return true;
+
+  return currentTime - previousTime >= MESSAGE_TIME_DIVIDER_GAP_MS;
+}
+
+function formatMessageDividerTime(value: string | undefined, uiLanguage: UiLanguage): string {
+  const time = parseMessageTime(value);
+  if (time === null) return "";
+
+  const date = new Date(time);
+  const now = new Date();
+  const locale = uiLanguage === "en" ? "en-US" : "zh-CN";
+  const sameDay = date.toDateString() === now.toDateString();
+
+  if (sameDay) {
+    return new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function TimeDivider({ value, uiLanguage }: { value?: string; uiLanguage: UiLanguage }) {
+  const label = formatMessageDividerTime(value, uiLanguage);
+  if (!label) return null;
+
+  return (
+    <div className="flex justify-center py-1">
+      <span className="font-ui rounded-full bg-[#E8E0CE]/70 px-3 py-1 text-[10px] text-[#7A7060] shadow-[0_1px_2px_rgba(40,35,26,0.04)]">
+        {label}
+      </span>
+    </div>
+  );
 }
 
 function SectionTitle({ jp, zh }: { jp: string; zh: string }) {
@@ -328,8 +387,11 @@ export default function ChatPage() {
         sender: "assistant",
         text: welcomeText,
         type: "text",
+        createdAt: new Date().toISOString(),
       };
-      saveChatHistory(targetNpcId, [{ role: "assistant", content: welcomeText }]);
+      saveChatHistory(targetNpcId, [
+        { role: "assistant", content: welcomeText, createdAt: welcomeMsg.createdAt },
+      ]);
       generatedInitialWelcomeForNpcRef.current.add(targetNpcId);
 
       if (data?.extractedFacts) {
@@ -396,11 +458,12 @@ export default function ChatPage() {
         sender: "assistant",
         text: welcomeText,
         type: "text",
+        createdAt: new Date().toISOString(),
       };
 
       saveChatHistory(targetNpcId, [
         ...currentHistory,
-        { role: "assistant", content: welcomeText },
+        { role: "assistant", content: welcomeText, createdAt: welcomeMsg.createdAt },
       ]);
       saveRevisitWelcomeMarker(targetNpcId, { userMessageCount, sourceFingerprint });
 
@@ -432,7 +495,7 @@ export default function ChatPage() {
     if (history.length > 0) {
       const restored: ChatMessage[] = history.map((m, i) => ({
         id: `stored-${i}`, sender: m.role === "user" ? "user" : "assistant",
-        text: m.content, type: "text" as const,
+        text: m.content, type: "text" as const, createdAt: m.createdAt,
       }));
       setMessages(restored);
       void triggerRevisitWelcome(npcId, storedMemories, history, wasSeenThisSession);
@@ -468,14 +531,15 @@ export default function ChatPage() {
   const sendToNpc = async (userText: string, userAudioBlob?: Blob | null) => {
     if (!userText.trim()) return;
     setApiError(null);
+    const userCreatedAt = new Date().toISOString();
     const userAudioUrl = userAudioBlob ? URL.createObjectURL(userAudioBlob) : null;
     if (userAudioUrl) userAudioUrlsRef.current.push(userAudioUrl);
-    const userMsg: ChatMessage = { id: `user-${Date.now()}`, sender: "user", text: userText, type: userAudioBlob ? "voice" : "text", userAudioBlob: userAudioBlob ?? null, userAudioUrl };
+    const userMsg: ChatMessage = { id: `user-${Date.now()}`, sender: "user", text: userText, type: userAudioBlob ? "voice" : "text", createdAt: userCreatedAt, userAudioBlob: userAudioBlob ?? null, userAudioUrl };
     setMessages((prev) => [...prev, userMsg]);
     setInputText(""); setIsTyping(true);
     void extractMemory(userText); incrementConversationCount(npcId);
-    const historyForApi: StoredMessage[] = messages.filter((m) => m.sender === "user" || m.sender === "assistant").map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text }));
-    historyForApi.push({ role: "user", content: userText });
+    const historyForApi: StoredMessage[] = messages.filter((m) => m.sender === "user" || m.sender === "assistant").map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text, createdAt: m.createdAt }));
+    historyForApi.push({ role: "user", content: userText, createdAt: userCreatedAt });
     const npcState = getNpcState(npcId);
     const worldContext = getWorldContext();
     try {
@@ -485,8 +549,8 @@ export default function ChatPage() {
       const useVoice = true;
       let npcAudioUrl: string | null = null;
       if (useVoice) npcAudioUrl = await fetchTtsUrl(data.text);
-      const assistantMsg: ChatMessage = { id: `assistant-${Date.now()}`, sender: "assistant", text: data.text, type: useVoice ? "voice" : "text", npcAudioUrl };
-      setMessages((prev) => { const next = [...prev, assistantMsg]; saveChatHistory(npcId, next.map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text }))); return next; });
+      const assistantMsg: ChatMessage = { id: `assistant-${Date.now()}`, sender: "assistant", text: data.text, type: useVoice ? "voice" : "text", createdAt: new Date().toISOString(), npcAudioUrl };
+      setMessages((prev) => { const next = [...prev, assistantMsg]; saveChatHistory(npcId, next.map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text, createdAt: m.createdAt }))); return next; });
       saveLastChatTime(npcId);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : "网络错误");
@@ -554,6 +618,7 @@ export default function ChatPage() {
         id: message.id,
         role: message.sender,
         content: message.text,
+        createdAt: message.createdAt,
       }));
   }, [messages]);
   const currentSummarySource = useMemo(
@@ -944,20 +1009,24 @@ export default function ChatPage() {
         {/* 聊天消息区域 — max-w-4xl 居中 */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
-            {messages.map((msg) => (
-              <ChatBubble
-                key={msg.id}
-                messageId={msg.id}
-                sender={msg.sender}
-                text={msg.text}
-                npcId={npcId}
-                uiLanguage={uiLanguage}
-                userAudioBlob={msg.userAudioBlob}
-                userAudioUrl={msg.userAudioUrl}
-                npcAudioUrl={msg.npcAudioUrl}
-                isVoiceMessage={msg.sender === "assistant" || msg.type === "voice"}
-                onPlayNpcAudio={msg.sender === "assistant" ? () => { void fetchTtsUrl(msg.text).then((url) => { if (url) new Audio(url).play(); }); } : undefined}
-              />
+            {messages.map((msg, index) => (
+              <div key={msg.id} className="space-y-4">
+                {shouldShowTimeDivider(messages[index - 1], msg) && (
+                  <TimeDivider value={msg.createdAt} uiLanguage={uiLanguage} />
+                )}
+                <ChatBubble
+                  messageId={msg.id}
+                  sender={msg.sender}
+                  text={msg.text}
+                  npcId={npcId}
+                  uiLanguage={uiLanguage}
+                  userAudioBlob={msg.userAudioBlob}
+                  userAudioUrl={msg.userAudioUrl}
+                  npcAudioUrl={msg.npcAudioUrl}
+                  isVoiceMessage={msg.sender === "assistant" || msg.type === "voice"}
+                  onPlayNpcAudio={msg.sender === "assistant" ? () => { void fetchTtsUrl(msg.text).then((url) => { if (url) new Audio(url).play(); }); } : undefined}
+                />
+              </div>
             ))}
             {isTyping && (
               <div className="flex justify-start items-center gap-2 text-xs text-[#7A7060] animate-pulse">

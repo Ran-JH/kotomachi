@@ -428,7 +428,7 @@
 - 期望表现: 只在有意义的间隔处显示稀疏时间分隔条。
 - 手动测试: 查看一段长聊天记录，确认时间信息不干扰阅读。
 - 相关文件: `app/chat/[npcId]/page.tsx`, `components/chat-bubble.tsx`
-- 状态: Open
+- 状态: Fixed
 
 ### REG-UI-007 - UI language toggle 只切换产品操作文案
 
