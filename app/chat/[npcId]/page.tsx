@@ -194,7 +194,11 @@ export default function ChatPage() {
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
+  const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
+  const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const copy = getUiCopy(uiLanguage);
+  const reviewEntrySubtitle = uiLanguage === "zh" ? "聊天复习卡片" : "Chat review cards";
+  const reviewDisabledHint = uiLanguage === "zh" ? "最近聊天太少，先多聊几句再生成" : "Not enough recent chat yet";
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -206,6 +210,7 @@ export default function ChatPage() {
   const generatedRevisitWelcomeSourcesRef = useRef<Set<string>>(new Set());
   const voiceHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summaryToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputActionsRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -219,6 +224,17 @@ export default function ChatPage() {
       if (summaryToastTimerRef.current) clearTimeout(summaryToastTimerRef.current);
     };
   }, []);
+  useEffect(() => {
+    if (!isInputActionsOpen) return;
+    const handleOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (inputActionsRef.current?.contains(target)) return;
+      setIsInputActionsOpen(false);
+    };
+    window.addEventListener("mousedown", handleOutside);
+    return () => window.removeEventListener("mousedown", handleOutside);
+  }, [isInputActionsOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
@@ -230,8 +246,17 @@ export default function ChatPage() {
   };
 
   const handleOpenSavedPanel = () => {
+    setIsReviewPanelOpen(false);
+    setSelectedSummaryCard(null);
     setSavedItems(loadSavedItems());
     setIsSavedPanelOpen(true);
+  };
+
+  const handleOpenReviewPanel = (closeOnNavigate = false) => {
+    setIsSavedPanelOpen(false);
+    setSelectedSummaryCard(null);
+    setIsReviewPanelOpen(true);
+    if (closeOnNavigate) setIsSidebarOpen(false);
   };
 
   const handleDeleteSavedItem = (id: string) => {
@@ -575,6 +600,8 @@ export default function ChatPage() {
   const canCreateSummary = userMessageCount >= 2 && !isSummaryGenerating && hasEnoughNewMessages;
 
   const handleOpenSummaryCard = (card: SessionSummaryCard, closeDrawer = false) => {
+    setIsReviewPanelOpen(true);
+    setIsSavedPanelOpen(false);
     setSelectedSummaryCard(card);
     if (closeDrawer) setIsSidebarOpen(false);
   };
@@ -606,6 +633,7 @@ export default function ChatPage() {
 
   const handleCreateSummary = async () => {
     if (existingSourceCard) {
+      setIsReviewPanelOpen(true);
       setSelectedSummaryCard(existingSourceCard);
       showSummaryToast(copy.summary.duplicate);
       setIsSidebarOpen(false);
@@ -619,6 +647,7 @@ export default function ChatPage() {
 
     const duplicateCard = findSummaryCardByFingerprint(npcId, currentSummarySource.sourceFingerprint);
     if (duplicateCard) {
+      setIsReviewPanelOpen(true);
       setSelectedSummaryCard(duplicateCard);
       showSummaryToast(copy.summary.duplicate);
       setIsSidebarOpen(false);
@@ -652,6 +681,7 @@ export default function ChatPage() {
       const card = buildSummaryCard(data.card, currentSummarySource);
       saveSummaryCard(card);
       setSummaryCards(loadSummaryCards(npcId));
+      setIsReviewPanelOpen(true);
       setSelectedSummaryCard(card);
       setIsSidebarOpen(false);
     } catch {
@@ -663,22 +693,21 @@ export default function ChatPage() {
 
   const renderSummaryDetail = () => (
     <ChatSummaryDetail
+      cards={summaryCards}
       card={selectedSummaryCard}
       copy={copy}
-      onClose={() => setSelectedSummaryCard(null)}
+      isOpen={isReviewPanelOpen}
+      onOpenCard={(card) => setSelectedSummaryCard(card)}
+      onBackToList={() => setSelectedSummaryCard(null)}
+      onClose={() => {
+        setSelectedSummaryCard(null);
+        setIsReviewPanelOpen(false);
+      }}
       onDelete={handleDeleteSummaryCard}
     />
   );
   const renderSidebarContent = (closeOnNavigate = false) => {
     const handleNavigate = closeOnNavigate ? () => setIsSidebarOpen(false) : undefined;
-    const formatSidebarDate = (value: string) => {
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "";
-      return new Intl.DateTimeFormat(uiLanguage === "zh" ? "zh-CN" : "en-US", {
-        month: "numeric",
-        day: "numeric",
-      }).format(date);
-    };
 
     return (
       <>
@@ -705,8 +734,8 @@ export default function ChatPage() {
             {copy.sidebar.backToMap}
           </Link>
 
-          <section className="space-y-1.5">
-            <h2 className="px-3 text-[10px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/50">
+          <section className="space-y-1.5 pt-1">
+            <h2 className="px-3 text-[11px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/58">
               {copy.sidebar.residents}
             </h2>
             <nav className="space-y-0.5">
@@ -731,8 +760,8 @@ export default function ChatPage() {
                       }`}
                     />
                     <div className="flex-1 min-w-0">
-                      <span className={`text-[12px] block truncate ${isActive ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/88"}`}>{npc.name}</span>
-                      <span className="text-[9px] text-[#D4C8A8]/40 block truncate">{npc.subname}・{npc.location}</span>
+                      <span className={`text-[13px] block truncate ${isActive ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>{npc.name}</span>
+                      <span className="text-[10px] text-[#D4C8A8]/44 block truncate">{npc.subname}・{npc.location}</span>
                     </div>
                     {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] shrink-0" />}
                   </Link>
@@ -741,8 +770,8 @@ export default function ChatPage() {
             </nav>
           </section>
 
-          <section className="space-y-1.5 border-t border-[rgba(255,255,255,0.06)] pt-4">
-            <h2 className="px-3 text-[10px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/50">
+          <section className="space-y-2 border-t border-[rgba(255,255,255,0.06)] pt-4">
+            <h2 className="px-3 text-[11px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/58">
               {copy.sidebar.learningSection}
             </h2>
             <button
@@ -754,38 +783,25 @@ export default function ChatPage() {
                   : "hover:bg-[rgba(255,255,255,0.05)]"
               }`}
             >
-              <span className={`text-[12px] block ${isSavedPanelOpen ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>
+              <span className={`text-[13px] block ${isSavedPanelOpen ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>
                 {copy.sidebar.savedTitle}
               </span>
-              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/52 block">{copy.sidebar.savedSubtitle}</span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/55 block">{copy.sidebar.savedSubtitle}</span>
             </button>
-          </section>
-
-          <section className="space-y-1.5 border-t border-[rgba(255,255,255,0.06)] pt-4">
-            <div className="flex items-baseline gap-1.5">
-              <h2 className="px-3 text-[10px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/50">
+            <button
+              type="button"
+              onClick={() => handleOpenReviewPanel(closeOnNavigate)}
+              className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                isReviewPanelOpen
+                  ? "bg-[rgba(255,255,255,0.09)]"
+                  : "hover:bg-[rgba(255,255,255,0.05)]"
+              }`}
+            >
+              <span className={`text-[13px] block ${isReviewPanelOpen ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>
                 {copy.sidebar.reviewTitle}
-              </h2>
-              <span className="text-[9px] text-[#D4C8A8]/38">{copy.sidebar.reviewSubtitle}</span>
-            </div>
-            <div className="space-y-0.5">
-              {summaryCards.slice(0, 5).map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  onClick={() => handleOpenSummaryCard(card, closeOnNavigate)}
-                  className="w-full rounded-lg px-3 py-2 text-left cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.05)] active:bg-[rgba(255,255,255,0.08)]"
-                >
-                  <span className="block max-h-[2.6em] overflow-hidden text-[12px] leading-snug text-[#D4C8A8]/88 break-words">{card.title}</span>
-                  <span className="mt-0.5 block text-[9px] text-[#D4C8A8]/52">{formatSidebarDate(card.createdAt)}</span>
-                </button>
-              ))}
-              {summaryCards.length === 0 && (
-                <p className="px-3 text-[10px] leading-relaxed text-[#D4C8A8]/40">
-                  {copy.sidebar.emptyReview}
-                </p>
-              )}
-            </div>
+              </span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/55 block">{reviewEntrySubtitle}</span>
+            </button>
           </section>
         </div>
 
@@ -882,24 +898,6 @@ export default function ChatPage() {
 
         {/* 底部输入区域 */}
         <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/95">
-          <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/85 px-3 py-2">
-              <p className="text-[10px] text-[#7A7060]">{copy.sidebar.reviewDescription}</p>
-              <button
-                type="button"
-                disabled={isSummaryGenerating}
-                aria-disabled={!canCreateSummary}
-                onClick={handleCreateSummary}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors disabled:cursor-not-allowed ${
-                  canCreateSummary
-                    ? "bg-[#E8E0CE] text-[#2D4A1F] hover:bg-[#D8CFBC]"
-                    : "bg-[#E8E0CE]/55 text-[#7A7060]/70"
-                }`}
-              >
-                {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
-              </button>
-            </div>
-          </div>
           {voiceHint && (
             <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
@@ -918,6 +916,46 @@ export default function ChatPage() {
             >
               {inputMode === "text" ? <MicIcon size={17} /> : <KeyboardIcon size={17} />}
             </button>
+            <div className="relative shrink-0" ref={inputActionsRef}>
+              <button
+                type="button"
+                aria-label={copy.sidebar.moreActions}
+                title={copy.sidebar.moreActions}
+                onClick={() => setIsInputActionsOpen((prev) => !prev)}
+                className={`w-9 h-9 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EDE7D8] text-[#2D4A1F] flex items-center justify-center text-lg leading-none transition-colors ${
+                  isInputActionsOpen ? "bg-[#E8E0CE]" : "hover:bg-[#E8E0CE]"
+                }`}
+              >
+                +
+              </button>
+              {isInputActionsOpen && (
+                <div className="absolute bottom-11 left-0 z-30 w-56 rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canCreateSummary || isSummaryGenerating) return;
+                      void handleCreateSummary();
+                      setIsInputActionsOpen(false);
+                    }}
+                    aria-disabled={isSummaryGenerating || !canCreateSummary}
+                    className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                      canCreateSummary && !isSummaryGenerating
+                        ? "hover:bg-[#F3EDE0]"
+                        : "opacity-70"
+                    }`}
+                  >
+                    <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                      {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
+                    </span>
+                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                      {canCreateSummary || isSummaryGenerating
+                        ? copy.sidebar.reviewDescription
+                        : reviewDisabledHint}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {inputMode === "text" ? (
               <>
