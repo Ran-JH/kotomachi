@@ -8,7 +8,6 @@ import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
 import {
   getLocalNPCMemories,
-  getLastChatTime,
   getConversationCount,
   loadChatHistory,
   saveChatHistory,
@@ -63,11 +62,97 @@ interface ChatMessage {
   npcAudioUrl?: string | null;
 }
 
-const GREETINGS: Record<NpcId, string> = {
-  misaki: "こんにちは！初めまして、美咲です😊 コーヒー好きですか？",
-  kimura: "よ！初めまして、木村っていうの。よろしくな！✌️",
-  taisho: "おう、初めまして！まあ座りな、何飲む？🍺",
-};
+interface WelcomeResponse {
+  extractedFacts?: string[];
+  welcomeMessage?: string;
+}
+
+const welcomeRequests = new Map<string, Promise<WelcomeResponse | null>>();
+
+function countUserMessages(history: StoredMessage[]): number {
+  return history.filter((message) => message.role === "user").length;
+}
+
+function getRecentAssistantMessages(history: StoredMessage[]): string[] {
+  return history
+    .filter((message) => message.role === "assistant")
+    .map((message) => message.content)
+    .slice(-3);
+}
+
+function hashText(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function createWelcomeSourceFingerprint(npcId: NpcId, history: StoredMessage[]): string {
+  const source = history
+    .map((message) => `${message.role}:${message.content}`)
+    .join("\n");
+  return `${npcId}:${history.length}:${countUserMessages(history)}:${hashText(source)}`;
+}
+
+function getRevisitWelcomeMarkerKey(npcId: NpcId): string {
+  return `kotomachi_revisit_welcome_marker_${npcId}`;
+}
+
+function getSessionVisitKey(npcId: NpcId): string {
+  return `kotomachi_session_visit_${npcId}`;
+}
+
+function hasSeenNpcThisSession(npcId: NpcId): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return sessionStorage.getItem(getSessionVisitKey(npcId)) === "1";
+  } catch {
+    return true;
+  }
+}
+
+function markNpcSeenThisSession(npcId: NpcId): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(getSessionVisitKey(npcId), "1");
+  } catch {
+    // sessionStorage 不可用时，只跳过再访 welcome，不影响主聊天。
+  }
+}
+
+function loadRevisitWelcomeMarker(npcId: NpcId): { userMessageCount: number; sourceFingerprint: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(getRevisitWelcomeMarkerKey(npcId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<{ userMessageCount: number; sourceFingerprint: string }>;
+    if (
+      typeof parsed.userMessageCount === "number" &&
+      typeof parsed.sourceFingerprint === "string"
+    ) {
+      return {
+        userMessageCount: parsed.userMessageCount,
+        sourceFingerprint: parsed.sourceFingerprint,
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function saveRevisitWelcomeMarker(
+  npcId: NpcId,
+  marker: { userMessageCount: number; sourceFingerprint: string },
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getRevisitWelcomeMarkerKey(npcId), JSON.stringify(marker));
+  } catch {
+    // LocalStorage 写入失败不应该影响聊天主流程。
+  }
+}
 
 const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[] = [
   { id: "kimura", name: "木村", subname: "きむら", location: "コンビニ" },
@@ -82,7 +167,7 @@ function formatSummaryDate(value: string): string {
 }
 
 function getUpgradeSourceLabel(source: string): string {
-  if (source === "expression_hint") return "来自表現ヒント";
+  if (source === "expression_hint") return "来自表达提示";
   if (source === "non_japanese_span") return "来自输入缺口";
   return "来自对话";
 }
@@ -98,15 +183,6 @@ function SectionTitle({ jp, zh }: { jp: string; zh: string }) {
       <span className="text-[10px] font-normal text-[#7A7060]">{jp}</span>
     </h3>
   );
-}
-
-function formatTimeDiff(lastTime: number): string | null {
-  const diffMs = Date.now() - lastTime;
-  const diffHours = diffMs / (1000 * 60 * 60);
-  if (diffHours <= 6) return null;
-  if (diffHours < 24) return `${Math.round(diffHours)}時間前`;
-  const diffDays = Math.round(diffHours / 24);
-  return `${diffDays}日前`;
 }
 
 export default function ChatPage() {
@@ -133,7 +209,9 @@ export default function ChatPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
   const userAudioUrlsRef = useRef<string[]>([]);
-  const welcomeTriggeredRef = useRef(false);
+  const activeNpcRef = useRef<NpcId>(npcId);
+  const generatedInitialWelcomeForNpcRef = useRef<Set<NpcId>>(new Set());
+  const generatedRevisitWelcomeSourcesRef = useRef<Set<string>>(new Set());
   const voiceHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summaryToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -166,15 +244,177 @@ export default function ChatPage() {
     summaryToastTimerRef.current = setTimeout(() => setSummaryToast(null), 3200);
   };
 
+  const getWelcomeRequest = (
+    requestKey: string,
+    targetNpcId: NpcId,
+    existingFacts: string[],
+    history: StoredMessage[],
+    timeDiffText: "初回" | "再訪",
+    recentAssistantMessages: string[],
+  ): Promise<WelcomeResponse | null> => {
+    const existingRequest = welcomeRequests.get(requestKey);
+    if (existingRequest) return existingRequest;
+
+    const npcState = getNpcState(targetNpcId);
+    const worldContext = getWorldContext();
+    const request = fetch("/api/welcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        npcId: targetNpcId,
+        history,
+        existingFacts,
+        timeDiffText,
+        recentAssistantMessages,
+        lifeArc: npcState.arcDescription,
+        lifeArcState: npcState.label,
+        crossMentions: npcState.crossMentions,
+        worldDescription: worldContext.description,
+        worldReaction: worldContext.reactions[targetNpcId],
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as WelcomeResponse;
+      })
+      .catch(() => null);
+
+    void request.finally(() => {
+      if (welcomeRequests.get(requestKey) === request) {
+        welcomeRequests.delete(requestKey);
+      }
+    });
+
+    welcomeRequests.set(requestKey, request);
+    return request;
+  };
+
+  const triggerInitialWelcome = async (
+    targetNpcId: NpcId,
+    existingFacts: string[],
+  ) => {
+    if (generatedInitialWelcomeForNpcRef.current.has(targetNpcId)) return;
+    if (loadChatHistory(targetNpcId).length > 0) return;
+
+    if (activeNpcRef.current === targetNpcId) setIsTyping(true);
+    try {
+      const data = await getWelcomeRequest(
+        `initial:${targetNpcId}`,
+        targetNpcId,
+        existingFacts,
+        [],
+        "初回",
+        [],
+      );
+      const welcomeText = data?.welcomeMessage?.trim();
+      if (!welcomeText) return;
+      if (loadChatHistory(targetNpcId).length > 0) return;
+
+      const welcomeMsg: ChatMessage = {
+        id: `welcome-${targetNpcId}-${Date.now()}`,
+        sender: "assistant",
+        text: welcomeText,
+        type: "text",
+      };
+      saveChatHistory(targetNpcId, [{ role: "assistant", content: welcomeText }]);
+      generatedInitialWelcomeForNpcRef.current.add(targetNpcId);
+
+      if (data?.extractedFacts) {
+        saveLocalNPCFacts(targetNpcId, data.extractedFacts);
+        if (activeNpcRef.current === targetNpcId) setMemories(data.extractedFacts);
+      }
+      saveLastChatTime(targetNpcId);
+
+      if (activeNpcRef.current === targetNpcId) {
+        setMessages((prev) => (prev.length === 0 ? [welcomeMsg] : prev));
+      }
+    } finally {
+      if (activeNpcRef.current === targetNpcId) setIsTyping(false);
+    }
+  };
+
+  const triggerRevisitWelcome = async (
+    targetNpcId: NpcId,
+    existingFacts: string[],
+    restoredHistory: StoredMessage[],
+    wasSeenThisSession: boolean,
+  ) => {
+    if (wasSeenThisSession) return;
+
+    const lastMessage = restoredHistory[restoredHistory.length - 1];
+    if (!lastMessage || lastMessage.role !== "assistant") return;
+
+    const userMessageCount = countUserMessages(restoredHistory);
+    if (userMessageCount === 0) return;
+
+    const sourceFingerprint = createWelcomeSourceFingerprint(targetNpcId, restoredHistory);
+    if (generatedRevisitWelcomeSourcesRef.current.has(sourceFingerprint)) return;
+
+    const marker = loadRevisitWelcomeMarker(targetNpcId);
+    if (
+      marker &&
+      (marker.sourceFingerprint === sourceFingerprint ||
+        userMessageCount <= marker.userMessageCount)
+    ) {
+      return;
+    }
+
+    generatedRevisitWelcomeSourcesRef.current.add(sourceFingerprint);
+
+    if (activeNpcRef.current === targetNpcId) setIsTyping(true);
+    try {
+      const data = await getWelcomeRequest(
+        `revisit:${sourceFingerprint}`,
+        targetNpcId,
+        existingFacts,
+        restoredHistory.slice(-10),
+        "再訪",
+        getRecentAssistantMessages(restoredHistory),
+      );
+      const welcomeText = data?.welcomeMessage?.trim();
+      if (!welcomeText) return;
+
+      const currentHistory = loadChatHistory(targetNpcId);
+      if (countUserMessages(currentHistory) !== userMessageCount) return;
+      if (currentHistory[currentHistory.length - 1]?.role !== "assistant") return;
+
+      const welcomeMsg: ChatMessage = {
+        id: `welcome-revisit-${targetNpcId}-${Date.now()}`,
+        sender: "assistant",
+        text: welcomeText,
+        type: "text",
+      };
+
+      saveChatHistory(targetNpcId, [
+        ...currentHistory,
+        { role: "assistant", content: welcomeText },
+      ]);
+      saveRevisitWelcomeMarker(targetNpcId, { userMessageCount, sourceFingerprint });
+
+      if (data?.extractedFacts) {
+        saveLocalNPCFacts(targetNpcId, data.extractedFacts);
+        if (activeNpcRef.current === targetNpcId) setMemories(data.extractedFacts);
+      }
+      saveLastChatTime(targetNpcId);
+
+      if (activeNpcRef.current === targetNpcId) {
+        setMessages((prev) => [...prev, welcomeMsg]);
+      }
+    } finally {
+      if (activeNpcRef.current === targetNpcId) setIsTyping(false);
+    }
+  };
+
   useEffect(() => {
-    welcomeTriggeredRef.current = false;
+    activeNpcRef.current = npcId;
+    const wasSeenThisSession = hasSeenNpcThisSession(npcId);
+    markNpcSeenThisSession(npcId);
     setSummaryCards(loadSummaryCards(npcId));
     setSelectedSummaryCard(null);
     setSummaryToast(null);
     const storedMemories = getLocalNPCMemories(npcId);
     setMemories(storedMemories);
     const history = loadChatHistory(npcId);
-    const lastTime = getLastChatTime(npcId);
 
     if (history.length > 0) {
       const restored: ChatMessage[] = history.map((m, i) => ({
@@ -182,46 +422,13 @@ export default function ChatPage() {
         text: m.content, type: "text" as const,
       }));
       setMessages(restored);
-      if (lastTime) {
-        const timeDiffText = formatTimeDiff(lastTime);
-        if (timeDiffText && !welcomeTriggeredRef.current) {
-          welcomeTriggeredRef.current = true;
-          void triggerColdStartWelcome(npcId, history, storedMemories, timeDiffText);
-        }
-      }
-    } else {
-      const count = getConversationCount(npcId);
-      let greeting = GREETINGS[npcId];
-      if (count > 15) {
-        const casualGreetings: Record<NpcId, string> = { misaki: "あ、また来たね😊", kimura: "お、また来た！", taisho: "おう、また来たか！" };
-        greeting = casualGreetings[npcId];
-      } else if (count > 5) {
-        const warmGreetings: Record<NpcId, string> = { misaki: "こんにちは！今日はどうしたの？😊", kimura: "いらっしゃい！元気だった？", taisho: "よお！今日はどうだい？🍺" };
-        greeting = warmGreetings[npcId];
-      }
-      if (storedMemories.length > 0) {
-        const fact = storedMemories[storedMemories.length - 1];
-        greeting = `あ、そういえば…${fact} のこと、覚えてるよ😊\n${greeting}`;
-      }
-      setMessages([{ id: "greeting", sender: "assistant", text: greeting, type: "text" }]);
+      void triggerRevisitWelcome(npcId, storedMemories, history, wasSeenThisSession);
+      return;
     }
-  }, [npcId]);
 
-  const triggerColdStartWelcome = async (npcId: NpcId, history: StoredMessage[], existingFacts: string[], timeDiffText: string) => {
-    setIsTyping(true);
-    try {
-      const npcState = getNpcState(npcId);
-      const worldContext = getWorldContext();
-      const res = await fetch("/api/welcome", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ npcId, history, existingFacts, timeDiffText, lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
-      const data = await res.json();
-      if (data.welcomeMessage) {
-        const welcomeMsg: ChatMessage = { id: `welcome-${Date.now()}`, sender: "assistant", text: data.welcomeMessage, type: "text" };
-        setMessages((prev) => { const next = [...prev, welcomeMsg]; saveChatHistory(npcId, next.map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text }))); return next; });
-      }
-      if (data.extractedFacts) { saveLocalNPCFacts(npcId, data.extractedFacts); setMemories(data.extractedFacts); }
-      saveLastChatTime(npcId);
-    } catch { /* 静默 */ } finally { setIsTyping(false); }
-  };
+    setMessages([]);
+    void triggerInitialWelcome(npcId, storedMemories);
+  }, [npcId]);
 
   const fetchTtsUrl = useCallback(async (text: string): Promise<string | null> => {
     const cacheKey = `${npcId}:${text}`;
@@ -300,26 +507,26 @@ export default function ChatPage() {
           const sttData = await sttRes.json();
           if (!sttRes.ok) {
             if (sttData.code === "NO_SPEECH") {
-              showVoiceHint(sttData.message ?? "声が聞こえませんでした。もう一度話すか、文字で入力してね。");
+              showVoiceHint("没听清，可以再说一次，或直接输入文字。");
             } else {
-              setApiError("音声の認識に失敗しました。文字入力で続けることもできます。");
+              setApiError("语音识别失败，可以继续用文字输入。");
             }
             setIsTyping(false);
             return;
           }
           if (sttData.code === "NO_SPEECH" || !sttData.text?.trim()) {
-            showVoiceHint(sttData.message ?? "声が聞こえませんでした。もう一度話すか、文字で入力してね。");
+            showVoiceHint("没听清，可以再说一次，或直接输入文字。");
             setIsTyping(false);
             return;
           }
           await sendToNpc(sttData.text, blob);
         } catch {
-          setApiError("音声の認識に失敗しました。文字入力で続けることもできます。");
+          setApiError("语音识别失败，可以继续用文字输入。");
           setIsTyping(false);
         }
       };
       recorder.start(); setIsRecording(true);
-    } catch { setApiError("マイクにアクセスできませんでした。ブラウザの録音権限を確認してください。"); }
+    } catch { setApiError("无法访问麦克风，请在浏览器里允许录音权限。"); }
   };
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
@@ -424,7 +631,7 @@ export default function ChatPage() {
       });
       const data = (await res.json()) as { card?: SessionSummaryApiCard; error?: string };
       if (!res.ok || !data.card) {
-        throw new Error(data.error ?? "ふりかえりを作れませんでした。");
+        throw new Error(data.error ?? "回顾卡片生成失败，请稍后再试。");
       }
       const card = buildSummaryCard(data.card, currentSummarySource);
       saveSummaryCard(card);
@@ -546,7 +753,7 @@ export default function ChatPage() {
               onClick={() => handleDeleteSummaryCard(card.id)}
               className="font-ui text-[11px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
             >
-              删除这张回顾卡片
+              删除这张卡片
             </button>
           </footer>
         </aside>
@@ -647,9 +854,10 @@ export default function ChatPage() {
           <Link
             href="/"
             onClick={handleNavigate}
-            className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] text-[10px] text-[#D4C8A8]/50 hover:text-[#D4C8A8]/80 transition-colors"
+            className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] text-[10px] text-[#D4C8A8]/55 hover:text-[#D4C8A8]/85 transition-colors"
           >
-            ← 地図に戻る
+            <span>返回地图</span>
+            <span className="text-[8px] text-[#D4C8A8]/35">地図に戻る</span>
           </Link>
         </div>
       </>
@@ -661,7 +869,7 @@ export default function ChatPage() {
       {/* ====== 移动端 NPC drawer ====== */}
       <button
         type="button"
-        aria-label="NPC メニューを閉じる"
+        aria-label="关闭住人菜单"
         aria-hidden={!isSidebarOpen}
         tabIndex={isSidebarOpen ? 0 : -1}
         onClick={() => setIsSidebarOpen(false)}
@@ -670,7 +878,7 @@ export default function ChatPage() {
         }`}
       />
       <aside
-        aria-label="NPC navigation"
+        aria-label="住人导航"
         aria-hidden={!isSidebarOpen}
         className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
           isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full"
@@ -691,7 +899,7 @@ export default function ChatPage() {
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              aria-label="NPC メニューを開く"
+              aria-label="打开住人菜单"
               onClick={() => setIsSidebarOpen(true)}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8E0CE] text-sm text-[#28231A] transition-colors hover:bg-[#D8CFBC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:hidden"
             >
@@ -701,7 +909,7 @@ export default function ChatPage() {
             <div className="min-w-0">
               <span className="font-medium text-sm text-[#28231A] block truncate">{currentNpc.name}</span>
               <span className="text-[9px] text-[#7A7060] block truncate">
-                {currentNpc.subname}・{currentNpc.location} · 文字モード
+                {currentNpc.subname}・{currentNpc.location} · 文字模式
               </span>
             </div>
           </div>
@@ -731,7 +939,7 @@ export default function ChatPage() {
             {isTyping && (
               <div className="flex justify-start items-center gap-2 text-xs text-[#7A7060] animate-pulse">
                 <img src={NPC_AVATARS[npcId]} alt="" className="w-6 h-6 rounded-full object-cover" />
-                <span className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.06)] rounded-full px-3 py-1 text-[10px]">入力中...</span>
+                <span className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.06)] rounded-full px-3 py-1 text-[10px]">正在回复…</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -753,6 +961,7 @@ export default function ChatPage() {
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
               disabled={isTyping}
               className="w-9 h-9 shrink-0 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm text-[#28231A] transition-colors disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
+              aria-label={inputMode === "text" ? "切换到语音输入" : "切换到文字输入"}
               title={inputMode === "text" ? "语音输入" : "文字输入"}
             >
               {inputMode === "text" ? <MicIcon size={17} /> : <KeyboardIcon size={17} />}
@@ -765,7 +974,7 @@ export default function ChatPage() {
                   value={inputText}
                   onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="メッセージを入力…"
+                  placeholder="输入消息，日中英都可以…"
                   className="min-w-0 flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm outline-none focus:bg-[#F3EDE0] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                   disabled={isTyping}
                 />
@@ -775,7 +984,7 @@ export default function ChatPage() {
                   disabled={isTyping || !inputText.trim()}
                   className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
                 >
-                  {isTyping ? "送信中…" : "送信"}
+                  {isTyping ? "发送中…" : "发送"}
                 </button>
               </>
             ) : (
@@ -787,12 +996,14 @@ export default function ChatPage() {
                 onTouchStart={(e) => { e.preventDefault(); void startRecording(); }}
                 onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
                 disabled={isTyping}
+                aria-label={isRecording ? "停止录音" : "开始录音"}
+                title={isRecording ? "停止录音" : "开始录音"}
                 className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
                   isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] active:bg-[#2D4A1F] active:text-[#F3EDE0]"
                 }`}
               >
                 <MicIcon size={15} />
-                <span>{isRecording ? "話しています… 離して送信" : "長押しして話す"}</span>
+                <span>{isRecording ? "录音中…松开发送" : "长按说话"}</span>
               </button>
             )}
           </div>

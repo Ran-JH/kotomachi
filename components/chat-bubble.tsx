@@ -138,7 +138,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             pronunciation: "",
             translation: selectedText,
             sentence_meaning: fullSentence,
-            nuance_explanation: "ネットワークが不安定です、後でもう一度試してください～",
+            nuance_explanation: "解释失败，请稍后再试。",
           });
         }
       } finally {
@@ -212,7 +212,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
       >
         {loading ? (
           <p className="text-[10px] text-[#7A7060] animate-pulse text-center py-1.5">
-            読み込み中…
+            正在解释…
           </p>
         ) : data && (
           <>
@@ -227,7 +227,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                       type="button"
                       onClick={() => { void fetchAndPlayTts(selectedText, npcId); }}
                       className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060] hover:bg-[#E8E0CE]/80 hover:text-[#2D4A1F] transition-colors"
-                      title="発音を聞く"
+                      aria-label="听一下"
+                      title="听一下"
                     >
                       <VolumeIcon size={12} />
                     </button>
@@ -237,6 +238,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="关闭解释"
                 className="shrink-0 text-[9px] text-[#7A7060]/45 hover:text-[#28231A] transition-colors leading-none"
               >
                 ✕
@@ -244,12 +246,14 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             </div>
 
             {/* 简短释义 */}
-            <p className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2 text-[11px] text-[#2D4A1F] font-medium leading-snug">
-              {data.translation}
-            </p>
+            <div className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2">
+              <p className="text-[8px] font-medium text-[#7A7060]">简义</p>
+              <p className="mt-0.5 text-[11px] text-[#2D4A1F] font-medium leading-snug">{data.translation}</p>
+            </div>
 
             {/* 整句翻译 */}
             <div className="border-t border-[rgba(40,35,26,0.08)] pt-1.5 mt-1.5">
+              <p className="font-ui text-[8px] font-medium text-[#7A7060]">这句话里的意思</p>
               <p className="font-ui text-[9px] text-[#7A7060] leading-relaxed break-words">
                 {data.sentence_meaning}
               </p>
@@ -263,7 +267,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                   onClick={() => setExpanded(!expanded)}
                   className="flex items-center gap-1 text-[9px] text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
                 >
-                  <span>詳しく</span>
+                  <span>{expanded ? "收起解释" : "展开解释"}</span>
                   <span className={`transition-transform duration-300 text-[7px] ${expanded ? "rotate-180" : ""}`}>▼</span>
                 </button>
                 <div
@@ -305,12 +309,13 @@ interface FeedbackDrawerProps {
   npcId: NpcId;
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
+  feedbackError: boolean;
   onClose: () => void;
   onSuggestionPlayed?: (key: FeedbackLevelKey) => void;
 }
 
 function FeedbackDrawer({
-  open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, onClose, onSuggestionPlayed,
+  open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, feedbackError, onClose, onSuggestionPlayed,
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
   const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
@@ -397,7 +402,7 @@ function FeedbackDrawer({
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex flex-col justify-end px-2 sm:px-0">
-      <button type="button" aria-label="閉じる" className="absolute inset-0 bg-[#28231A]/15" onClick={onClose} />
+      <button type="button" aria-label="关闭表达提示" className="absolute inset-0 bg-[#28231A]/15" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
@@ -410,29 +415,37 @@ function FeedbackDrawer({
             type="button"
             onClick={onClose}
             className="absolute top-4 right-4 w-6 h-6 rounded-full text-[#7A7060] hover:bg-[rgba(40,35,26,0.06)] hover:text-[#28231A] text-xs leading-none flex items-center justify-center transition-colors"
-            aria-label="閉じる"
+            aria-label="关闭表达提示"
           >
             ✕
           </button>
           <h2 id="feedback-drawer-title" className="font-ui text-sm font-medium text-[#28231A] tracking-wide mb-0.5">
-            話し方を比べよう
+            表达提示
           </h2>
-          <p className="text-[9px] text-[#7A7060]">場面によって言い方を変えてみよう</p>
+          <p className="text-[9px] text-[#7A7060]">話し方を比べよう</p>
 
           {/* 用户原句 */}
           <div className="mt-3 rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3 py-2">
-            <span className="text-[8px] font-medium text-[#7A7060] uppercase tracking-wider">あなたの言葉</span>
+            <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">你的原句</span>
             <p className="font-ui text-xs text-[#28231A] mt-0.5 leading-relaxed break-words [overflow-wrap:anywhere]">{userText}</p>
           </div>
+
+          {feedbackError && (
+            <p className="mt-2 rounded-lg bg-[#E8E0CE]/55 px-3 py-2 text-[10px] leading-relaxed text-[#7A7060]">
+              表达提示生成失败，请稍后再试。
+            </p>
+          )}
 
           {hasUserRecording && (
             <button
               type="button"
               onClick={playUserRecording}
+              aria-label="听自己的录音"
+              title="听自己的录音"
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2D4A1F] text-[#F3EDE0] py-2 text-[10px] font-medium hover:bg-[#2D4A1F]/90 transition-colors"
             >
               <VolumeIcon size={13} />
-              <span>自分の発音を聞く</span>
+              <span>听自己的录音</span>
             </button>
           )}
         </div>
@@ -441,7 +454,7 @@ function FeedbackDrawer({
         <div className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-5 py-3 space-y-2">
           {loading ? (
             <div className="py-10 text-center">
-              <p className="text-xs text-[#7A7060] animate-pulse">分析中…</p>
+              <p className="text-xs text-[#7A7060] animate-pulse">正在生成表达提示…</p>
             </div>
           ) : (
             feedback &&
@@ -450,9 +463,9 @@ function FeedbackDrawer({
               const isTtsLoading = ttsLoadingKey === meta.key;
               const isExpanded = expandedAnalysisKey === meta.key;
               const levelLabels: Record<string, { label: string; subtitle: string }> = {
-                casual: { label: "カジュアル", subtitle: "親しい友人" },
-                business: { label: "ふつう", subtitle: "一般的な場面" },
-                formal: { label: "フォーマル", subtitle: "丁寧な場面" },
+                casual: { label: "亲近自然", subtitle: "カジュアル" },
+                business: { label: "普通自然", subtitle: "ふつう" },
+                formal: { label: "更礼貌", subtitle: "フォーマル" },
               };
               const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
               const analysisText = level.analysis.trim();
@@ -471,20 +484,20 @@ function FeedbackDrawer({
                       disabled={!!ttsLoadingKey}
                       onClick={() => playLevelSample(meta.key, level.nativeSay)}
                       className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] text-[8px] font-medium text-[#2D4A1F] hover:border-[rgba(40,35,26,0.15)] disabled:opacity-40 transition-colors whitespace-nowrap"
-                      title="発音を聞く"
+                      title="听一下"
                     >
-                      {isTtsLoading ? <span className="animate-pulse">…</span> : <><VolumeIcon size={11} /> 聞く</>}
+                      {isTtsLoading ? <span className="animate-pulse">…</span> : <><VolumeIcon size={11} /> 听一下</>}
                     </button>
                   </header>
                   <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/50 px-3 py-2.5">
-                    <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">おすすめ</span>
+                    <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">推荐表达</span>
                     <p className="font-ja mt-1 text-[14px] font-medium text-[#2D4A1F] leading-[1.85] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {level.nativeSay}
                     </p>
                   </div>
                   {ttsErrorKey === meta.key && (
                     <p className="mt-1.5 px-1 text-[9px] text-[#9A6B2F]">
-                      音声を再生できませんでした。文字で確認してね。
+                      播放失败，请稍后再试。
                     </p>
                   )}
                   <div className="mt-2 px-1">
@@ -505,7 +518,7 @@ function FeedbackDrawer({
                         onClick={() => setExpandedAnalysisKey(isExpanded ? null : meta.key)}
                         className="mt-2 block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
                       >
-                        {isExpanded ? "閉じる" : "詳しく"}
+                        {isExpanded ? "收起说明" : "展开说明"}
                       </button>
                     )}
                   </div>
@@ -538,6 +551,7 @@ export function ChatBubble({
   const [isHovered, setIsHovered] = useState(false);
   const [userAudioError, setUserAudioError] = useState(false);
   const [feedbackRecordId, setFeedbackRecordId] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState(false);
 
   const [popover, setPopover] = useState<{
     selectedText: string; fullSentence: string; anchorRect: DOMRect;
@@ -546,7 +560,10 @@ export function ChatBubble({
   const bubbleRef = useRef<HTMLDivElement>(null);
   const userAudioRef = useRef<HTMLAudioElement | null>(null);
   const userTempAudioUrlRef = useRef<string | null>(null);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setFeedbackError(false);
+  }, []);
   const hasUserRecording = sender === "user" && Boolean(userAudioUrl || userAudioBlob);
 
   const recordExpressionHintOpened = useCallback((nextFeedback: FeedbackResponse): string => {
@@ -603,6 +620,7 @@ export function ChatBubble({
       return;
     }
     setLoading(true);
+    setFeedbackError(false);
     try {
       const res = await fetch("/api/feedback", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -611,13 +629,15 @@ export function ChatBubble({
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
       setFeedback(nextFeedback);
+      setFeedbackError(false);
       recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
+      setFeedbackError(true);
       const fallbackFeedback: FeedbackResponse = {
-        casual: { nativeSay: text, analysis: "【カジュアル】友達との会話にはこんな言い方もあります。" },
-        business: { nativeSay: text, analysis: "【ふつう】普段の会話に適した言い方です。" },
-        formal: { nativeSay: text, analysis: "【フォーマル】より丁寧な言い方をするとこうなります。" },
+        casual: { nativeSay: text, analysis: "表达提示暂时不可用。这里先保留你的原句，稍后可以再试一次。" },
+        business: { nativeSay: text, analysis: "表达提示暂时不可用。这里先保留你的原句，稍后可以再试一次。" },
+        formal: { nativeSay: text, analysis: "表达提示暂时不可用。这里先保留你的原句，稍后可以再试一次。" },
       };
       setFeedback(fallbackFeedback);
       recordExpressionHintOpened(fallbackFeedback);
@@ -720,38 +740,44 @@ export function ChatBubble({
                 <button
                   type="button"
                   onClick={playStandardAudio}
+                  aria-label="播放 NPC 语音"
+                  title="播放"
                   className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
                 >
                   <VolumeIcon size={11} />
-                  <span>再生</span>
+                  <span>播放</span>
                 </button>
               )}
               {hasUserRecording && (
                 <button
                   type="button"
                   onClick={playUserAudio}
+                  aria-label="听自己的录音"
+                  title="听录音"
                   className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
                 >
                   <VolumeIcon size={11} />
-                  <span>録音を聞く</span>
+                  <span>听录音</span>
                 </button>
               )}
               {sender === "user" && (
                 <button
                   type="button"
                   onClick={handleOpenFeedback}
+                  aria-label="打开表达提示"
+                  title="表达提示"
                   className={`mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors ${
                     drawerOpen ? "!opacity-100" : ""
                   }`}
                 >
                   <LightbulbIcon size={11} />
-                  <span>表現ヒント</span>
+                  <span>表达提示</span>
                 </button>
               )}
             </div>
             {userAudioError && (
               <p className="mt-1 text-right text-[9px] text-[#9A6B2F]">
-                録音を再生できませんでした。
+                录音播放失败，请稍后再试。
               </p>
             )}
           </div>
@@ -771,7 +797,7 @@ export function ChatBubble({
 
       <FeedbackDrawer
         open={drawerOpen} loading={loading} userText={text} feedback={feedback}
-        npcId={npcId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} onClose={closeDrawer}
+        npcId={npcId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} feedbackError={feedbackError} onClose={closeDrawer}
         onSuggestionPlayed={recordSuggestionPlayed}
       />
     </>
