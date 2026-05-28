@@ -4,10 +4,14 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
+import { ChatSummaryDetail } from "@/components/chat-summary-detail";
+import { ChatSummaryList } from "@/components/chat-summary-list";
+import { ChatToast } from "@/components/chat-toast";
+import { TimeDivider, shouldShowTimeDivider } from "@/components/chat-time-divider";
 import { LanguageToggle } from "@/components/language-toggle";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
-import { getUiCopy, type UiCopy } from "@/lib/ui-copy";
+import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
   getLocalNPCMemories,
@@ -163,89 +167,6 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
 ];
-
-function formatSummaryDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(date);
-}
-
-function getUpgradeSourceLabel(source: string, copy: UiCopy): string {
-  if (source === "expression_hint") return copy.summary.fromHint;
-  if (source === "non_japanese_span") return copy.summary.fromGap;
-  return copy.summary.fromConversation;
-}
-
-function getWordSourceLabel(source: string, copy: UiCopy): string {
-  return source === "looked_up" ? copy.summary.lookedUp : copy.summary.fromConversation;
-}
-
-const MESSAGE_TIME_DIVIDER_GAP_MS = 15 * 60 * 1000;
-
-function parseMessageTime(value?: string): number | null {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : null;
-}
-
-function shouldShowTimeDivider(
-  previousMessage: ChatMessage | undefined,
-  message: ChatMessage,
-): boolean {
-  const currentTime = parseMessageTime(message.createdAt);
-  if (currentTime === null) return false;
-
-  const previousTime = parseMessageTime(previousMessage?.createdAt);
-  if (previousTime === null) return true;
-
-  return currentTime - previousTime >= MESSAGE_TIME_DIVIDER_GAP_MS;
-}
-
-function formatMessageDividerTime(value: string | undefined, uiLanguage: UiLanguage): string {
-  const time = parseMessageTime(value);
-  if (time === null) return "";
-
-  const date = new Date(time);
-  const now = new Date();
-  const locale = uiLanguage === "en" ? "en-US" : "zh-CN";
-  const sameDay = date.toDateString() === now.toDateString();
-
-  if (sameDay) {
-    return new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  }
-
-  return new Intl.DateTimeFormat(locale, {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function TimeDivider({ value, uiLanguage }: { value?: string; uiLanguage: UiLanguage }) {
-  const label = formatMessageDividerTime(value, uiLanguage);
-  if (!label) return null;
-
-  return (
-    <div className="flex justify-center py-1">
-      <span className="font-ui rounded-full bg-[#E8E0CE]/70 px-3 py-1 text-[10px] text-[#7A7060] shadow-[0_1px_2px_rgba(40,35,26,0.04)]">
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function SectionTitle({ jp, zh }: { jp: string; zh: string }) {
-  return (
-    <h3 className="font-ui flex items-baseline gap-2 text-sm font-semibold text-[#2D4A1F]">
-      <span>{zh}</span>
-      <span className="text-[10px] font-normal text-[#7A7060]">{jp}</span>
-    </h3>
-  );
-}
 
 export default function ChatPage() {
   const params = useParams();
@@ -723,122 +644,14 @@ export default function ChatPage() {
     }
   };
 
-  const renderSummaryDetail = () => {
-    if (!selectedSummaryCard) return null;
-    const card = selectedSummaryCard;
-
-    return (
-      <div className="fixed inset-0 z-30 flex justify-end">
-        <button
-          type="button"
-          aria-label={copy.summary.close}
-          className="absolute inset-0 bg-[#28231A]/10"
-          onClick={() => setSelectedSummaryCard(null)}
-        />
-        <aside className="relative flex h-full w-full max-w-lg flex-col bg-[#F3EDE0] border-l border-[rgba(40,35,26,0.08)] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
-          <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-5 sm:px-6">
-            <button
-              type="button"
-              onClick={() => setSelectedSummaryCard(null)}
-              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-xs text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
-              aria-label={copy.common.close}
-            >
-              ✕
-            </button>
-            <p className="font-ui text-[10px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · {copy.summary.title} / {copy.summary.subtitle}</p>
-            <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
-          </header>
-
-          <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-[#28231A] sm:px-6">
-            <section>
-              <SectionTitle jp={copy.summary.topicJp} zh={copy.summary.topic} />
-              <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
-            </section>
-
-            {card.reusableExpressions.length > 0 && (
-              <section>
-                <SectionTitle jp={copy.summary.reusableJp} zh={copy.summary.reusable} />
-                <div className="mt-3 space-y-2.5">
-                  {card.reusableExpressions.map((item, index) => (
-                    <div key={`${item.expression}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                      <p className="font-ja text-sm font-medium leading-[1.8] text-[#28231A]">{item.expression}</p>
-                      {item.note && <p className="font-ui mt-1.5 text-[11px] leading-relaxed text-[#6B6254]">{item.note}</p>}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {card.expressionUpgrades.length > 0 && (
-              <section>
-                <SectionTitle jp={copy.summary.upgradeJp} zh={copy.summary.upgrade} />
-                <div className="mt-3 space-y-3">
-                  {card.expressionUpgrades.map((item, index) => (
-                    <div key={`${item.original}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                      <p className="font-ui text-[10px] text-[#7A7060]">{getUpgradeSourceLabel(item.source, copy)}</p>
-                      <div className="mt-2.5 space-y-3">
-                        <div>
-                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.original}</p>
-                          <p className="font-ui mt-1 text-sm leading-relaxed text-[#4A4438]">{item.original}</p>
-                        </div>
-                        <div>
-                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.suggestion}</p>
-                          <p className="font-ja mt-1 text-[15px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
-                        </div>
-                        {item.note && (
-                          <div>
-                            <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.note}</p>
-                            <p className="font-ui mt-1 text-[12px] leading-relaxed text-[#6B6254]">{item.note}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {card.reviewWords.length > 0 && (
-              <section>
-                <SectionTitle jp={copy.summary.wordsJp} zh={copy.summary.words} />
-                <div className="mt-3 space-y-2.5">
-                  {card.reviewWords.map((item, index) => (
-                    <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="font-ja text-sm font-medium text-[#28231A]">{item.word}</p>
-                        <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source, copy)}</span>
-                      </div>
-                      {item.reading && <p className="font-ja mt-1 text-[11px] text-[#7A7060]">{item.reading}</p>}
-                      <p className="font-ui mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">{item.meaning}</p>
-                      {item.example && <p className="font-ja mt-1.5 text-[12px] leading-relaxed text-[#6B6254]">{item.example}</p>}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {card.nextTalkPrompt && (
-              <section className="rounded-xl bg-[#E8E0CE]/65 px-4 py-4">
-                <SectionTitle jp={copy.summary.nextTopicJp} zh={copy.summary.nextTopic} />
-                <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
-              </section>
-            )}
-          </div>
-
-          <footer className="shrink-0 border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6">
-            <button
-              type="button"
-              onClick={() => handleDeleteSummaryCard(card.id)}
-              className="font-ui text-[11px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
-            >
-              {copy.summary.delete}
-            </button>
-          </footer>
-        </aside>
-      </div>
-    );
-  };
-
+  const renderSummaryDetail = () => (
+    <ChatSummaryDetail
+      card={selectedSummaryCard}
+      copy={copy}
+      onClose={() => setSelectedSummaryCard(null)}
+      onDelete={handleDeleteSummaryCard}
+    />
+  );
   const renderSidebarContent = (closeOnNavigate = false) => {
     const handleNavigate = closeOnNavigate ? () => setIsSidebarOpen(false) : undefined;
 
@@ -894,47 +707,15 @@ export default function ChatPage() {
           })}
         </nav>
 
-        <section className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
-          <div className="mb-2">
-            <h2 className="text-[11px] font-semibold tracking-wide text-[#D4C8A8]">{copy.sidebar.reviewTitle}</h2>
-            <p className="mt-0.5 text-[8px] text-[#D4C8A8]/45">{copy.sidebar.reviewSubtitle}</p>
-          </div>
-          <p className="mb-2 text-[9px] leading-relaxed text-[#D4C8A8]/45">
-            {copy.sidebar.reviewDescription}
-          </p>
-          <button
-            type="button"
-            disabled={isSummaryGenerating}
-            aria-disabled={!canCreateSummary}
-            onClick={handleCreateSummary}
-            className={`w-full rounded-lg px-3 py-2 text-[10px] font-medium transition-colors disabled:cursor-not-allowed ${
-              canCreateSummary
-                ? "bg-[#C9A84C]/90 text-[#1E2A16] hover:bg-[#C9A84C]"
-                : "bg-[rgba(255,255,255,0.05)] text-[#D4C8A8]/45 hover:bg-[rgba(255,255,255,0.08)]"
-            }`}
-          >
-            {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
-          </button>
-          <div className="mt-3 space-y-1.5">
-            {summaryCards.slice(0, 5).length > 0 ? (
-              summaryCards.slice(0, 5).map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  onClick={() => handleOpenSummaryCard(card, closeOnNavigate)}
-                  className="w-full rounded-lg border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-left transition-colors hover:bg-[rgba(255,255,255,0.07)]"
-                >
-                  <span className="block truncate text-[10px] text-[#D4C8A8]">{card.title}</span>
-                  <span className="mt-0.5 block text-[8px] text-[#D4C8A8]/40">{formatSummaryDate(card.createdAt)}</span>
-                </button>
-              ))
-            ) : (
-              <p className="text-[8px] leading-relaxed text-[#D4C8A8]/35">
-                {copy.sidebar.emptyReview}
-              </p>
-            )}
-          </div>
-        </section>
+        <ChatSummaryList
+          copy={copy}
+          cards={summaryCards}
+          canCreateSummary={canCreateSummary}
+          isSummaryGenerating={isSummaryGenerating}
+          closeOnOpen={closeOnNavigate}
+          onCreateSummary={handleCreateSummary}
+          onOpenSummaryCard={handleOpenSummaryCard}
+        />
 
         {/* 底部返回 */}
         <div className="p-3 border-t border-[rgba(255,255,255,0.06)]">
@@ -1101,19 +882,7 @@ export default function ChatPage() {
           </div>
         </div>
       </main>
-      {summaryToast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`fixed left-4 right-4 top-4 z-[70] mx-auto max-w-sm rounded-xl border px-4 py-3 text-sm leading-relaxed shadow-[0_10px_30px_rgba(40,35,26,0.14)] md:left-auto md:right-5 md:mx-0 ${
-            summaryToast.tone === "error"
-              ? "border-[#B86B5E]/25 bg-[#FAF6EE] text-[#7A3E35]"
-              : "border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] text-[#2D4A1F]"
-          }`}
-        >
-          {summaryToast.message}
-        </div>
-      )}
+      <ChatToast toast={summaryToast} />
       {renderSummaryDetail()}
     </div>
   );
