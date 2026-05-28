@@ -46,6 +46,7 @@ interface ChatSummaryDetailProps {
   card: SessionSummaryCard | null;
   copy: UiCopy;
   isOpen: boolean;
+  getNpcName: (npcId: SessionSummaryCard["npcId"]) => string;
   onOpenCard: (card: SessionSummaryCard) => void;
   onClose: () => void;
   onDelete: (cardId: string) => void;
@@ -57,6 +58,7 @@ export function ChatSummaryDetail({
   card,
   copy,
   isOpen,
+  getNpcName,
   onOpenCard,
   onClose,
   onDelete,
@@ -84,7 +86,7 @@ export function ChatSummaryDetail({
               onClick={() => onOpenCard(item)}
               className="w-full rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3 text-left transition-colors hover:bg-[#F3EDE0]"
             >
-              <p className="text-[10px] text-[#7A7060]">{formatSummaryDate(item.createdAt)}</p>
+              <p className="text-[10px] text-[#7A7060]">{getNpcName(item.npcId)} · {formatSummaryDate(item.createdAt)}</p>
               <p className="mt-1 text-[14px] leading-relaxed text-[#28231A]">{item.title}</p>
               <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[#6B6254]">{item.topicSummary}</p>
             </button>
@@ -121,7 +123,7 @@ export function ChatSummaryDetail({
               >
                 {backToListLabel}
               </button>
-              <p className="font-ui text-[10px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · {copy.summary.title} / {copy.summary.subtitle}</p>
+              <p className="font-ui text-[10px] text-[#7A7060]">{getNpcName(card.npcId)} · {formatSummaryDate(card.createdAt)} · {copy.summary.title} / {copy.summary.subtitle}</p>
               <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
             </>
           ) : (

@@ -188,6 +188,7 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [summaryCards, setSummaryCards] = useState<SessionSummaryCard[]>([]);
+  const [allSummaryCards, setAllSummaryCards] = useState<SessionSummaryCard[]>([]);
   const [selectedSummaryCard, setSelectedSummaryCard] = useState<SessionSummaryCard | null>(null);
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false);
   const [summaryToast, setSummaryToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
@@ -449,6 +450,7 @@ export default function ChatPage() {
     const wasSeenThisSession = hasSeenNpcThisSession(npcId);
     markNpcSeenThisSession(npcId);
     setSummaryCards(loadSummaryCards(npcId));
+    setAllSummaryCards(loadSummaryCards());
     setSelectedSummaryCard(null);
     setSummaryToast(null);
     const storedMemories = getLocalNPCMemories(npcId);
@@ -609,6 +611,7 @@ export default function ChatPage() {
   const handleDeleteSummaryCard = (cardId: string) => {
     deleteSummaryCard(cardId);
     setSummaryCards(loadSummaryCards(npcId));
+    setAllSummaryCards(loadSummaryCards());
     setSelectedSummaryCard(null);
     showSummaryToast(copy.summary.deleted, "success");
   };
@@ -681,6 +684,7 @@ export default function ChatPage() {
       const card = buildSummaryCard(data.card, currentSummarySource);
       saveSummaryCard(card);
       setSummaryCards(loadSummaryCards(npcId));
+      setAllSummaryCards(loadSummaryCards());
       setIsReviewPanelOpen(true);
       setSelectedSummaryCard(card);
       setIsSidebarOpen(false);
@@ -693,10 +697,11 @@ export default function ChatPage() {
 
   const renderSummaryDetail = () => (
     <ChatSummaryDetail
-      cards={summaryCards}
+      cards={allSummaryCards}
       card={selectedSummaryCard}
       copy={copy}
       isOpen={isReviewPanelOpen}
+      getNpcName={(id) => NPC_LIST.find((npc) => npc.id === id)?.name ?? id}
       onOpenCard={(card) => setSelectedSummaryCard(card)}
       onBackToList={() => setSelectedSummaryCard(null)}
       onClose={() => {
