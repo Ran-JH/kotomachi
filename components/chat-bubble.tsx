@@ -104,9 +104,20 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function hasUsefulNuance(data: ExplainResult, copy: ReturnType<typeof getUiCopy>): boolean {
+  const nuance = data.nuance_explanation.trim();
+  if (nuance.length < 12) return false;
+  if (nuance === data.translation.trim() || nuance === data.sentence_meaning.trim()) return false;
+  if (nuance.includes(copy.explain.error) || /解释失败|Couldn.t explain|failed/i.test(nuance)) {
+    return false;
+  }
+  return true;
+}
+
 function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect, uiLanguage, onClose }: WordPopoverProps) {
   const [data, setData] = useState<ExplainResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [explainError, setExplainError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const copy = getUiCopy(uiLanguage);
@@ -115,6 +126,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     let cancelled = false;
     const fetchExplain = async () => {
       setLoading(true);
+      setExplainError(false);
+      setExpanded(false);
       try {
         const res = await fetch("/api/explain", {
           method: "POST",
@@ -125,6 +138,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         const json = (await res.json()) as ExplainResult;
         if (!cancelled) {
           setData(json);
+          setExplainError(false);
           saveLookupHistory({
             schemaVersion: 1,
             id: createSummaryId("lookup"),
@@ -139,11 +153,12 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         }
       } catch {
         if (!cancelled) {
+          setExplainError(true);
           setData({
             pronunciation: "",
             translation: selectedText,
             sentence_meaning: fullSentence,
-            nuance_explanation: copy.explain.error,
+            nuance_explanation: "",
           });
         }
       } finally {
@@ -202,6 +217,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
       },
     };
   })();
+
+  const showNuance = data ? hasUsefulNuance(data, copy) : false;
 
   return createPortal(
     <div ref={popoverRef} style={popoverLayout.style}>
@@ -262,10 +279,15 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
               <p className="font-ui text-[9px] text-[#7A7060] leading-relaxed break-words">
                 {data.sentence_meaning}
               </p>
+              {explainError && (
+                <p className="font-ui mt-1.5 rounded-md bg-[#F3EDE0]/80 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060]">
+                  {copy.explain.error}
+                </p>
+              )}
             </div>
 
             {/* 詳しく ▼ — 琥珀强调色，平滑展开 */}
-            {data.nuance_explanation && (
+            {showNuance && (
               <div className="border-t border-[rgba(40,35,26,0.08)] pt-1.5 mt-1.5">
                 <button
                   type="button"
