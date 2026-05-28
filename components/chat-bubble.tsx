@@ -219,10 +219,10 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             {/* 单词 + 读音 + 发音按钮 */}
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="min-w-0">
-                <span className="block text-[13px] font-medium text-[#28231A] leading-snug break-words">{selectedText}</span>
+                <span className="font-ja block text-[13px] font-medium text-[#28231A] leading-snug break-words">{selectedText}</span>
                 {data.pronunciation && (
                   <div className="mt-0.5 flex items-center gap-1.5">
-                    <span className="text-[9px] text-[#7A7060]">{data.pronunciation}</span>
+                    <span className="font-ja text-[9px] text-[#7A7060]">{data.pronunciation}</span>
                     <button
                       type="button"
                       onClick={() => { void fetchAndPlayTts(selectedText, npcId); }}
@@ -244,13 +244,13 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             </div>
 
             {/* 简短释义 */}
-            <p className="rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2 text-[11px] text-[#2D4A1F] font-medium leading-snug">
+            <p className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2 text-[11px] text-[#2D4A1F] font-medium leading-snug">
               {data.translation}
             </p>
 
             {/* 整句翻译 */}
             <div className="border-t border-[rgba(40,35,26,0.08)] pt-1.5 mt-1.5">
-              <p className="text-[9px] text-[#7A7060] leading-relaxed break-words">
+              <p className="font-ui text-[9px] text-[#7A7060] leading-relaxed break-words">
                 {data.sentence_meaning}
               </p>
             </div>
@@ -272,7 +272,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="text-[9px] text-[#7A7060] leading-relaxed break-words">
+                    <p className="font-ui text-[9px] text-[#7A7060] leading-relaxed break-words">
                       {data.nuance_explanation}
                     </p>
                   </div>
@@ -414,7 +414,7 @@ function FeedbackDrawer({
           >
             ✕
           </button>
-          <h2 id="feedback-drawer-title" className="text-sm font-medium text-[#28231A] tracking-wide mb-0.5">
+          <h2 id="feedback-drawer-title" className="font-ui text-sm font-medium text-[#28231A] tracking-wide mb-0.5">
             話し方を比べよう
           </h2>
           <p className="text-[9px] text-[#7A7060]">場面によって言い方を変えてみよう</p>
@@ -422,7 +422,7 @@ function FeedbackDrawer({
           {/* 用户原句 */}
           <div className="mt-3 rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3 py-2">
             <span className="text-[8px] font-medium text-[#7A7060] uppercase tracking-wider">あなたの言葉</span>
-            <p className="text-xs text-[#28231A] mt-0.5 leading-relaxed break-words [overflow-wrap:anywhere]">{userText}</p>
+            <p className="font-ui text-xs text-[#28231A] mt-0.5 leading-relaxed break-words [overflow-wrap:anywhere]">{userText}</p>
           </div>
 
           {hasUserRecording && (
@@ -478,7 +478,7 @@ function FeedbackDrawer({
                   </header>
                   <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/50 px-3 py-2.5">
                     <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">おすすめ</span>
-                    <p className="mt-1 text-[13px] font-medium text-[#2D4A1F] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                    <p className="font-ja mt-1 text-[14px] font-medium text-[#2D4A1F] leading-[1.85] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {level.nativeSay}
                     </p>
                   </div>
@@ -490,7 +490,7 @@ function FeedbackDrawer({
                   <div className="mt-2 px-1">
                     <p
                       ref={setAnalysisRef(meta.key)}
-                      className={`text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
+                      className={`font-ui text-[9px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
                         !isExpanded
                           ? "max-h-[4.875em] overflow-hidden"
                           : ""
@@ -703,8 +703,8 @@ export function ChatBubble({
               onDoubleClick={handleDoubleClick}
               className={`rounded-xl px-5 py-3.5 text-[13px] leading-relaxed select-text transition-colors duration-200 ${
                 sender === "user"
-                  ? "bg-[#2D4A1F] text-[#F3EDE0] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-                  : "bg-[#FAF6EE] text-[#28231A] border border-[rgba(40,35,26,0.1)] shadow-[0_1px_3px_rgba(40,35,26,0.04)] hover:border-[rgba(40,35,26,0.15)]"
+                  ? "font-ui bg-[#2D4A1F] text-[#F3EDE0] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                  : "font-ja bg-[#FAF6EE] text-[#28231A] border border-[rgba(40,35,26,0.1)] shadow-[0_1px_3px_rgba(40,35,26,0.04)] hover:border-[rgba(40,35,26,0.15)]"
               }`}
             >
               {text}

@@ -15,8 +15,11 @@ const config: Config = {
         amber: "#C9A84C",
       },
       fontFamily: {
-        sans: ["Noto Sans JP", "Hiragino Sans", "Yu Gothic", "sans-serif"],
-        serif: ["Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "serif"],
+        sans: ["var(--font-ui)"],
+        ui: ["var(--font-ui)"],
+        ja: ["var(--font-ja)"],
+        brand: ["var(--font-brand)"],
+        serif: ["var(--font-brand)"],
       },
     },
   },

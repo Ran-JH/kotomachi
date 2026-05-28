@@ -93,7 +93,7 @@ function getWordSourceLabel(source: string): string {
 
 function SectionTitle({ jp, zh }: { jp: string; zh: string }) {
   return (
-    <h3 className="flex items-baseline gap-2 text-sm font-semibold text-[#2D4A1F]">
+    <h3 className="font-ui flex items-baseline gap-2 text-sm font-semibold text-[#2D4A1F]">
       <span>{zh}</span>
       <span className="text-[10px] font-normal text-[#7A7060]">{jp}</span>
     </h3>
@@ -460,14 +460,14 @@ export default function ChatPage() {
             >
               ✕
             </button>
-            <p className="text-[10px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · 回顾卡片 / ふりかえり</p>
-            <h2 className="mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
+            <p className="font-ui text-[10px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · 回顾卡片 / ふりかえり</p>
+            <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
           </header>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-[#28231A] sm:px-6">
             <section>
               <SectionTitle jp="今日の話" zh="今天聊了什么" />
-              <p className="mt-2 text-sm leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
+              <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
             </section>
 
             {card.reusableExpressions.length > 0 && (
@@ -476,8 +476,8 @@ export default function ChatPage() {
                 <div className="mt-3 space-y-2.5">
                   {card.reusableExpressions.map((item, index) => (
                     <div key={`${item.expression}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                      <p className="text-sm font-semibold leading-relaxed text-[#28231A]">{item.expression}</p>
-                      {item.note && <p className="mt-1.5 text-[11px] leading-relaxed text-[#6B6254]">{item.note}</p>}
+                      <p className="font-ja text-sm font-medium leading-[1.8] text-[#28231A]">{item.expression}</p>
+                      {item.note && <p className="font-ui mt-1.5 text-[11px] leading-relaxed text-[#6B6254]">{item.note}</p>}
                     </div>
                   ))}
                 </div>
@@ -490,20 +490,20 @@ export default function ChatPage() {
                 <div className="mt-3 space-y-3">
                   {card.expressionUpgrades.map((item, index) => (
                     <div key={`${item.original}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                      <p className="text-[10px] text-[#7A7060]">{getUpgradeSourceLabel(item.source)}</p>
+                      <p className="font-ui text-[10px] text-[#7A7060]">{getUpgradeSourceLabel(item.source)}</p>
                       <div className="mt-2.5 space-y-3">
                         <div>
-                          <p className="text-[11px] font-semibold text-[#7A7060]">原表达</p>
-                          <p className="mt-1 text-sm leading-relaxed text-[#4A4438]">{item.original}</p>
+                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">原表达</p>
+                          <p className="font-ui mt-1 text-sm leading-relaxed text-[#4A4438]">{item.original}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-semibold text-[#7A7060]">可以这样说</p>
-                          <p className="mt-1 text-[15px] font-semibold leading-relaxed text-[#2D4A1F]">{item.suggestion}</p>
+                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">可以这样说</p>
+                          <p className="font-ja mt-1 text-[15px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
                         </div>
                         {item.note && (
                           <div>
-                            <p className="text-[11px] font-semibold text-[#7A7060]">学习点</p>
-                            <p className="mt-1 text-[12px] leading-relaxed text-[#6B6254]">{item.note}</p>
+                            <p className="font-ui text-[11px] font-semibold text-[#7A7060]">学习点</p>
+                            <p className="font-ui mt-1 text-[12px] leading-relaxed text-[#6B6254]">{item.note}</p>
                           </div>
                         )}
                       </div>
@@ -520,12 +520,12 @@ export default function ChatPage() {
                   {card.reviewWords.map((item, index) => (
                     <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
                       <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-sm font-semibold text-[#28231A]">{item.word}</p>
-                        <span className="shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source)}</span>
+                        <p className="font-ja text-sm font-medium text-[#28231A]">{item.word}</p>
+                        <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source)}</span>
                       </div>
-                      {item.reading && <p className="mt-1 text-[11px] text-[#7A7060]">{item.reading}</p>}
-                      <p className="mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">{item.meaning}</p>
-                      {item.example && <p className="mt-1.5 text-[12px] leading-relaxed text-[#6B6254]">{item.example}</p>}
+                      {item.reading && <p className="font-ja mt-1 text-[11px] text-[#7A7060]">{item.reading}</p>}
+                      <p className="font-ui mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">{item.meaning}</p>
+                      {item.example && <p className="font-ja mt-1.5 text-[12px] leading-relaxed text-[#6B6254]">{item.example}</p>}
                     </div>
                   ))}
                 </div>
@@ -535,7 +535,7 @@ export default function ChatPage() {
             {card.nextTalkPrompt && (
               <section className="rounded-xl bg-[#E8E0CE]/65 px-4 py-4">
                 <SectionTitle jp="次に話してみること" zh="下次可以聊" />
-                <p className="mt-2 text-sm leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
+                <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
               </section>
             )}
           </div>
@@ -544,7 +544,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => handleDeleteSummaryCard(card.id)}
-              className="text-[11px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
+              className="font-ui text-[11px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
             >
               删除这张回顾卡片
             </button>
@@ -562,7 +562,7 @@ export default function ChatPage() {
         {/* 品牌标题 */}
         <div className="px-5 pt-6 pb-4 border-b border-[rgba(255,255,255,0.06)]">
           <Link href="/" className="group" onClick={handleNavigate}>
-            <h1 className="text-base font-light tracking-widest text-[#D4C8A8] group-hover:text-[#C9A84C] transition-colors font-serif">
+            <h1 className="font-brand text-base font-light tracking-widest text-[#D4C8A8] group-hover:text-[#C9A84C] transition-colors">
               言街 Kotomachi
             </h1>
           </Link>

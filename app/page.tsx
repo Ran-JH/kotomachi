@@ -80,7 +80,7 @@ export default function Home() {
     >
       {/* ====== 顶部品牌区 ====== */}
       <div className="w-full max-w-[2529px] px-10 pt-8 self-start">
-        <h1 className="text-2xl font-light tracking-[0.3em] text-[#28231A] font-serif">
+        <h1 className="font-brand text-2xl font-light tracking-[0.3em] text-[#28231A]">
           言街 Kotomachi
         </h1>
         <p className="text-[10px] text-[#7A7060]/60 mt-0.5 tracking-wider">
@@ -199,7 +199,7 @@ export default function Home() {
 
       {/* ====== 底部提示 ====== */}
       <div className="mt-8 mb-6 text-center space-y-3">
-        <p className="text-base text-[#7A7060] font-serif tracking-[0.25em] font-light">
+        <p className="font-brand text-base text-[#7A7060] tracking-[0.25em] font-light">
           {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
         </p>
         <p className="inline-flex rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/55 px-4 py-2 text-[12px] text-[#6F6556] shadow-[0_2px_10px_rgba(40,35,26,0.04)]">
