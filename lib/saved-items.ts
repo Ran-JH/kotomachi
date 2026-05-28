@@ -115,6 +115,12 @@ export function findSavedItem(id: string): SavedItem | undefined {
   return loadSavedItems().find((i) => i.id === id);
 }
 
+export function isWordSaved(word: string, reading: string): boolean {
+  const items = loadSavedItems();
+  const key = `wd:${normalize(word)}:${normalize(reading)}`;
+  return items.some((i) => i.type === "word" && dedupeKey(i) === key);
+}
+
 export function toggleSavedItem(item: SavedItem): { items: SavedItem[]; saved: boolean } {
   const items = loadSavedItems();
   if (isDuplicate(items, item)) {

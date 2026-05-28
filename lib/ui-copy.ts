@@ -78,6 +78,8 @@ export const UI_COPY = {
       sentenceMeaning: "这句话里的意思",
       showExplanation: "展开解释",
       hideExplanation: "收起解释",
+      saveWord: "收藏词语",
+      savedWord: "已收藏",
     },
     summary: {
       title: "回顾卡片",
@@ -186,13 +188,15 @@ export const UI_COPY = {
     },
     explain: {
       loading: "Explaining…",
-      error: "Couldn’t explain this. Please try again.",
+      error: "Couldn't explain this. Please try again.",
       listen: "Listen",
       close: "Close explanation",
       shortMeaning: "Short meaning",
       sentenceMeaning: "Meaning in this sentence",
       showExplanation: "Show explanation",
       hideExplanation: "Hide explanation",
+      saveWord: "Save word",
+      savedWord: "Saved",
     },
     summary: {
       title: "Review Card",

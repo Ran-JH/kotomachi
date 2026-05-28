@@ -15,6 +15,7 @@ import {
   saveLookupHistory,
   type ExpressionHintStyle,
 } from "@/lib/session-summary";
+import { isWordSaved, toggleSavedItem, type SavedWord } from "@/lib/saved-items";
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
 import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
@@ -119,6 +120,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
   const [loading, setLoading] = useState(true);
   const [explainError, setExplainError] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const copy = getUiCopy(uiLanguage);
 
@@ -139,6 +141,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         if (!cancelled) {
           setData(json);
           setExplainError(false);
+          setIsSaved(isWordSaved(selectedText, json.pronunciation));
           saveLookupHistory({
             schemaVersion: 1,
             id: createSummaryId("lookup"),
@@ -220,6 +223,25 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
 
   const showNuance = data ? hasUsefulNuance(data, copy) : false;
 
+  const handleToggleSave = () => {
+    if (!data) return;
+    const item: SavedWord = {
+      id: createSummaryId("saved-word"),
+      type: "word",
+      npcId,
+      word: selectedText,
+      reading: data.pronunciation ?? "",
+      meaning: data.translation ?? "",
+      meaningLanguage: uiLanguage === "en" ? "en" : "zh",
+      example: fullSentence,
+      source: "lookup",
+      sourceMessageId: messageId,
+      createdAt: new Date().toISOString(),
+    };
+    const result = toggleSavedItem(item);
+    setIsSaved(result.saved);
+  };
+
   return createPortal(
     <div ref={popoverRef} style={popoverLayout.style}>
       {popoverLayout.placement === "bottom" && (
@@ -274,6 +296,19 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
               <p className="text-[9px] font-medium text-[#7A7060]">{copy.explain.shortMeaning}</p>
               <p className="mt-1 text-[12px] text-[#2D4A1F] font-medium leading-snug break-words">{data.translation}</p>
             </div>
+
+            {/* 收藏按钮 */}
+            <button
+              type="button"
+              onClick={handleToggleSave}
+              className={`mt-2 w-full rounded-md border px-2 py-1.5 text-[9px] font-medium transition-colors ${
+                isSaved
+                  ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
+                  : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
+              }`}
+            >
+              {isSaved ? copy.explain.savedWord : copy.explain.saveWord}
+            </button>
 
             {/* 整句翻译 */}
             <div className="border-t border-[rgba(40,35,26,0.08)] pt-2 mt-2">
