@@ -1079,19 +1079,23 @@ Always report:
 
 ## 6.1 Saved Learning Items（Pack M / N）
 
+详细规格见 [`docs/saved-learning-items-spec.md`](saved-learning-items-spec.md)。
+
 为保证学习链路可积累，同时不破坏低压力聊天体验，新增轻量路线：
 
-- **Pack M1**：Saved Items LocalStorage helper（仅数据层）
-- **Pack M2**：从查词 popover 收藏词语（Save Word）
-- **Pack M3**：从表达提示收藏句子（Save Expression）
-- **Pack M4**：Sidebar 收藏入口与列表面板（Saved Panel）
-- **Pack N1**：meaning / note / explanation 跟随 UI language（不翻译日语学习内容）
+- **Pack M1**：Saved Items LocalStorage helper（仅数据层，新增 types/helper，不扩 UI）
+- **Pack M2**：从查词 popover 收藏词语（Save Word，收藏按钮放在读音/释义行旁边）
+- **Pack M3**：从表达提示收藏句子（Save Expression，每档建议卡片增加收藏按钮）
+- **Pack M4**：Sidebar 收藏入口与列表面板（Saved Panel，按类型筛选、查看详情、删除）
+- **Pack N1**：meaning / note / explanation 跟随 UI language（不翻译日语学习内容本体，已收藏项保留保存时语言）
 
 约束：
 
 - 先做 localStorage MVP；
 - 不引入账号、云同步、数据库；
-- 不做打卡或高压力复习机制。
+- 不做打卡或高压力复习机制；
+- 收藏对象必须来自真实上下文，不凭空生成；
+- 收藏入口轻量、不打断聊天。
 
 ## 7. 一句话总结
 
