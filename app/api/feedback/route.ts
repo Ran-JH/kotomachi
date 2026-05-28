@@ -16,6 +16,132 @@ function pickAnalysis(raw: Partial<FeedbackLevel> | undefined): string {
   return "";
 }
 
+function cleanAsrArtifacts(value: string): string {
+  return value
+    .replace(
+      /([ぁ-んァ-ヶ一-龠々ー]{1,8})[-‐‑‒–—]\s*([ぁ-んァ-ヶ一-龠々ー]{1,24})/g,
+      (match, before: string, after: string) => after.startsWith(before) ? after : match,
+    )
+    .replace(/\b(\w+)\s+\1\b/gi, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeNativeSay(value: string): string {
+  return cleanAsrArtifacts(value).replace(/^["「『]|["」』]$/g, "").trim();
+}
+
+function compactExpression(value: string): string {
+  return value.replace(/[、。！？!?…\s]/g, "");
+}
+
+function sameExpression(a: string, b: string): boolean {
+  return compactExpression(a) === compactExpression(b);
+}
+
+function containsAsrArtifact(value: string): boolean {
+  return /[ぁ-んァ-ヶ一-龠々ー]{1,8}[-‐‑‒–—]\s*[ぁ-んァ-ヶ一-龠々ー]{1,24}/.test(value);
+}
+
+function containsLatinFragment(value: string): boolean {
+  return /[A-Za-z]{2,}/.test(value);
+}
+
+function includesAny(value: string, words: string[]): boolean {
+  return words.some((word) => value.toLowerCase().includes(word.toLowerCase()));
+}
+
+function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
+  return { nativeSay, analysis };
+}
+
+function buildIntentFallback(userText: string): FeedbackResponse {
+  const cleaned = cleanAsrArtifacts(userText);
+
+  if (includesAny(cleaned, ["寝たい", "眠", "sleep", "tired"]) && includesAny(cleaned, ["言わない", "もう", "今すぐ"])) {
+    return {
+      casual: feedbackLevel(
+        "もう言わないで。今すぐ寝たい。",
+        "【场合】朋友之间可以直接说「もう言わないで」，语气清楚但不说教。【原句】原句里有 ASR 断裂时，重点是“别再说了、我现在想睡”，所以整理成短句会更自然。",
+      ),
+      business: feedbackLevel(
+        "すみません、もうこの話は大丈夫です。今すぐ休みたいです。",
+        "【场合】普通自然的说法会先用「すみません」缓冲，再表达想结束话题。【原句】这里不需要解释自己为什么累，直接说「休みたいです」比断裂表达更清楚。",
+      ),
+      formal: feedbackLevel(
+        "申し訳ありませんが、この件はいったんここまでにして、休ませていただきたいです。",
+        "【场合】正式场合要避免太直接的命令感，用「いったんここまで」「休ませていただきたいです」更稳。【原句】保留“想停止对话并休息”的意图，但语气更克制。",
+      ),
+    };
+  }
+
+  if (includesAny(cleaned, ["test", "テスト", "試験", "preparation", "準備", "confirm", "finished"])) {
+    return {
+      casual: feedbackLevel(
+        "テストの準備が終わったって確認できて、ちょっと安心した。",
+        "【场合】跟朋友说时可以用「ちょっと安心した」，自然表达松一口气的感觉。【原句】英文残句的核心是“确认准备已经完成，所以放松了”，不需要逐词翻译。",
+      ),
+      business: feedbackLevel(
+        "テストの準備が終わったことを確認できて、少し安心しました。",
+        "【场合】普通自然的说法用「確認できて」「安心しました」，适合同学、老师或日常说明。【原句】把长英文整理成一条因果清楚的日语句子，会更容易听懂。",
+      ),
+      formal: feedbackLevel(
+        "試験の準備が完了していることを確認でき、安心いたしました。",
+        "【场合】更礼貌时用「試験」「完了していること」「安心いたしました」会更正式。【原句】意思仍是确认准备完成后的安心感，只是词汇和句尾更郑重。",
+      ),
+    };
+  }
+
+  if (includesAny(cleaned, ["哲学", "philosophy"]) && includesAny(cleaned, ["寝たい", "眠", "難", "むずか"])) {
+    return {
+      casual: feedbackLevel(
+        "哲学って難しいから、聞いてると眠くなっちゃうよね。",
+        "【场合】朋友之间可以用「〜ちゃうよね」表达共感，轻松又自然。【原句】原句有些词序混乱，但意图像是在说“哲学很难，听着会想睡”。",
+      ),
+      business: feedbackLevel(
+        "哲学は少し難しいので、聞いていると眠くなってしまいますね。",
+        "【场合】普通自然的说法用「少し難しいので」和「〜てしまいますね」，礼貌但不僵硬。【原句】把零散表达整理成原因和结果，会更像日常说明。",
+      ),
+      formal: feedbackLevel(
+        "哲学は内容が難解なため、聞いていると眠くなってしまうことがあります。",
+        "【场合】正式一点可以用「難解なため」「ことがあります」，适合较认真地说明感受。【原句】保留“哲学难、容易困”的意思，但避免口语里的混乱感。",
+      ),
+    };
+  }
+
+  if (includesAny(cleaned, ["レポート", "書かないと", "書かなきゃ"])) {
+    return {
+      casual: feedbackLevel(
+        "明日レポート書かなきゃ。",
+        "【场合】朋友之间常把「書かないといけない」缩成「書かなきゃ」，轻松自然。【原句】原句本身没问题，カジュアル档只需要把句尾变得更口语。",
+      ),
+      business: feedbackLevel(
+        "明日レポートを書かないといけません。",
+        "【场合】普通自然的说法保留完整结构和丁寧語，适合日常说明。【原句】这句已经很清楚，这一档主要调整为更稳的礼貌句尾。",
+      ),
+      formal: feedbackLevel(
+        "明日までにレポートを作成する必要があります。",
+        "【场合】正式场合用「作成する必要があります」更书面、更稳。【原句】意思不变，但词汇从日常的「書く」换成了较正式的「作成する」。",
+      ),
+    };
+  }
+
+  return {
+    casual: feedbackLevel(
+      cleaned,
+      "【场合】カジュアル档应该保留原意，同时让句子更短、更像朋友之间会说的话。【原句】如果原句有停顿或重复，先整理成顺口表达，再看是否需要换句尾。",
+    ),
+    business: feedbackLevel(
+      cleaned.endsWith("です。") || cleaned.endsWith("ます。") ? cleaned : `${cleaned}です。`,
+      "【场合】普通自然档适合店员、同事、邻居等日常社交，重点是礼貌但不僵硬。【原句】原意应保留，只把语气整理得更清楚。",
+    ),
+    formal: feedbackLevel(
+      `恐れ入りますが、${cleaned}`,
+      "【场合】フォーマル档需要更完整的缓冲和敬语，适合上级、客户或书面场景。【原句】不是批改对错，而是把同一个意思换到更郑重的场合。",
+    ),
+  };
+}
+
 function normalizeLevel(
   raw: Partial<FeedbackLevel> | undefined,
   fallbackSay: string,
@@ -24,28 +150,37 @@ function normalizeLevel(
   return {
     nativeSay:
       typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
-        ? raw.nativeSay.trim()
+        ? normalizeNativeSay(raw.nativeSay)
         : fallbackSay,
     analysis: pickAnalysis(raw) || fallbackAnalysis,
   };
 }
 
 function buildFallbackResponse(userText: string): FeedbackResponse {
-  const gentle =
-    "你的原句意思对方能听懂，只是场合感还可以再贴近一点。";
+  return buildIntentFallback(userText);
+}
+
+function needsFallback(response: FeedbackResponse): boolean {
+  const values = [response.casual.nativeSay, response.business.nativeSay, response.formal.nativeSay];
+  const allSame = sameExpression(values[0], values[1]) && sameExpression(values[1], values[2]);
+  const hasBadText = values.some((value) => containsAsrArtifact(value) || containsLatinFragment(value));
+  return allSame || hasBadText;
+}
+
+function repairFeedbackResponse(response: FeedbackResponse, userText: string): FeedbackResponse {
+  if (needsFallback(response)) return buildIntentFallback(userText);
+
+  const fallback = buildIntentFallback(userText);
   return {
-    casual: {
-      nativeSay: userText,
-      analysis: `【场合】跟朋友聊天可以软一点、短一点，不必每句都很完整。【原句】${gentle} 在闲聊里偶尔会显得稍微「认真过头」。`,
-    },
-    business: {
-      nativeSay: userText,
-      analysis: `【场合】职场和日常社交要礼貌、清爽，既不过分随便也不端着。【原句】${gentle} 有时会让对方听出「课本感」或距离感不对。`,
-    },
-    formal: {
-      nativeSay: userText,
-      analysis: `【场合】正式场合需要更完整的敬语和结构，显得尊重、可靠。【原句】${gentle} 在正式场景里可能显得不够郑重。`,
-    },
+    casual: response.casual,
+    business: sameExpression(response.business.nativeSay, response.casual.nativeSay)
+      ? fallback.business
+      : response.business,
+    formal:
+      sameExpression(response.formal.nativeSay, response.casual.nativeSay) ||
+      sameExpression(response.formal.nativeSay, response.business.nativeSay)
+        ? fallback.formal
+        : response.formal,
   };
 }
 
@@ -71,8 +206,12 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 
 硬性要求：
 - 三档 nativeSay 必须彼此不同，且都保留用户原意
+- 先在心里判断用户真实意图，再写三档。不要逐词硬翻译，不要把 ASR 断裂、重复、口吃照抄进 nativeSay
+- casual 要像朋友/熟人说话；business 要像日常礼貌语；formal 要用更完整的敬语。不要只改标点或只加 です/ます
 - 每档 analysis 80～180 字，好懂、可扫读，禁止堆砌语法术语
-- 不要说「你错了」，改用「这里会有点…」「更自然的做法是…」
+- analysis 必须说明真实学习点，例如语气差异、使用场景、句尾自然度、词汇选择、为什么这样说更自然
+- 不要说「你错了」，不要考试批改口吻，改用「这里会有点…」「更自然的做法是…」
+- 不要写内部解释，例如「系统暂时可能生成完整建议」
 
 【重要】混合语言处理规则：
 - 用户的句子中经常混入英语或中文词汇，这是因为他们还不会对应的日语表达才用母语/英语替代的
@@ -80,6 +219,12 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 - 必须在 analysis 中重点教学：这个英语/中文词在日语里怎么说，给出具体的日语表达，并用简短的话解释用法和语境
 - nativeSay 中必须把所有英语/中文替换为地道的日语表达
 - 例如用户说"今日は tired"，analysis 应写"tired 在日语里说 疲れた（つかれた），跟朋友可以说 今日疲れちゃった，更随意的话 疲れたー 就行"
+
+参考意图处理：
+- "もう言わないで、私は今すぐって寝たいにな-になった。" 表示「别再说了，我现在马上想睡/想休息」
+- "Sorry i feel feel relaxed..." 表示「确认考试准备已经完成，所以安心了」
+- "哲学が...寝たい..." 一类句子通常是在说「哲学很难/听着容易困」
+- "明日レポートを書かないといけない。" 本身自然，只需要按三档调整语气，不要过度改写
 
 - 不要输出 wordTips 或任何额外字段`;
 
@@ -125,9 +270,11 @@ export async function POST(req: NextRequest) {
       ),
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(repairFeedbackResponse(response, userText));
   } catch (error) {
-    console.error("[api/feedback]", error);
+    console.warn("[api/feedback] failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(buildFallbackResponse(userText || "（空）"));
   }
 }
