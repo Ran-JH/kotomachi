@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { LanguageToggle } from "@/components/language-toggle";
 import { getNpcState, getTimeOfDay, getWorldContext, NPC_AVATARS, type NpcId } from "@/lib/npc";
+import { getUiCopy } from "@/lib/ui-copy";
+import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 
 /* ============================================================
    首页街景 — 单张街道图 + SVG 热区覆盖
@@ -67,7 +70,18 @@ export default function Home() {
   const worldContext = getWorldContext();
   const [hoveredId, setHoveredId] = useState<NpcId | null>(null);
   const [focusedId, setFocusedId] = useState<NpcId | null>(null);
+  const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
   const activeId = hoveredId ?? focusedId;
+  const copy = getUiCopy(uiLanguage);
+
+  useEffect(() => {
+    setUiLanguage(loadUiLanguage());
+  }, []);
+
+  const handleLanguageChange = (language: UiLanguage) => {
+    setUiLanguage(language);
+    saveUiLanguage(language);
+  };
 
   const openChat = (npcId: NpcId) => {
     router.push(`/chat/${npcId}`);
@@ -87,6 +101,11 @@ export default function Home() {
           {TIME_LABELS[timeOfDay]} · {worldContext.atmosphere}
         </p>
       </div>
+      <LanguageToggle
+        language={uiLanguage}
+        onChange={handleLanguageChange}
+        className="absolute right-5 top-5 z-30"
+      />
 
       {/* ====== 街景主体 — SVG 内嵌建筑PNG ====== */}
       <div className="relative w-full max-w-[2529px] px-4 flex-shrink-0 mt-24">
@@ -122,7 +141,7 @@ export default function Home() {
                 role="link"
                 tabIndex={0}
                 focusable="true"
-                aria-label={`${zone.npc}と話す`}
+                aria-label={copy.home.talkToNpc(zone.npc)}
                 className="cursor-pointer outline-none"
                 onMouseEnter={() => setHoveredId(zone.id)}
                 onMouseLeave={() => setHoveredId(null)}
@@ -184,7 +203,7 @@ export default function Home() {
                   ☁️ {npcState.thought}
                 </p>
                 <p className="mt-2 inline-flex items-center rounded-full bg-[#E8E0CE]/70 px-2.5 py-1 text-[9px] font-medium tracking-wide text-[#2D4A1F]">
-                  話してみる
+                  {copy.home.talkAction}
                 </p>
                 {/* 小三角 */}
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2
@@ -203,7 +222,7 @@ export default function Home() {
           {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
         </p>
         <p className="inline-flex rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/55 px-4 py-2 text-[12px] text-[#6F6556] shadow-[0_2px_10px_rgba(40,35,26,0.04)]">
-          気になるお店をクリックして、住人と話してみよう。
+          {copy.home.cta}
         </p>
       </div>
     </main>

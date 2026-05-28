@@ -75,6 +75,13 @@ Core product layers:
 - Avoid large component rewrites unless the user asks for a refactor plan or explicitly approves the scope.
 - Do not change `package.json` or dependency versions without explicit instruction.
 
+## Documentation Language
+
+- 面向项目维护者、用户本人、公开项目复盘和后续 Codex 协作的文档，默认使用中文为主。
+- 可以保留必要英文技术名词、路径、命令、case ID、状态字段和标题英文别名。
+- 不要把给用户看的项目文档默认写成全英文，除非用户明确要求英文版。
+- README 如果面向公开 GitHub 访客，可以中英文结合；内部 docs 默认中文优先。
+
 ## After Changes Reporting Format
 
 After making changes, report:

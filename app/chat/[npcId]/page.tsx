@@ -4,8 +4,11 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
+import { LanguageToggle } from "@/components/language-toggle";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
+import { getUiCopy, type UiCopy } from "@/lib/ui-copy";
+import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
   getLocalNPCMemories,
   getConversationCount,
@@ -166,14 +169,14 @@ function formatSummaryDate(value: string): string {
   return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(date);
 }
 
-function getUpgradeSourceLabel(source: string): string {
-  if (source === "expression_hint") return "来自表达提示";
-  if (source === "non_japanese_span") return "来自输入缺口";
-  return "来自对话";
+function getUpgradeSourceLabel(source: string, copy: UiCopy): string {
+  if (source === "expression_hint") return copy.summary.fromHint;
+  if (source === "non_japanese_span") return copy.summary.fromGap;
+  return copy.summary.fromConversation;
 }
 
-function getWordSourceLabel(source: string): string {
-  return source === "looked_up" ? "查过的词" : "来自对话";
+function getWordSourceLabel(source: string, copy: UiCopy): string {
+  return source === "looked_up" ? copy.summary.lookedUp : copy.summary.fromConversation;
 }
 
 function SectionTitle({ jp, zh }: { jp: string; zh: string }) {
@@ -203,6 +206,8 @@ export default function ChatPage() {
   const [selectedSummaryCard, setSelectedSummaryCard] = useState<SessionSummaryCard | null>(null);
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false);
   const [summaryToast, setSummaryToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
+  const copy = getUiCopy(uiLanguage);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -228,6 +233,14 @@ export default function ChatPage() {
     };
   }, []);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
+  useEffect(() => {
+    setUiLanguage(loadUiLanguage());
+  }, []);
+
+  const handleLanguageChange = (language: UiLanguage) => {
+    setUiLanguage(language);
+    saveUiLanguage(language);
+  };
 
   const showVoiceHint = (message: string) => {
     setVoiceHint(message);
@@ -468,7 +481,7 @@ export default function ChatPage() {
     try {
       const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "对话失败");
+      if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
       const useVoice = true;
       let npcAudioUrl: string | null = null;
       if (useVoice) npcAudioUrl = await fetchTtsUrl(data.text);
@@ -507,26 +520,26 @@ export default function ChatPage() {
           const sttData = await sttRes.json();
           if (!sttRes.ok) {
             if (sttData.code === "NO_SPEECH") {
-              showVoiceHint("没听清，可以再说一次，或直接输入文字。");
+              showVoiceHint(copy.chat.noSpeech);
             } else {
-              setApiError("语音识别失败，可以继续用文字输入。");
+              setApiError(copy.chat.sttError);
             }
             setIsTyping(false);
             return;
           }
           if (sttData.code === "NO_SPEECH" || !sttData.text?.trim()) {
-            showVoiceHint("没听清，可以再说一次，或直接输入文字。");
+            showVoiceHint(copy.chat.noSpeech);
             setIsTyping(false);
             return;
           }
           await sendToNpc(sttData.text, blob);
         } catch {
-          setApiError("语音识别失败，可以继续用文字输入。");
+          setApiError(copy.chat.sttError);
           setIsTyping(false);
         }
       };
       recorder.start(); setIsRecording(true);
-    } catch { setApiError("无法访问麦克风，请在浏览器里允许录音权限。"); }
+    } catch { setApiError(copy.chat.micError); }
   };
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
@@ -567,7 +580,7 @@ export default function ChatPage() {
     deleteSummaryCard(cardId);
     setSummaryCards(loadSummaryCards(npcId));
     setSelectedSummaryCard(null);
-    showSummaryToast("回顾卡片已删除。", "success");
+    showSummaryToast(copy.summary.deleted, "success");
   };
 
   const buildSummaryCard = (
@@ -591,20 +604,20 @@ export default function ChatPage() {
   const handleCreateSummary = async () => {
     if (existingSourceCard) {
       setSelectedSummaryCard(existingSourceCard);
-      showSummaryToast("这段对话已经生成过回顾卡片，已为你打开。");
+      showSummaryToast(copy.summary.duplicate);
       setIsSidebarOpen(false);
       return;
     }
 
     if (!canCreateSummary) {
-      showSummaryToast("再聊几句后，就可以生成回顾卡片了。");
+      showSummaryToast(copy.summary.tooShort);
       return;
     }
 
     const duplicateCard = findSummaryCardByFingerprint(npcId, currentSummarySource.sourceFingerprint);
     if (duplicateCard) {
       setSelectedSummaryCard(duplicateCard);
-      showSummaryToast("这段对话已经生成过回顾卡片，已为你打开。");
+      showSummaryToast(copy.summary.duplicate);
       setIsSidebarOpen(false);
       return;
     }
@@ -631,7 +644,7 @@ export default function ChatPage() {
       });
       const data = (await res.json()) as { card?: SessionSummaryApiCard; error?: string };
       if (!res.ok || !data.card) {
-        throw new Error(data.error ?? "回顾卡片生成失败，请稍后再试。");
+        throw new Error(data.error ?? copy.summary.createFailed);
       }
       const card = buildSummaryCard(data.card, currentSummarySource);
       saveSummaryCard(card);
@@ -639,7 +652,7 @@ export default function ChatPage() {
       setSelectedSummaryCard(card);
       setIsSidebarOpen(false);
     } catch {
-      showSummaryToast("回顾卡片生成失败，请稍后再试。", "error");
+      showSummaryToast(copy.summary.createFailed, "error");
     } finally {
       setIsSummaryGenerating(false);
     }
@@ -653,7 +666,7 @@ export default function ChatPage() {
       <div className="fixed inset-0 z-30 flex justify-end">
         <button
           type="button"
-          aria-label="关闭回顾卡片"
+          aria-label={copy.summary.close}
           className="absolute inset-0 bg-[#28231A]/10"
           onClick={() => setSelectedSummaryCard(null)}
         />
@@ -663,23 +676,23 @@ export default function ChatPage() {
               type="button"
               onClick={() => setSelectedSummaryCard(null)}
               className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-xs text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
-              aria-label="关闭"
+              aria-label={copy.common.close}
             >
               ✕
             </button>
-            <p className="font-ui text-[10px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · 回顾卡片 / ふりかえり</p>
+            <p className="font-ui text-[10px] text-[#7A7060]">{formatSummaryDate(card.createdAt)} · {copy.summary.title} / {copy.summary.subtitle}</p>
             <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
           </header>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-[#28231A] sm:px-6">
             <section>
-              <SectionTitle jp="今日の話" zh="今天聊了什么" />
+              <SectionTitle jp={copy.summary.topicJp} zh={copy.summary.topic} />
               <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
             </section>
 
             {card.reusableExpressions.length > 0 && (
               <section>
-                <SectionTitle jp="そのまま使える表現" zh="可直接复用的表达" />
+                <SectionTitle jp={copy.summary.reusableJp} zh={copy.summary.reusable} />
                 <div className="mt-3 space-y-2.5">
                   {card.reusableExpressions.map((item, index) => (
                     <div key={`${item.expression}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
@@ -693,23 +706,23 @@ export default function ChatPage() {
 
             {card.expressionUpgrades.length > 0 && (
               <section>
-                <SectionTitle jp="次はこう言える" zh="下次可以这样说" />
+                <SectionTitle jp={copy.summary.upgradeJp} zh={copy.summary.upgrade} />
                 <div className="mt-3 space-y-3">
                   {card.expressionUpgrades.map((item, index) => (
                     <div key={`${item.original}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                      <p className="font-ui text-[10px] text-[#7A7060]">{getUpgradeSourceLabel(item.source)}</p>
+                      <p className="font-ui text-[10px] text-[#7A7060]">{getUpgradeSourceLabel(item.source, copy)}</p>
                       <div className="mt-2.5 space-y-3">
                         <div>
-                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">原表达</p>
+                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.original}</p>
                           <p className="font-ui mt-1 text-sm leading-relaxed text-[#4A4438]">{item.original}</p>
                         </div>
                         <div>
-                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">可以这样说</p>
+                          <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.suggestion}</p>
                           <p className="font-ja mt-1 text-[15px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
                         </div>
                         {item.note && (
                           <div>
-                            <p className="font-ui text-[11px] font-semibold text-[#7A7060]">学习点</p>
+                            <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.note}</p>
                             <p className="font-ui mt-1 text-[12px] leading-relaxed text-[#6B6254]">{item.note}</p>
                           </div>
                         )}
@@ -722,13 +735,13 @@ export default function ChatPage() {
 
             {card.reviewWords.length > 0 && (
               <section>
-                <SectionTitle jp="今日のことば" zh="今日词语" />
+                <SectionTitle jp={copy.summary.wordsJp} zh={copy.summary.words} />
                 <div className="mt-3 space-y-2.5">
                   {card.reviewWords.map((item, index) => (
                     <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="font-ja text-sm font-medium text-[#28231A]">{item.word}</p>
-                        <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source)}</span>
+                        <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source, copy)}</span>
                       </div>
                       {item.reading && <p className="font-ja mt-1 text-[11px] text-[#7A7060]">{item.reading}</p>}
                       <p className="font-ui mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">{item.meaning}</p>
@@ -741,7 +754,7 @@ export default function ChatPage() {
 
             {card.nextTalkPrompt && (
               <section className="rounded-xl bg-[#E8E0CE]/65 px-4 py-4">
-                <SectionTitle jp="次に話してみること" zh="下次可以聊" />
+                <SectionTitle jp={copy.summary.nextTopicJp} zh={copy.summary.nextTopic} />
                 <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
               </section>
             )}
@@ -753,7 +766,7 @@ export default function ChatPage() {
               onClick={() => handleDeleteSummaryCard(card.id)}
               className="font-ui text-[11px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
             >
-              删除这张卡片
+              {copy.summary.delete}
             </button>
           </footer>
         </aside>
@@ -773,10 +786,19 @@ export default function ChatPage() {
               言街 Kotomachi
             </h1>
           </Link>
+          <LanguageToggle
+            language={uiLanguage}
+            onChange={handleLanguageChange}
+            variant="dark"
+            className="mt-3"
+          />
         </div>
 
         {/* NPC 列表 */}
         <nav className="flex-1 py-3 space-y-0.5 overflow-y-auto">
+          <h2 className="px-5 pb-2 text-[10px] font-semibold tracking-wide text-[#D4C8A8]/60">
+            {copy.sidebar.residents}
+          </h2>
           {NPC_LIST.map((npc) => {
             const isActive = npc.id === npcId;
             return (
@@ -809,11 +831,11 @@ export default function ChatPage() {
 
         <section className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
           <div className="mb-2">
-            <h2 className="text-[11px] font-semibold tracking-wide text-[#D4C8A8]">回顾卡片</h2>
-            <p className="mt-0.5 text-[8px] text-[#D4C8A8]/45">ふりかえり</p>
+            <h2 className="text-[11px] font-semibold tracking-wide text-[#D4C8A8]">{copy.sidebar.reviewTitle}</h2>
+            <p className="mt-0.5 text-[8px] text-[#D4C8A8]/45">{copy.sidebar.reviewSubtitle}</p>
           </div>
           <p className="mb-2 text-[9px] leading-relaxed text-[#D4C8A8]/45">
-            把这段聊天整理成复习卡片。
+            {copy.sidebar.reviewDescription}
           </p>
           <button
             type="button"
@@ -826,7 +848,7 @@ export default function ChatPage() {
                 : "bg-[rgba(255,255,255,0.05)] text-[#D4C8A8]/45 hover:bg-[rgba(255,255,255,0.08)]"
             }`}
           >
-            {isSummaryGenerating ? "生成中…" : "生成本次回顾"}
+            {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
           </button>
           <div className="mt-3 space-y-1.5">
             {summaryCards.slice(0, 5).length > 0 ? (
@@ -843,7 +865,7 @@ export default function ChatPage() {
               ))
             ) : (
               <p className="text-[8px] leading-relaxed text-[#D4C8A8]/35">
-                聊天后，回顾卡片会保存在这里。
+                {copy.sidebar.emptyReview}
               </p>
             )}
           </div>
@@ -856,8 +878,8 @@ export default function ChatPage() {
             onClick={handleNavigate}
             className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] text-[10px] text-[#D4C8A8]/55 hover:text-[#D4C8A8]/85 transition-colors"
           >
-            <span>返回地图</span>
-            <span className="text-[8px] text-[#D4C8A8]/35">地図に戻る</span>
+            <span>{copy.sidebar.backToMap}</span>
+            <span className="text-[8px] text-[#D4C8A8]/35">{copy.sidebar.backToMapJp}</span>
           </Link>
         </div>
       </>
@@ -869,7 +891,7 @@ export default function ChatPage() {
       {/* ====== 移动端 NPC drawer ====== */}
       <button
         type="button"
-        aria-label="关闭住人菜单"
+        aria-label={copy.sidebar.closeMenu}
         aria-hidden={!isSidebarOpen}
         tabIndex={isSidebarOpen ? 0 : -1}
         onClick={() => setIsSidebarOpen(false)}
@@ -878,7 +900,7 @@ export default function ChatPage() {
         }`}
       />
       <aside
-        aria-label="住人导航"
+        aria-label={copy.sidebar.navigationLabel}
         aria-hidden={!isSidebarOpen}
         className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
           isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full"
@@ -899,7 +921,7 @@ export default function ChatPage() {
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              aria-label="打开住人菜单"
+              aria-label={copy.sidebar.openMenu}
               onClick={() => setIsSidebarOpen(true)}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8E0CE] text-sm text-[#28231A] transition-colors hover:bg-[#D8CFBC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:hidden"
             >
@@ -909,7 +931,7 @@ export default function ChatPage() {
             <div className="min-w-0">
               <span className="font-medium text-sm text-[#28231A] block truncate">{currentNpc.name}</span>
               <span className="text-[9px] text-[#7A7060] block truncate">
-                {currentNpc.subname}・{currentNpc.location} · 文字模式
+                {currentNpc.subname}・{currentNpc.location}
               </span>
             </div>
           </div>
@@ -929,6 +951,7 @@ export default function ChatPage() {
                 sender={msg.sender}
                 text={msg.text}
                 npcId={npcId}
+                uiLanguage={uiLanguage}
                 userAudioBlob={msg.userAudioBlob}
                 userAudioUrl={msg.userAudioUrl}
                 npcAudioUrl={msg.npcAudioUrl}
@@ -939,7 +962,7 @@ export default function ChatPage() {
             {isTyping && (
               <div className="flex justify-start items-center gap-2 text-xs text-[#7A7060] animate-pulse">
                 <img src={NPC_AVATARS[npcId]} alt="" className="w-6 h-6 rounded-full object-cover" />
-                <span className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.06)] rounded-full px-3 py-1 text-[10px]">正在回复…</span>
+                <span className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.06)] rounded-full px-3 py-1 text-[10px]">{copy.chat.typing}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -961,8 +984,8 @@ export default function ChatPage() {
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
               disabled={isTyping}
               className="w-9 h-9 shrink-0 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm text-[#28231A] transition-colors disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
-              aria-label={inputMode === "text" ? "切换到语音输入" : "切换到文字输入"}
-              title={inputMode === "text" ? "语音输入" : "文字输入"}
+              aria-label={inputMode === "text" ? copy.chat.switchToVoice : copy.chat.switchToText}
+              title={inputMode === "text" ? copy.chat.voiceInput : copy.chat.textInput}
             >
               {inputMode === "text" ? <MicIcon size={17} /> : <KeyboardIcon size={17} />}
             </button>
@@ -974,7 +997,7 @@ export default function ChatPage() {
                   value={inputText}
                   onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="输入消息，日中英都可以…"
+                  placeholder={copy.chat.placeholder}
                   className="min-w-0 flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm outline-none focus:bg-[#F3EDE0] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                   disabled={isTyping}
                 />
@@ -984,7 +1007,7 @@ export default function ChatPage() {
                   disabled={isTyping || !inputText.trim()}
                   className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
                 >
-                  {isTyping ? "发送中…" : "发送"}
+                  {isTyping ? copy.chat.sending : copy.chat.send}
                 </button>
               </>
             ) : (
@@ -996,14 +1019,14 @@ export default function ChatPage() {
                 onTouchStart={(e) => { e.preventDefault(); void startRecording(); }}
                 onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
                 disabled={isTyping}
-                aria-label={isRecording ? "停止录音" : "开始录音"}
-                title={isRecording ? "停止录音" : "开始录音"}
+                aria-label={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
+                title={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
                   isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] active:bg-[#2D4A1F] active:text-[#F3EDE0]"
                 }`}
               >
                 <MicIcon size={15} />
-                <span>{isRecording ? "录音中…松开发送" : "长按说话"}</span>
+                <span>{isRecording ? copy.chat.recordingRelease : copy.chat.holdToTalk}</span>
               </button>
             )}
           </div>
