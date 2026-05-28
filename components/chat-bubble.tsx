@@ -15,7 +15,8 @@ import {
   saveLookupHistory,
   type ExpressionHintStyle,
 } from "@/lib/session-summary";
-import { isWordSaved, toggleSavedItem, type SavedWord } from "@/lib/saved-items";
+import { isWordSaved, isExpressionSaved, toggleSavedItem, type SavedWord, type SavedExpression } from "@/lib/saved-items";
+import { getCachedFeedback, setCachedFeedback, removeCachedFeedback, toCachedFeedback, fromCachedFeedback } from "@/lib/expression-hint-cache";
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
 import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
@@ -372,12 +373,14 @@ interface FeedbackDrawerProps {
   userText: string;
   feedback: FeedbackResponse | null;
   npcId: NpcId;
+  messageId: string;
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   feedbackError: boolean;
   uiLanguage: UiLanguage;
   onClose: () => void;
   onSuggestionPlayed?: (key: FeedbackLevelKey) => void;
+  onRegenerate: () => void;
 }
 
 function parseFeedbackAnalysisSections(analysis: string): {
@@ -413,12 +416,13 @@ function parseFeedbackAnalysisSections(analysis: string): {
 }
 
 function FeedbackDrawer({
-  open, loading, userText, feedback, npcId, userAudioBlob, userAudioUrl, feedbackError, uiLanguage, onClose, onSuggestionPlayed,
+  open, loading, userText, feedback, npcId, messageId, userAudioBlob, userAudioUrl, feedbackError, uiLanguage, onClose, onSuggestionPlayed, onRegenerate,
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
   const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
   const [expandedAnalysisKey, setExpandedAnalysisKey] = useState<FeedbackLevelKey | null>(null);
   const [overflowingAnalysisKeys, setOverflowingAnalysisKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
+  const [savedKeys, setSavedKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
   const userAudioRef = useRef<HTMLAudioElement | null>(null);
   const userTempAudioUrlRef = useRef<string | null>(null);
   const analysisRefs = useRef<Partial<Record<FeedbackLevelKey, HTMLParagraphElement | null>>>({});
@@ -494,8 +498,44 @@ function FeedbackDrawer({
       setTtsErrorKey(null);
       setExpandedAnalysisKey(null);
       setOverflowingAnalysisKeys({});
+      setSavedKeys({});
     }
   }, [open, revokeUserTempAudioUrl]);
+
+  useEffect(() => {
+    if (!feedback || !open) return;
+    const next: Partial<Record<FeedbackLevelKey, boolean>> = {};
+    for (const meta of FEEDBACK_LEVEL_META) {
+      next[meta.key] = isExpressionSaved(feedback[meta.key].nativeSay, npcId);
+    }
+    setSavedKeys(next);
+  }, [feedback, npcId, open]);
+
+  const levelToSavedLevel = (key: FeedbackLevelKey): "casual" | "neutral" | "polite" => {
+    if (key === "casual") return "casual";
+    if (key === "formal") return "polite";
+    return "neutral";
+  };
+
+  const handleToggleSaveExpression = (key: FeedbackLevelKey) => {
+    if (!feedback) return;
+    const level = feedback[key];
+    const item: SavedExpression = {
+      id: createSummaryId("saved-expr"),
+      type: "expression",
+      npcId,
+      original: userText,
+      suggestion: level.nativeSay,
+      level: levelToSavedLevel(key),
+      note: level.analysis.trim() || undefined,
+      source: "feedback",
+      sourceMessageId: messageId,
+      createdAt: new Date().toISOString(),
+      uiLanguageAtSave: uiLanguage === "en" ? "en" : "zh",
+    };
+    const result = toggleSavedItem(item);
+    setSavedKeys((prev) => ({ ...prev, [key]: result.saved }));
+  };
 
   if (!open || typeof document === "undefined") return null;
 
@@ -522,6 +562,15 @@ function FeedbackDrawer({
             {copy.feedback.title}
           </h2>
           <p className="text-[9px] text-[#7A7060]">{copy.feedback.subtitle}</p>
+          {feedback && !loading && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              className="mt-1.5 self-start px-2 py-0.5 rounded border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[9px] text-[#7A7060] hover:text-[#2D4A1F] hover:border-[rgba(40,35,26,0.2)] transition-colors"
+            >
+              {copy.feedback.regenerate}
+            </button>
+          )}
 
           {/* 用户原句 */}
           <div className="mt-3 rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3 py-2">
@@ -582,6 +631,17 @@ function FeedbackDrawer({
                       <h3 className="text-[12px] font-semibold text-[#28231A]">{displayLabels.label}</h3>
                       <p className="text-[9px] text-[#7A7060]/85">{displayLabels.subtitle}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSaveExpression(meta.key)}
+                      className={`shrink-0 px-2 py-1 rounded-md border text-[9px] font-medium transition-colors whitespace-nowrap ${
+                        savedKeys[meta.key]
+                          ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
+                          : "border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
+                      }`}
+                    >
+                      {savedKeys[meta.key] ? copy.feedback.savedExpression : copy.feedback.saveExpression}
+                    </button>
                     <button
                       type="button"
                       disabled={!!ttsLoadingKey}
@@ -739,6 +799,14 @@ export function ChatBubble({
       if (!feedbackRecordId) recordExpressionHintOpened(feedback);
       return;
     }
+    const cached = getCachedFeedback(npcId, messageId, text);
+    if (cached) {
+      const restored = fromCachedFeedback(cached);
+      setFeedback(restored);
+      setFeedbackError(false);
+      recordExpressionHintOpened(restored);
+      return;
+    }
     setLoading(true);
     setFeedbackError(false);
     try {
@@ -750,6 +818,7 @@ export function ChatBubble({
       const nextFeedback = (await res.json()) as FeedbackResponse;
       setFeedback(nextFeedback);
       setFeedbackError(false);
+      setCachedFeedback(npcId, messageId, text, toCachedFeedback(nextFeedback));
       recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
@@ -761,6 +830,28 @@ export function ChatBubble({
       };
       setFeedback(fallbackFeedback);
       recordExpressionHintOpened(fallbackFeedback);
+    } finally { setLoading(false); }
+  };
+
+  const handleRegenerateFeedback = async () => {
+    removeCachedFeedback(npcId, messageId, text);
+    setFeedback(null);
+    setLoading(true);
+    setFeedbackError(false);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userText: text }),
+      });
+      if (!res.ok) throw new Error("feedback failed");
+      const nextFeedback = (await res.json()) as FeedbackResponse;
+      setFeedback(nextFeedback);
+      setFeedbackError(false);
+      setCachedFeedback(npcId, messageId, text, toCachedFeedback(nextFeedback));
+      recordExpressionHintOpened(nextFeedback);
+    } catch (err) {
+      console.error(err);
+      setFeedbackError(true);
     } finally { setLoading(false); }
   };
 
@@ -918,8 +1009,9 @@ export function ChatBubble({
 
       <FeedbackDrawer
         open={drawerOpen} loading={loading} userText={text} feedback={feedback}
-        npcId={npcId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} feedbackError={feedbackError} uiLanguage={uiLanguage} onClose={closeDrawer}
+        npcId={npcId} messageId={messageId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} feedbackError={feedbackError} uiLanguage={uiLanguage} onClose={closeDrawer}
         onSuggestionPlayed={recordSuggestionPlayed}
+        onRegenerate={handleRegenerateFeedback}
       />
     </>
   );

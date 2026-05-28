@@ -121,6 +121,12 @@ export function isWordSaved(word: string, reading: string): boolean {
   return items.some((i) => i.type === "word" && dedupeKey(i) === key);
 }
 
+export function isExpressionSaved(suggestion: string, npcId: NpcId): boolean {
+  const items = loadSavedItems();
+  const key = `ex:${normalize(suggestion)}:${npcId}`;
+  return items.some((i) => i.type === "expression" && dedupeKey(i) === key);
+}
+
 export function toggleSavedItem(item: SavedItem): { items: SavedItem[]; saved: boolean } {
   const items = loadSavedItems();
   if (isDuplicate(items, item)) {

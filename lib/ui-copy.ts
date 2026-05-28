@@ -63,6 +63,9 @@ export const UI_COPY = {
       recommended: "推荐表达",
       showDetails: "展开说明",
       hideDetails: "收起说明",
+      saveExpression: "收藏表达",
+      savedExpression: "已收藏",
+      regenerate: "重新生成",
       levels: {
         casual: { label: "亲近自然", subtitle: "カジュアル" },
         business: { label: "普通自然", subtitle: "ふつう" },
@@ -180,6 +183,9 @@ export const UI_COPY = {
       recommended: "Recommended expression",
       showDetails: "Show details",
       hideDetails: "Hide details",
+      saveExpression: "Save expression",
+      savedExpression: "Saved",
+      regenerate: "Regenerate",
       levels: {
         casual: { label: "Casual", subtitle: "カジュアル" },
         business: { label: "Neutral", subtitle: "ふつう" },
