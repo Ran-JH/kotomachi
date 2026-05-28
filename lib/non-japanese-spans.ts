@@ -101,5 +101,36 @@ export function detectNonJapaneseSpans(messages: SourceMessage[]): SummaryNonJap
     }
   });
 
-  return spans.slice(0, 8);
+  const mergedByMessage = new Map<string, SummaryNonJapaneseSpan[]>();
+  for (const span of spans) {
+    const list = mergedByMessage.get(span.messageId) ?? [];
+    list.push(span);
+    mergedByMessage.set(span.messageId, list);
+  }
+
+  const merged: SummaryNonJapaneseSpan[] = [];
+  mergedByMessage.forEach((items) => {
+    const englishItems = items.filter((item) => item.languageGuess === "en");
+    const nonEnglishItems = items.filter((item) => item.languageGuess !== "en");
+
+    if (englishItems.length >= 2) {
+      const originalMessage = englishItems[0].originalMessage.trim();
+      if (originalMessage.length >= 12) {
+        merged.push({
+          id: `${englishItems[0].id}-merged`,
+          messageId: englishItems[0].messageId,
+          originalMessage: englishItems[0].originalMessage,
+          span: originalMessage,
+          languageGuess: "en",
+          confidence: "high",
+        });
+      }
+    } else if (englishItems.length === 1) {
+      merged.push(englishItems[0]);
+    }
+
+    merged.push(...nonEnglishItems);
+  });
+
+  return merged.slice(0, 8);
 }

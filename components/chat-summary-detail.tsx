@@ -17,6 +17,21 @@ function getWordSourceLabel(source: string, copy: UiCopy): string {
   return source === "looked_up" ? copy.summary.lookedUp : copy.summary.fromConversation;
 }
 
+function shouldShowLearningNote(note: string | undefined): boolean {
+  const text = note?.trim() ?? "";
+  if (!text || text.length < 18) return false;
+  const genericPatterns = [
+    "英语残句不要直译",
+    "整理成自然日语",
+    "保留这条表达",
+    "方便下次复用",
+    "下次可以直接使用",
+    "这是更自然的说法",
+    "可以帮助你学习",
+  ];
+  return !genericPatterns.some((pattern) => text.includes(pattern));
+}
+
 function SectionTitle({ jp, zh }: { jp: string; zh: string }) {
   return (
     <h3 className="font-ui flex items-baseline gap-2 text-sm font-semibold text-[#2D4A1F]">
@@ -59,9 +74,9 @@ export function ChatSummaryDetail({ card, copy, onClose, onDelete }: ChatSummary
         </header>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-[#28231A] sm:px-6">
-          <section>
+          <section className="rounded-xl bg-[#FAF6EE]/85 border border-[rgba(40,35,26,0.06)] px-4 py-3.5">
             <SectionTitle jp={copy.summary.topicJp} zh={copy.summary.topic} />
-            <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
+            <p className="font-ja mt-2 text-[14px] leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
           </section>
 
           {card.reusableExpressions.length > 0 && (
@@ -83,19 +98,21 @@ export function ChatSummaryDetail({ card, copy, onClose, onDelete }: ChatSummary
               <SectionTitle jp={copy.summary.upgradeJp} zh={copy.summary.upgrade} />
               <div className="mt-3 space-y-3">
                 {card.expressionUpgrades.map((item, index) => (
-                  <div key={`${item.original}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                    <p className="font-ui text-[10px] text-[#7A7060]">{getUpgradeSourceLabel(item.source, copy)}</p>
+                  <div key={`${item.original}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3.5">
+                    <p className="font-ui inline-flex rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">
+                      {getUpgradeSourceLabel(item.source, copy)}
+                    </p>
                     <div className="mt-2.5 space-y-3">
-                      <div>
+                      <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
                         <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.original}</p>
-                        <p className="font-ui mt-1 text-sm leading-relaxed text-[#4A4438]">{item.original}</p>
+                        <p className="font-ui mt-1 text-[13px] leading-relaxed text-[#4A4438]">{item.original}</p>
                       </div>
-                      <div>
+                      <div className="rounded-md bg-[#F3EDE0]/75 border-l-2 border-[#C9A84C]/55 px-2.5 py-2.5">
                         <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.suggestion}</p>
-                        <p className="font-ja mt-1 text-[15px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
+                        <p className="font-ja mt-1 text-[16px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
                       </div>
-                      {item.note && (
-                        <div>
+                      {shouldShowLearningNote(item.note) && (
+                        <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
                           <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.note}</p>
                           <p className="font-ui mt-1 text-[12px] leading-relaxed text-[#6B6254]">{item.note}</p>
                         </div>
@@ -112,14 +129,27 @@ export function ChatSummaryDetail({ card, copy, onClose, onDelete }: ChatSummary
               <SectionTitle jp={copy.summary.wordsJp} zh={copy.summary.words} />
               <div className="mt-3 space-y-2.5">
                 {card.reviewWords.map((item, index) => (
-                  <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
+                  <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3.5">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="font-ja text-sm font-medium text-[#28231A]">{item.word}</p>
+                      <p className="font-ja text-[15px] font-medium text-[#28231A]">{item.word}</p>
                       <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source, copy)}</span>
                     </div>
-                    {item.reading && <p className="font-ja mt-1 text-[11px] text-[#7A7060]">{item.reading}</p>}
-                    <p className="font-ui mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">{item.meaning}</p>
-                    {item.example && <p className="font-ja mt-1.5 text-[12px] leading-relaxed text-[#6B6254]">{item.example}</p>}
+                    {item.reading && (
+                      <p className="mt-1.5 text-[11px] text-[#7A7060]">
+                        <span className="font-ui font-medium">{copy.summary.readingLabel}</span>
+                        <span className="font-ja ml-1">{item.reading}</span>
+                      </p>
+                    )}
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">
+                      <span className="font-ui font-medium text-[#7A7060]">{copy.summary.meaningLabel}</span>
+                      <span className="font-ui ml-1">{item.meaning}</span>
+                    </p>
+                    {item.example && (
+                      <p className="mt-1.5 text-[12px] leading-relaxed text-[#6B6254]">
+                        <span className="font-ui font-medium text-[#7A7060]">{copy.summary.exampleLabel}</span>
+                        <span className="font-ja ml-1">{item.example}</span>
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -127,9 +157,9 @@ export function ChatSummaryDetail({ card, copy, onClose, onDelete }: ChatSummary
           )}
 
           {card.nextTalkPrompt && (
-            <section className="rounded-xl bg-[#E8E0CE]/65 px-4 py-4">
+            <section className="rounded-xl bg-[#E8E0CE]/58 border border-[rgba(40,35,26,0.06)] px-4 py-4">
               <SectionTitle jp={copy.summary.nextTopicJp} zh={copy.summary.nextTopic} />
-              <p className="font-ja mt-2 text-sm leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
+              <p className="font-ja mt-2 text-[14px] leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
             </section>
           )}
         </div>
@@ -138,7 +168,7 @@ export function ChatSummaryDetail({ card, copy, onClose, onDelete }: ChatSummary
           <button
             type="button"
             onClick={() => onDelete(card.id)}
-            className="font-ui text-[11px] text-[#7A7060] hover:text-[#9A4A3A] transition-colors"
+            className="font-ui rounded-md px-2 py-1 text-[11px] text-[#7A7060] hover:bg-[#E8E0CE]/70 hover:text-[#8A5A45] transition-colors"
           >
             {copy.summary.delete}
           </button>

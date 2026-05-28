@@ -228,13 +228,79 @@ function normalizeExpressionUpgrades(value: unknown): ExpressionUpgrade[] {
     .slice(0, 2);
 }
 
+function containsLatinText(value: string): boolean {
+  return /[A-Za-z]/.test(value);
+}
+
+function compactText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function isShortFragment(value: string): boolean {
+  const text = compactText(value);
+  if (text.length < 12) return true;
+  const words = text.split(" ").filter(Boolean);
+  return words.length < 4;
+}
+
+function hasTestIntent(value: string): boolean {
+  return includesAny(value, ["test", "exam", "preparation", "prepare", "confirm", "finished"]);
+}
+
+function hasSleepIntent(value: string): boolean {
+  return includesAny(value, ["sleep", "sleepy", "tired", "rest"]);
+}
+
+function isGenericUpgradeNote(value: string): boolean {
+  if (!value) return true;
+  return includesAny(value, [
+    "復習しやすい形",
+    "整理しています",
+    "重点",
+    "suggestion",
+    "英語残句不要直译",
+    "整理成自然日语",
+    "方便下次复用",
+    "下次可以直接使用",
+    "更自然的说法",
+    "帮助你学习",
+  ]);
+}
+
+function hasConcreteLearningPoint(note: string): boolean {
+  const text = note.trim();
+  if (text.length < 18) return false;
+  const hasQuoteLike = /[`「」『』"']/u.test(text);
+  const hasGrammarCue = includesAny(text, ["〜", "たい", "ないで", "確認できて", "安心しました"]);
+  const hasArrowCue = includesAny(text, ["→", "对应", "整理为", "转成"]);
+  const hasSpecificWord = includesAny(text, ["feel relaxed", "confirm", "finished", "寝たい", "ないで"]);
+  return hasQuoteLike || hasGrammarCue || hasArrowCue || hasSpecificWord;
+}
+
+function normalizeUpgradeNote(original: string, suggestion: string, note: string): string {
+  const enriched = truncate(enrichUpgradeNote(original, suggestion, note), 220);
+  if (!enriched || isGenericUpgradeNote(enriched)) return "";
+  return hasConcreteLearningPoint(enriched) ? enriched : "";
+}
+
+function enrichUpgradeNote(original: string, suggestion: string, note: string): string {
+  const source = `${original}\n${suggestion}`;
+  if (hasTestIntent(source)) {
+    return "把原文里的 `feel relaxed` 转成更自然的「安心しました」；`having something to confirm` 整理为「確認できて」；`finished the preparation` 对应「準備が終わった」。";
+  }
+  if (hasSleepIntent(source)) {
+    return "把“困了想休息”的意图收敛成自然日语。`休みたい` 比直接照搬英文情绪词更符合日常口语。";
+  }
+  return note;
+}
+
 function upgradeFromNonJapaneseSpan(
   span: NonNullable<SessionSummaryRequest["nonJapaneseSpans"]>[number],
 ): ExpressionUpgrade | null {
   const original = pickString(span.span);
   const context = pickString(span.originalMessage);
   const source = `${original}\n${context}`;
-  if (!original) return null;
+  if (!original || isShortFragment(original)) return null;
 
   if (includesAny(source, ["test", "exam", "preparation", "confirm", "finished", "relaxed"])) {
     return {
@@ -270,12 +336,31 @@ function upgradeFromExpressionHint(
 
   if (!original || !suggestion) return null;
 
+  const inferredNote = normalizeUpgradeNote(
+    original,
+    suggestion,
+    "根据你打开过的表达提示，整理成更自然、可复用的一句。",
+  );
+
   return {
     original: truncate(original, 180),
     suggestion: truncate(suggestion, 180),
-    note: "開いた表現ヒントを、あとで復習しやすい形で残しています。",
+    note: inferredNote,
     source: "expression_hint",
   };
+}
+
+function isAlignedUpgrade(item: ExpressionUpgrade): boolean {
+  const source = `${item.original}\n${item.suggestion}\n${item.note}`;
+  if (!containsLatinText(item.original)) return true;
+
+  if (hasTestIntent(item.original)) {
+    return includesAny(source, ["試験", "準備", "確認", "安心"]);
+  }
+  if (hasSleepIntent(item.original)) {
+    return includesAny(source, ["眠", "休", "寝"]);
+  }
+  return !isGenericUpgradeNote(item.note);
 }
 
 function normalizeExpressionUpgradesWithEvidence(
@@ -284,12 +369,28 @@ function normalizeExpressionUpgradesWithEvidence(
 ): ExpressionUpgrade[] {
   const upgrades: ExpressionUpgrade[] = [];
   const seen = new Set<string>();
+  const suggestionMap = new Map<string, number>();
 
   for (const span of request.nonJapaneseSpans ?? []) {
     const upgrade = upgradeFromNonJapaneseSpan(span);
     if (!upgrade || seen.has(upgrade.original)) continue;
-    upgrades.push(upgrade);
-    seen.add(upgrade.original);
+    const normalizedUpgrade: ExpressionUpgrade = {
+      ...upgrade,
+      note: normalizeUpgradeNote(upgrade.original, upgrade.suggestion, upgrade.note),
+    };
+    const key = compactText(upgrade.suggestion);
+    const existingIndex = suggestionMap.get(key);
+    if (existingIndex !== undefined) {
+      const existing = upgrades[existingIndex];
+      if (compactText(normalizedUpgrade.original).length > compactText(existing.original).length) {
+        upgrades[existingIndex] = normalizedUpgrade;
+        seen.add(normalizedUpgrade.original);
+      }
+      continue;
+    }
+    upgrades.push(normalizedUpgrade);
+    suggestionMap.set(key, upgrades.length - 1);
+    seen.add(normalizedUpgrade.original);
     if (upgrades.length >= 2) return upgrades;
   }
 
@@ -299,14 +400,33 @@ function normalizeExpressionUpgradesWithEvidence(
   for (const hint of sortedHints) {
     const upgrade = upgradeFromExpressionHint(hint);
     if (!upgrade || seen.has(upgrade.original)) continue;
+    const key = compactText(upgrade.suggestion);
+    if (suggestionMap.has(key)) continue;
     upgrades.push(upgrade);
+    suggestionMap.set(key, upgrades.length - 1);
     seen.add(upgrade.original);
     if (upgrades.length >= 2) return upgrades;
   }
 
   for (const upgrade of normalizeExpressionUpgrades(value)) {
     if (seen.has(upgrade.original)) continue;
-    upgrades.push(upgrade);
+    const normalized: ExpressionUpgrade = {
+      ...upgrade,
+      note: normalizeUpgradeNote(upgrade.original, upgrade.suggestion, upgrade.note),
+    };
+    if (!isAlignedUpgrade(normalized) || isShortFragment(normalized.original)) continue;
+    const key = compactText(normalized.suggestion);
+    const existingIndex = suggestionMap.get(key);
+    if (existingIndex !== undefined) {
+      const existing = upgrades[existingIndex];
+      if (compactText(normalized.original).length > compactText(existing.original).length) {
+        upgrades[existingIndex] = normalized;
+        seen.add(normalized.original);
+      }
+      continue;
+    }
+    upgrades.push(normalized);
+    suggestionMap.set(key, upgrades.length - 1);
     seen.add(upgrade.original);
     if (upgrades.length >= 2) return upgrades;
   }
@@ -553,6 +673,42 @@ function sanitizeRequest(body: unknown): SessionSummaryRequest | null {
 
   if (messages.length < 2) return null;
 
+  const rawSpans = Array.isArray(raw.nonJapaneseSpans) ? raw.nonJapaneseSpans.slice(0, 8) : [];
+  const spansByMessage = new Map<string, NonNullable<SessionSummaryRequest["nonJapaneseSpans"]>[number][]>();
+  rawSpans.forEach((span) => {
+    if (!span || typeof span.messageId !== "string") return;
+    const list = spansByMessage.get(span.messageId) ?? [];
+    list.push(span);
+    spansByMessage.set(span.messageId, list);
+  });
+
+  const mergedSpans: NonNullable<SessionSummaryRequest["nonJapaneseSpans"]> = [];
+  spansByMessage.forEach((items) => {
+    const englishLike = items.filter((item) => containsLatinText(pickString(item.span)));
+    const others = items.filter((item) => !containsLatinText(pickString(item.span)));
+
+    if (englishLike.length >= 2) {
+      const message = pickString(englishLike[0].originalMessage);
+      if (!isShortFragment(message)) {
+        mergedSpans.push({
+          ...englishLike[0],
+          id: `${englishLike[0].id}-merged`,
+          span: truncate(message, 260),
+          languageGuess: "en",
+          confidence: "high",
+        });
+      }
+    } else if (englishLike.length === 1 && !isShortFragment(pickString(englishLike[0].span))) {
+      mergedSpans.push(englishLike[0]);
+    }
+
+    others.forEach((item) => {
+      const span = pickString(item.span);
+      if (isShortFragment(span)) return;
+      mergedSpans.push(item);
+    });
+  });
+
   return {
     schemaVersion: 1,
     npcId: raw.npcId,
@@ -561,7 +717,7 @@ function sanitizeRequest(body: unknown): SessionSummaryRequest | null {
     recentExpressionHints: Array.isArray(raw.recentExpressionHints)
       ? raw.recentExpressionHints.slice(0, 5)
       : [],
-    nonJapaneseSpans: Array.isArray(raw.nonJapaneseSpans) ? raw.nonJapaneseSpans.slice(0, 8) : [],
+    nonJapaneseSpans: mergedSpans.slice(0, 8),
   };
 }
 
