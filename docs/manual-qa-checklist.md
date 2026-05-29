@@ -138,3 +138,14 @@
 - 复现步骤：
 - 预期 vs 实际：
 - 截图/录屏路径：
+
+## 8. Mobile Private Beta (R2)
+
+- [ ] Saved panel 在手机端有明显 `返回聊天 / Back to chat`，可退出回聊天。
+- [ ] Review Cards 列表和详情在手机端可通过 `返回聊天 / Back to chat` 退出。
+- [ ] `+` 菜单可看到 `添加到桌面 / Add to Home Screen` 说明。
+- [ ] `+` 菜单可看到 `使用提示 / Quick guide`，不遮挡输入框。
+- [ ] Edge 里选中 NPC 消息词语可触发查词 popover。
+- [ ] 输入框支持多行自动增高，`Shift+Enter` 换行，`Enter` 发送。
+- [ ] 中文/日文 IME 组合输入时不会误发送。
+- [ ] 网络异常时提示为可理解文案，不是单纯 failed to fetch。

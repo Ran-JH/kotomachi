@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatSummaryDetail } from "@/components/chat-summary-detail";
 import { ChatToast } from "@/components/chat-toast";
@@ -235,7 +235,11 @@ export default function ChatPage() {
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
+  const [isInstallHelpOpen, setIsInstallHelpOpen] = useState(false);
+  const [isQuickGuideOpen, setIsQuickGuideOpen] = useState(false);
   const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
+  const [isInputComposing, setIsInputComposing] = useState(false);
+  const [isStandaloneMode, setIsStandaloneMode] = useState(false);
   const copy = getUiCopy(uiLanguage);
   const savedExpressionCount = savedItems.filter((item) => item.type === "expression").length;
   const savedWordCount = savedItems.filter((item) => item.type === "word").length;
@@ -269,6 +273,7 @@ export default function ChatPage() {
   const voiceHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summaryToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
+  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -296,6 +301,12 @@ export default function ChatPage() {
   useEffect(() => {
     if (!isInputActionsOpen) setIsTopicIdeasOpen(false);
   }, [isInputActionsOpen]);
+  useEffect(() => {
+    if (!isInputActionsOpen) {
+      setIsInstallHelpOpen(false);
+      setIsQuickGuideOpen(false);
+    }
+  }, [isInputActionsOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
@@ -322,6 +333,25 @@ export default function ChatPage() {
       setIsOnboardingHintDismissed(false);
     }
   }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkStandalone = () => {
+      const standalone = window.matchMedia?.("(display-mode: standalone)")?.matches
+        || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      setIsStandaloneMode(Boolean(standalone));
+    };
+    checkStandalone();
+    window.addEventListener("resize", checkStandalone);
+    return () => window.removeEventListener("resize", checkStandalone);
+  }, []);
+  useEffect(() => {
+    if (!textInputRef.current) return;
+    const el = textInputRef.current;
+    el.style.height = "auto";
+    const maxHeight = 24 * 6;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [inputText, inputMode]);
 
   const handleLanguageChange = (language: UiLanguage) => {
     setUiLanguage(language);
@@ -600,12 +630,29 @@ export default function ChatPage() {
       setMessages((prev) => { const next = [...prev, assistantMsg]; saveChatHistory(npcId, next.map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text, createdAt: m.createdAt }))); return next; });
       saveLastChatTime(npcId);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : "网络错误");
+      const errorText = err instanceof Error ? err.message : "";
+      const isNetworkError = /failed to fetch|networkerror|load failed|err_connection_refused/i.test(errorText);
+      if (isNetworkError) {
+        setApiError(
+          uiLanguage === "zh"
+            ? "连接失败。请检查网络，或稍后再试。如果你在国内网络环境，可能需要稳定的网络代理。"
+            : "Connection failed. Please check your network and try again.",
+        );
+      } else {
+        setApiError(err instanceof Error ? err.message : copy.common.genericError);
+      }
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "assistant", text: "ごめん、ちょっと通信が不安定みたい…もう一度送ってくれる？😅", type: "text" }]);
     } finally { setIsTyping(false); }
   };
 
   const handleSend = () => { setVoiceHint(null); void sendToNpc(inputText); };
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter") return;
+    if (isInputComposing) return;
+    if (event.shiftKey) return;
+    event.preventDefault();
+    handleSend();
+  };
   const handleUseStarterPrompt = (prompt: string) => {
     setVoiceHint(null);
     setInputMode("text");
@@ -683,6 +730,38 @@ export default function ChatPage() {
   const topicIdeasSubtitle = uiLanguage === "zh"
     ? "不知道说什么时，可以从这里开始"
     : "Pick a low-pressure prompt to keep talking";
+  const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
+  const quickGuideSubtitle = uiLanguage === "zh"
+    ? "快速了解常用功能"
+    : "How to use key features";
+  const quickGuideItems = uiLanguage === "zh"
+    ? [
+        "点气泡旁的提示按钮，可以比较几种自然说法。",
+        "选中 NPC 消息里的词，可以查看意思和读音。",
+        "点喇叭可以听发音。",
+        "不知道说什么时，点 + 找话题。",
+        "聊几句后，可以从 + 生成回顾卡。",
+      ]
+    : [
+        "Use Expression Hints to compare natural ways to say your message.",
+        "Select a word in an NPC message to look it up.",
+        "Tap Listen to hear pronunciation.",
+        "Use + for topic ideas when you are not sure what to say.",
+        "After a short chat, use + to create a review card.",
+      ];
+  const installHelpTitle = uiLanguage === "zh" ? "添加到桌面" : "Add to Home Screen";
+  const installHelpSubtitle = uiLanguage === "zh"
+    ? "安装成手机桌面 App"
+    : "Install for app-like use";
+  const installHelpLines = uiLanguage === "zh"
+    ? [
+        "iPhone：请用 Safari 打开链接，点击分享按钮，选择“添加到主屏幕”。",
+        "Android：请用 Chrome 或 Edge 打开链接，点击浏览器菜单，选择“添加到主屏幕”或“安装应用”。",
+      ]
+    : [
+        "iPhone: Open in Safari, tap Share, then Add to Home Screen.",
+        "Android: Open in Chrome or Edge, open the browser menu, then choose Add to Home screen or Install app.",
+      ];
   const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
   const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
   const statusAwarePrompt = getStatusAwareTopicIdea(npcId);
@@ -1130,6 +1209,40 @@ export default function ChatPage() {
                       </div>
                     </div>
                   )}
+                  {!isStandaloneMode && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsInstallHelpOpen((prev) => !prev)}
+                        className="mt-1 w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                      >
+                        <span className="block text-[12px] font-medium text-[#2D4A1F]">{installHelpTitle}</span>
+                        <span className="block mt-0.5 text-[10px] text-[#7A7060]">{installHelpSubtitle}</span>
+                      </button>
+                      {isInstallHelpOpen && (
+                        <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
+                          {installHelpLines.map((line) => (
+                            <p key={line} className="text-[10px] leading-relaxed text-[#6B6254]">{line}</p>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickGuideOpen((prev) => !prev)}
+                    className="mt-1 w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                  >
+                    <span className="block text-[12px] font-medium text-[#2D4A1F]">{quickGuideTitle}</span>
+                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">{quickGuideSubtitle}</span>
+                  </button>
+                  {isQuickGuideOpen && (
+                    <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
+                      {quickGuideItems.map((line) => (
+                        <p key={line} className="text-[10px] leading-relaxed text-[#6B6254]">{line}</p>
+                      ))}
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -1159,13 +1272,16 @@ export default function ChatPage() {
 
             {inputMode === "text" ? (
               <>
-                <input
-                  type="text"
+                <textarea
+                  ref={textInputRef}
                   value={inputText}
                   onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  onKeyDown={handleInputKeyDown}
+                  onCompositionStart={() => setIsInputComposing(true)}
+                  onCompositionEnd={() => setIsInputComposing(false)}
                   placeholder={copy.chat.placeholder}
-                  className="min-w-0 flex-1 bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm outline-none focus:bg-[#F3EDE0] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  rows={1}
+                  className="min-w-0 flex-1 resize-none bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm leading-relaxed outline-none focus:bg-[#F3EDE0] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                   disabled={isTyping}
                 />
                 <button

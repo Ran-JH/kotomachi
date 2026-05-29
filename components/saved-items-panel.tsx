@@ -153,6 +153,8 @@ export function SavedItemsPanel({
   onDelete,
   onClose,
 }: SavedItemsPanelProps) {
+  const isEn = copy.summary.title === "Review Card";
+  const backToChatLabel = isEn ? "Back to chat" : "返回聊天";
   const [filter, setFilter] = useState<FilterType>("all");
 
   const filtered =
@@ -180,6 +182,13 @@ export function SavedItemsPanel({
       />
       <aside className="relative flex h-full w-full max-w-lg flex-col bg-[#F3EDE0] border-l border-[rgba(40,35,26,0.08)] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
         <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-6 py-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="mb-2 inline-flex items-center rounded-md px-2 py-1 text-[11px] text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+          >
+            {backToChatLabel}
+          </button>
           <button
             type="button"
             onClick={onClose}

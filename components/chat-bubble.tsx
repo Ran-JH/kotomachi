@@ -899,14 +899,25 @@ export function ChatBubble({
     if (!selection || selection.isCollapsed) return;
     const selectedText = selection.toString().trim();
     if (!selectedText) return;
+    if (selectedText.length > 80) return;
     const range = selection.getRangeAt(0);
-    if (bubbleRef.current && !bubbleRef.current.contains(range.commonAncestorContainer)) return;
+    const anchorNode = range.commonAncestorContainer;
+    const elementNode = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : (anchorNode as Element | null);
+    const insideBubble = bubbleRef.current?.contains(anchorNode) ?? false;
+    const insideMessageText = elementNode?.closest("[data-message-text='1']") != null;
+    if (!insideBubble && !insideMessageText) return;
     const anchorRect = range.getBoundingClientRect();
+    if (!anchorRect || (anchorRect.width === 0 && anchorRect.height === 0)) return;
     setPopover({ selectedText, fullSentence: text, anchorRect });
   }, [text]);
 
   const handleDoubleClick = useCallback(() => {
     requestAnimationFrame(() => { handleTextSelection(); });
+  }, [handleTextSelection]);
+  const handlePointerSelection = useCallback(() => {
+    window.setTimeout(() => {
+      handleTextSelection();
+    }, 0);
   }, [handleTextSelection]);
 
   const avatar = sender === "user"
@@ -939,7 +950,10 @@ export function ChatBubble({
             <div
               ref={bubbleRef}
               onMouseUp={handleTextSelection}
+              onPointerUp={handlePointerSelection}
+              onTouchEnd={handlePointerSelection}
               onDoubleClick={handleDoubleClick}
+              data-message-text="1"
               className={`rounded-xl px-5 py-3.5 text-[13px] leading-relaxed select-text transition-colors duration-200 ${
                 sender === "user"
                   ? "font-ui bg-[#2D4A1F] text-[#F3EDE0] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"

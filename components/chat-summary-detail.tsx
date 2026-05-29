@@ -67,6 +67,7 @@ export function ChatSummaryDetail({
   if (!isOpen) return null;
   const isEn = copy.summary.title === "Review Card";
   const backToListLabel = isEn ? "Back to list" : "返回列表";
+  const backToChatLabel = isEn ? "Back to chat" : "返回聊天";
   const emptyPanelText = isEn
     ? "No review cards yet. Chat a little, then create one from the “+” menu."
     : "暂无回顾卡片。聊一会儿后，可以从输入框旁的“+”生成。";
@@ -106,6 +107,13 @@ export function ChatSummaryDetail({
       />
       <aside className="relative flex h-full w-full max-w-lg flex-col bg-[#F3EDE0] border-l border-[rgba(40,35,26,0.08)] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
         <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-5 sm:px-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="mb-2 inline-flex items-center rounded-md px-2 py-1 text-[11px] text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+          >
+            {backToChatLabel}
+          </button>
           <button
             type="button"
             onClick={onClose}
