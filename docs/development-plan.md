@@ -1102,10 +1102,16 @@ Always report:
 
 为保证学习链路可积累，同时不破坏低压力聊天体验，新增轻量路线：
 
-- **Pack M1**：Saved Items LocalStorage helper（仅数据层，新增 types/helper，不扩 UI）
-- **Pack M2**：从查词 popover 收藏词语（Save Word，收藏按钮放在读音/释义行旁边）
-- **Pack M3**：从表达提示收藏句子（Save Expression，每档建议卡片增加收藏按钮）
-- **Pack M4**：Sidebar 收藏入口与列表面板（Saved Panel，按类型筛选、查看详情、删除）
+- **Pack M1** ✅：Saved Items LocalStorage helper（仅数据层，新增 types/helper，不扩 UI）
+- **Pack M2** ✅：从查词 popover 收藏词语（Save Word，收藏按钮放在读音/释义行旁边）
+- **Pack M3** ✅：从表达提示收藏句子（Save Expression，每档建议卡片增加收藏按钮）
+- **Pack M3.1** ✅：表达提示缓存（expression-hint-cache，同一消息复用已生成建议）
+- **Pack M3.2** ✅：缓存安全补丁（版本号 + 重新生成 + 空结果校验）
+- **Pack M3.3** ✅：收藏状态同步修复（drawer 打开时重新从 localStorage 计算）
+- **Pack M4** ✅：Sidebar 收藏入口与列表面板（Saved Panel，按类型筛选、查看详情、删除）
+- **Pack M4.1** ✅：收藏面板可读性优化（卡片层级 + badge + label）
+- **Pack M4.2** ✅：收藏入口与面板视觉整合（sidebar 统一 + 卡片 polish）
+- **Pack M4.3** ✅：Sidebar 信息架构与视觉 polish（住人/学习/底部导航统一）
 - **Pack N1**：meaning / note / explanation 跟随 UI language（不翻译日语学习内容本体，已收藏项保留保存时语言）
 
 约束：
@@ -1115,6 +1121,39 @@ Always report:
 - 不做打卡或高压力复习机制；
 - 收藏对象必须来自真实上下文，不凭空生成；
 - 收藏入口轻量、不打断聊天。
+
+## 6.2 下一阶段方向
+
+### Pack N: Generated Explanation Language
+
+- meaning / note / explanation 跟随 UI language
+- 不翻译日语学习内容本体
+- 已收藏项保留保存时语言
+
+### Pack O: Lightweight Onboarding / First-Chat Guidance
+
+- 首次访问用户快速理解：这是什么、应该点哪里、三个 NPC 有什么区别
+- 不要复杂 tutorial，轻量浮层或首页提示即可
+- 不破坏安静氛围
+
+### Pack P: Conversation Motivation / NPC-Specific Topic Hooks
+
+- NPC 基于当前生活弧线主动引入话题
+- 增强用户"想回去聊"的动力
+- 不做打卡提醒，通过 NPC 生活感自然驱动
+
+### Pack Q: Learning Accumulation Signals
+
+- 让用户感知学习积累（不是分数或等级）
+- 轻量信号：收藏数量、回顾卡片数量、连续对话天数
+- 不做 streaks / daily check-in / gamification
+
+### 暂缓
+
+- Heavy learning preference settings（安静模式 / 引导模式）
+- Familiarity level system（关系等级可视化）
+- Streaks / daily check-in
+- Complex manual message selection for review cards
 
 ## 7. 一句话总结
 
