@@ -144,7 +144,8 @@ function normalizeExplainResponse(
 
 export async function POST(req: NextRequest) {
   try {
-    const { selectedText, fullSentence } = await req.json();
+    const { selectedText, fullSentence, uiLanguage } = await req.json();
+    const targetLanguage = uiLanguage === "en" ? "en" : "zh";
 
     if (!selectedText || !fullSentence) {
       return NextResponse.json(
@@ -155,7 +156,15 @@ export async function POST(req: NextRequest) {
 
     const userMsg: ChatCompletionMessageParam = {
       role: "user",
-      content: `选中的词：${selectedText}\n完整句子：${fullSentence}`,
+      content: `选中的词：${selectedText}
+完整句子：${fullSentence}
+uiLanguage: ${targetLanguage}
+
+语言规则：
+1) uiLanguage 为 en 时，translation / sentence_meaning / nuance_explanation 必须用英文。
+2) uiLanguage 为 zh 时，translation / sentence_meaning / nuance_explanation 必须用中文。
+3) 日语原词、读音、日语例句保持日语，不要替换成英文词本体。
+4) 不要翻译 NPC 原句引用。`,
     };
 
     const raw = await createChatCompletion([SYSTEM_PROMPT, userMsg], {

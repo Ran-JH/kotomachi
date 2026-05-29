@@ -135,7 +135,11 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         const res = await fetch("/api/explain", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ selectedText, fullSentence }),
+          body: JSON.stringify({
+            selectedText,
+            fullSentence,
+            uiLanguage: uiLanguage === "en" ? "en" : "zh",
+          }),
         });
         if (!res.ok) throw new Error("explain failed");
         const json = (await res.json()) as ExplainResult;
