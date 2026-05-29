@@ -202,6 +202,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     const margin = 12;
     const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
     const viewportHeight = typeof window === "undefined" ? 720 : window.innerHeight;
+    const isMobile = viewportWidth < 768;
     const width = Math.min(240, Math.max(180, viewportWidth - margin * 2));
     const anchorCenter = anchorRect.left + anchorRect.width / 2;
     const left = clampNumber(anchorCenter, margin + width / 2, viewportWidth - margin - width / 2);
@@ -210,6 +211,23 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     const placement = spaceAbove < 190 && spaceBelow >= spaceAbove ? "bottom" : "top";
     const availableHeight = placement === "bottom" ? spaceBelow : spaceAbove;
     const top = placement === "bottom" ? anchorRect.bottom + gap : anchorRect.top - gap;
+
+    if (isMobile) {
+      return {
+        placement: "bottom",
+        style: {
+          position: "fixed",
+          left: "50%",
+          top: `${Math.max(12, anchorRect.bottom + gap)}px`,
+          width: `${Math.min(360, viewportWidth - margin * 2)}px`,
+          transform: "translateX(-50%)",
+          zIndex: 90,
+        },
+        cardStyle: {
+          maxHeight: `${Math.min(Math.max(260, viewportHeight * 0.78), viewportHeight - 24)}px`,
+        },
+      };
+    }
 
     return {
       placement,
@@ -222,7 +240,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         zIndex: 90,
       },
       cardStyle: {
-        maxHeight: `${Math.max(140, availableHeight - 12)}px`,
+        maxHeight: `${Math.max(180, availableHeight - 12)}px`,
       },
     };
   })();

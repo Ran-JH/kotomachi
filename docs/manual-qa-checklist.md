@@ -150,6 +150,10 @@
 - [ ] `+` 菜单只保留聊天动作（找话题、生成回顾卡），帮助信息从 `+` 菜单迁移到 Help。
 - [ ] 聊天页 Help 仅保留右上角入口，sidebar/mobile drawer 不再显示 Help。
 - [ ] Edge 里选中 NPC 消息词语可触发查词 popover。
+- [ ] 手机端查词卡片高度足够，长解释在卡片内滚动，不需要频繁小幅滑动。
+- [ ] Saved panel 的返回聊天位于 header 导航区，样式自然不突兀。
+- [ ] Review Cards 列表/详情的返回聊天与返回列表位于 header 导航区，层级清楚。
+- [ ] 桌面端查词卡片和 Saved/Review panel 没有明显布局回退。
 - [ ] 输入框支持多行自动增高，`Shift+Enter` 换行，`Enter` 发送。
 - [ ] 中文/日文 IME 组合输入时不会误发送。
 - [ ] 网络异常时提示为可理解文案，不是单纯 failed to fetch。

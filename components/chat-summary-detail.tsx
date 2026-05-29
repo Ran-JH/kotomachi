@@ -66,8 +66,8 @@ export function ChatSummaryDetail({
 }: ChatSummaryDetailProps) {
   if (!isOpen) return null;
   const isEn = copy.summary.title === "Review Card";
-  const backToListLabel = isEn ? "Back to list" : "返回列表";
-  const backToChatLabel = isEn ? "Back to chat" : "返回聊天";
+  const backToListLabel = isEn ? "← Back to list" : "← 返回列表";
+  const backToChatLabel = isEn ? "← Back to chat" : "← 返回聊天";
   const emptyPanelText = isEn
     ? "No review cards yet. Chat a little, then create one from the “+” menu."
     : "暂无回顾卡片。聊一会儿后，可以从输入框旁的“+”生成。";
@@ -106,14 +106,28 @@ export function ChatSummaryDetail({
         onClick={onClose}
       />
       <aside className="relative flex h-full w-full max-w-lg flex-col bg-[#F3EDE0] border-l border-[rgba(40,35,26,0.08)] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
-        <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-5 sm:px-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="mb-2 inline-flex items-center rounded-md px-2 py-1 text-[11px] text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
-          >
-            {backToChatLabel}
-          </button>
+        <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-4 sm:px-6 sm:py-5">
+          <div className="mb-1 flex items-center gap-2 pr-8">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+            >
+              {backToChatLabel}
+            </button>
+            {card && (
+              <>
+                <span className="text-[10px] text-[#7A7060]/45">/</span>
+                <button
+                  type="button"
+                  onClick={onBackToList}
+                  className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+                >
+                  {backToListLabel}
+                </button>
+              </>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -124,19 +138,11 @@ export function ChatSummaryDetail({
           </button>
           {card ? (
             <>
-              <button
-                type="button"
-                onClick={onBackToList}
-                className="mb-2 text-[11px] text-[#7A7060] hover:text-[#28231A] transition-colors"
-              >
-                {backToListLabel}
-              </button>
               <p className="font-ui text-[10px] text-[#7A7060]">{getNpcName(card.npcId)} · {formatSummaryDate(card.createdAt)} · {copy.summary.title} / {copy.summary.subtitle}</p>
               <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
             </>
           ) : (
             <>
-              <p className="font-ui text-[10px] text-[#7A7060]">{copy.summary.title} / {copy.summary.subtitle}</p>
               <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{copy.sidebar.reviewTitle}</h2>
             </>
           )}
