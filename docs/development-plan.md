@@ -1112,7 +1112,7 @@ Always report:
 - **Pack M4.1** ✅：收藏面板可读性优化（卡片层级 + badge + label）
 - **Pack M4.2** ✅：收藏入口与面板视觉整合（sidebar 统一 + 卡片 polish）
 - **Pack M4.3** ✅：Sidebar 信息架构与视觉 polish（住人/学习/底部导航统一）
-- **Pack N1**：meaning / note / explanation 跟随 UI language（不翻译日语学习内容本体，已收藏项保留保存时语言）
+- **Pack N1**：Word Explanation Language（meaning / sentenceMeaning / nuance 跟随 UI language，不翻译日语学习内容本体，已收藏项保留保存时语言）
 
 约束：
 
@@ -1126,9 +1126,19 @@ Always report:
 
 ### Pack N: Generated Explanation Language
 
+详细规格见 [`docs/generated-explanation-language-spec.md`](generated-explanation-language-spec.md)。
+
+- **Pack N0** 🔄：Generated Explanation Language Spec（规格文档，明确语言边界和分步计划，不修改业务代码）
+- **Pack N1**：Word Explanation Language（查词解释的 meaning / sentenceMeaning / nuance 跟随 UI language）
+- **Pack N2**：Expression Hint Language（表达提示的 usage / reason / note 跟随 UI language）
+- **Pack N3**：Review Card Language（回顾卡片的 meaning / note / summary 跟随 UI language）
+
+核心约束：
+
 - meaning / note / explanation 跟随 UI language
 - 不翻译日语学习内容本体
 - 已收藏项保留保存时语言
+- 不要一次性改三条链路，应分包实现
 
 ### Pack O: Lightweight Onboarding / First-Chat Guidance
 

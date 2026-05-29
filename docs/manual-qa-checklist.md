@@ -100,10 +100,36 @@
 - [ ] TTS：NPC 语音可正常播放。
 - [ ] STT：录音转文字可用，空录音不破坏聊天主流程。
 - [ ] 语言切换：仅 UI 文案切换，NPC 回复/用户输入/学习内容不被翻译。
-- [ ] 时间分隔条：消息区使用稀疏时间分隔，不回到“每条都显示时间”。
+- [ ] 时间分隔条：消息区使用稀疏时间分隔，不回到"每条都显示时间"。
 - [ ] welcome：重复进入同一会话不出现无意义重复 welcome。
 
-## 6. 结果记录模板
+## 6. Generated Explanation Language（Pack N1 / N2 / N3 验收）
+
+### 6.1 Word Explanation（N1）
+
+- [ ] 中文 UI 下查词解释的 meaning / sentenceMeaning 为中文。
+- [ ] English UI 下查词解释的 meaning / sentenceMeaning 为英文。
+- [ ] English UI 下日语例句和单词本体仍为日语，不被翻译。
+
+### 6.2 Expression Hints（N2）
+
+- [ ] English UI 下 usage / reason / note 为英文。
+- [ ] Expression hints 的 suggested expressions 仍为日语，不被翻译。
+- [ ] 中文 UI 下 usage / reason / note 为中文。
+
+### 6.3 Review Cards（N3）
+
+- [ ] English UI 下 review card 的 meaning / learning note / summary 为英文。
+- [ ] Review card 的 suggested Japanese expressions 仍为日语。
+- [ ] 用户原句不被翻译。
+- [ ] NPC 回复引用不被翻译。
+
+### 6.4 Storage & Language Switch
+
+- [ ] 已保存旧内容不被自动改写（切换 UI language 后旧数据保持原语言）。
+- [ ] 切换 UI language 后新生成内容使用新语言。
+
+## 7. 结果记录模板
 
 - 测试日期：
 - 测试环境：
