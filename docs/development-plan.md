@@ -1132,9 +1132,19 @@ Always report:
 
 ### Pack O: Lightweight Onboarding / First-Chat Guidance
 
-- 首次访问用户快速理解：这是什么、应该点哪里、三个 NPC 有什么区别
-- 不要复杂 tutorial，轻量浮层或首页提示即可
-- 不破坏安静氛围
+- **O1** ✅：First-chat starter prompts（空聊天状态显示 3 条话题建议）
+- **O1.1** ✅：Topic ideas integrated into + menu（输入区"+"菜单增加"找话题"入口）
+- **O1.2** ✅：Starter prompt pool architecture（global + NPC-specific 混合话题池，deterministic rotation）
+- 实现原则：
+  - Starter prompts are static local content, not LLM-generated
+  - Prompt pool mixes global low-pressure topics with NPC-specific flavor
+  - Goal is to reduce "I don't know what to say" friction
+  - 18 global prompts (daily / mood / open / learning) + 8 NPC-specific prompts per character
+  - Each display: 2 global + 1 NPC-specific, deterministic by date + npcId + messageCount
+- 后续方向：
+  - Seasonal / exam / travel / job-hunting prompt sets
+  - Lightweight topic hooks based on recent review cards or saved words
+  - Avoid heavy onboarding, streaks, or study-plan pressure
 
 ### Pack P: Conversation Motivation / NPC-Specific Topic Hooks
 

@@ -173,48 +173,7 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
 ];
 
-const STARTER_PROMPTS: Record<NpcId, string[]> = {
-  kimura: [
-    "今日は少しだけ話したいです。",
-    "最近、生活リズムが少し崩れています。",
-    "今日は何を話せばいいか迷っています。",
-    "最近、ちょっと考えすぎてしまいます。",
-    "今日は少し疲れているけど、話したい気分です。",
-    "最近、うまく言葉が出てこないです。",
-    "最近、ちょっと気になっていることがあります。",
-    "今日は小さい出来事について話したいです。",
-    "コンビニでつい買ってしまうものがあります。",
-  ],
-  misaki: [
-    "今日は少しだけ話したいです。",
-    "最近、勉強や仕事で少し疲れています。",
-    "今日は何を話せばいいか迷っています。",
-    "最近、ちょっと考えすぎてしまいます。",
-    "最近、うまく言葉が出てこないです。",
-    "最近、習慣にしたいことがあります。",
-    "最近、ちょっと気になっていることがあります。",
-    "カフェでぼーっとする時間が好きです。",
-    "勉強の合間に少し休みたいです。",
-  ],
-  taisho: [
-    "今日は少しだけ話したいです。",
-    "最近、夜になると少し考えすぎてしまいます。",
-    "今日は何を話せばいいか迷っています。",
-    "今日は少し疲れているけど、話したい気分です。",
-    "最近、うまく言葉が出てこないです。",
-    "最近、習慣にしたいことがあります。",
-    "最近、ちょっと気になっていることがあります。",
-    "仕事や勉強のあとに食べたいものがあります。",
-    "夜になると、少し話したくなります。",
-  ],
-};
-
-function pickStarterPrompts(npcId: NpcId, userMessageCount: number): string[] {
-  const pool = STARTER_PROMPTS[npcId];
-  const daySeed = Math.floor(Date.now() / 86400000);
-  const start = (daySeed + userMessageCount + npcId.length) % pool.length;
-  return [pool[start], pool[(start + 3) % pool.length], pool[(start + 6) % pool.length]];
-}
+import { pickStarterPrompts } from "@/lib/starter-prompts";
 
 export default function ChatPage() {
   const params = useParams();
