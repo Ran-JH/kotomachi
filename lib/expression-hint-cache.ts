@@ -16,8 +16,13 @@ export interface CachedFeedback {
   formal: CachedFeedbackLevel;
 }
 
-function cacheKey(npcId: string, messageId: string, textFingerprint: string): string {
-  return `${npcId}:${messageId}:${textFingerprint}`;
+function cacheKey(
+  npcId: string,
+  messageId: string,
+  textFingerprint: string,
+  uiLanguage: "zh" | "en",
+): string {
+  return `${npcId}:${messageId}:${textFingerprint}:${uiLanguage}`;
 }
 
 function textFingerprint(text: string): string {
@@ -67,25 +72,41 @@ export function isValidCachedFeedback(c: CachedFeedback | null): boolean {
   return keys.every((k) => c[k]?.nativeSay?.trim().length > 0);
 }
 
-export function getCachedFeedback(npcId: string, messageId: string, userText: string): CachedFeedback | null {
+export function getCachedFeedback(
+  npcId: string,
+  messageId: string,
+  userText: string,
+  uiLanguage: "zh" | "en",
+): CachedFeedback | null {
   const cache = loadCache();
-  const key = cacheKey(npcId, messageId, textFingerprint(userText));
+  const key = cacheKey(npcId, messageId, textFingerprint(userText), uiLanguage);
   const entry = cache[key] ?? null;
   if (!isValidCachedFeedback(entry)) return null;
   return entry;
 }
 
-export function setCachedFeedback(npcId: string, messageId: string, userText: string, feedback: CachedFeedback): void {
+export function setCachedFeedback(
+  npcId: string,
+  messageId: string,
+  userText: string,
+  uiLanguage: "zh" | "en",
+  feedback: CachedFeedback,
+): void {
   if (!isValidCachedFeedback(feedback)) return;
   const cache = loadCache();
-  const key = cacheKey(npcId, messageId, textFingerprint(userText));
+  const key = cacheKey(npcId, messageId, textFingerprint(userText), uiLanguage);
   cache[key] = feedback;
   saveCache(cache);
 }
 
-export function removeCachedFeedback(npcId: string, messageId: string, userText: string): void {
+export function removeCachedFeedback(
+  npcId: string,
+  messageId: string,
+  userText: string,
+  uiLanguage: "zh" | "en",
+): void {
   const cache = loadCache();
-  const key = cacheKey(npcId, messageId, textFingerprint(userText));
+  const key = cacheKey(npcId, messageId, textFingerprint(userText), uiLanguage);
   delete cache[key];
   saveCache(cache);
 }

@@ -156,6 +156,41 @@ function normalizeLevel(
   };
 }
 
+function containsChinese(text: string): boolean {
+  return /[\u4e00-\u9fff]/.test(text);
+}
+
+function toEnglishAnalysis(level: "casual" | "business" | "formal", _userText: string): string {
+  if (level === "casual") {
+    return `Usage: casual chat with friends. Why this works: it keeps your intent and makes the line short and natural. Original note: your message can be understood, but this version sounds smoother in everyday Japanese.`;
+  }
+  if (level === "business") {
+    return `Usage: neutral polite Japanese for daily interactions. Why this works: it keeps the same meaning while improving sentence flow and tone. Original note: your intent stays the same, with clearer wording for normal social contexts.`;
+  }
+  return `Usage: formal situations such as customer-facing or respectful contexts. Why this works: it uses a more complete polite register while preserving your original intent. Original note: this version sounds more composed than casual phrasing.`;
+}
+
+function localizeAnalysisText(
+  analysis: string,
+  uiLanguage: "zh" | "en",
+  level: "casual" | "business" | "formal",
+  userText: string
+): string {
+  const cleaned = analysis
+    .replace(/\[(?:场合|場合|usage|scene)\]\s*/gi, "")
+    .replace(/\[(?:原句|理由|補足|备注|備考|why|reason|note|analysis)\]\s*/gi, "")
+    .trim();
+
+  if (uiLanguage === "en") {
+    if (!cleaned || containsChinese(cleaned)) {
+      return toEnglishAnalysis(level, userText);
+    }
+    return cleaned;
+  }
+
+  return cleaned;
+}
+
 function buildFallbackResponse(userText: string): FeedbackResponse {
   return buildIntentFallback(userText);
 }
@@ -230,10 +265,12 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 
 export async function POST(req: NextRequest) {
   let userText = "";
+  let uiLanguage: "zh" | "en" = "zh";
 
   try {
     const body = await req.json();
     userText = (body.userText ?? "").trim();
+    uiLanguage = body.uiLanguage === "en" ? "en" : "zh";
 
     if (!userText) {
       return NextResponse.json({ error: "文本不能为空" }, { status: 400 });
@@ -244,7 +281,19 @@ export async function POST(req: NextRequest) {
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `用户刚才说的日语（原句）：\n${userText}`,
+          content: `用户刚才说的日语（原句）：
+${userText}
+
+uiLanguage: ${uiLanguage}
+
+Language rules:
+- If uiLanguage is "en": usage / scene / reason / note / analysis must be in English only.
+- If uiLanguage is "zh": usage / scene / reason / note / analysis must be in Chinese only.
+- All suggested expressions must remain Japanese.
+- Japanese examples must remain Japanese.
+- The original user message must remain unchanged.
+- Do not translate suggested Japanese expressions into English.
+- Do not add Chinese explanations when uiLanguage is "en".`,
         },
       ],
       { temperature: 0.5, jsonMode: true }
@@ -270,11 +319,42 @@ export async function POST(req: NextRequest) {
       ),
     };
 
-    return NextResponse.json(repairFeedbackResponse(response, userText));
+    const repaired = repairFeedbackResponse(response, userText);
+    const localized: FeedbackResponse = {
+      casual: {
+        nativeSay: repaired.casual.nativeSay,
+        analysis: localizeAnalysisText(repaired.casual.analysis, uiLanguage, "casual", userText),
+      },
+      business: {
+        nativeSay: repaired.business.nativeSay,
+        analysis: localizeAnalysisText(repaired.business.analysis, uiLanguage, "business", userText),
+      },
+      formal: {
+        nativeSay: repaired.formal.nativeSay,
+        analysis: localizeAnalysisText(repaired.formal.analysis, uiLanguage, "formal", userText),
+      },
+    };
+
+    return NextResponse.json(localized);
   } catch (error) {
     console.warn("[api/feedback] failed", {
       message: error instanceof Error ? error.message : "unknown",
     });
-    return NextResponse.json(buildFallbackResponse(userText || "（空）"));
+    const fallback = buildFallbackResponse(userText || "（空）");
+    const localizedFallback: FeedbackResponse = {
+      casual: {
+        nativeSay: fallback.casual.nativeSay,
+        analysis: localizeAnalysisText(fallback.casual.analysis, uiLanguage, "casual", userText),
+      },
+      business: {
+        nativeSay: fallback.business.nativeSay,
+        analysis: localizeAnalysisText(fallback.business.analysis, uiLanguage, "business", userText),
+      },
+      formal: {
+        nativeSay: fallback.formal.nativeSay,
+        analysis: localizeAnalysisText(fallback.formal.analysis, uiLanguage, "formal", userText),
+      },
+    };
+    return NextResponse.json(localizedFallback);
   }
 }

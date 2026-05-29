@@ -395,8 +395,8 @@ function parseFeedbackAnalysisSections(analysis: string): {
   const text = analysis.trim();
   if (!text) return { usage: "", reason: "", details: "" };
 
-  const usageMatch = text.match(/\[(?:场合|場合)\]\s*([\s\S]*?)(?=\[(?:原句|理由|補足|备注|備考)\]|$)/i);
-  const reasonMatch = text.match(/\[(?:原句|理由|補足|备注|備考)\]\s*([\s\S]*?)(?=$)/i);
+  const usageMatch = text.match(/\[(?:场合|場合|usage|scene)\]\s*([\s\S]*?)(?=\[(?:原句|理由|補足|备注|備考|why|reason|note|analysis)\]|$)/i);
+  const reasonMatch = text.match(/\[(?:原句|理由|補足|备注|備考|why|reason|note|analysis)\]\s*([\s\S]*?)(?=$)/i);
   const usage = usageMatch ? usageMatch[1].trim() : "";
   const reason = reasonMatch ? reasonMatch[1].trim() : "";
 
@@ -409,6 +409,7 @@ function parseFeedbackAnalysisSections(analysis: string): {
   }
 
   const sentences = text
+    .replace(/\[(?:场合|場合|usage|scene|原句|理由|補足|备注|備考|why|reason|note|analysis)\]\s*/gi, "")
     .split(/\n+|(?<=[。！？!?])\s*/)
     .map((line) => line.trim())
     .filter(Boolean);
@@ -670,7 +671,7 @@ function FeedbackDrawer({
                   <div className="mt-2.5 space-y-2">
                     {analysisSections.usage && (
                       <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
-                        <p className="text-[9px] font-medium text-[#7A7060]">使用场景</p>
+                        <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.usageLabel}</p>
                         <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
                           {analysisSections.usage}
                         </p>
@@ -678,7 +679,7 @@ function FeedbackDrawer({
                     )}
                     {analysisSections.reason && (
                       <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
-                        <p className="text-[9px] font-medium text-[#7A7060]">为什么这样说</p>
+                        <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.whyLabel}</p>
                         <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
                           {analysisSections.reason}
                         </p>
@@ -803,7 +804,8 @@ export function ChatBubble({
       if (!feedbackRecordId) recordExpressionHintOpened(feedback);
       return;
     }
-    const cached = getCachedFeedback(npcId, messageId, text);
+    const language = uiLanguage === "en" ? "en" : "zh";
+    const cached = getCachedFeedback(npcId, messageId, text, language);
     if (cached) {
       const restored = fromCachedFeedback(cached);
       setFeedback(restored);
@@ -816,13 +818,13 @@ export function ChatBubble({
     try {
       const res = await fetch("/api/feedback", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: text }),
+        body: JSON.stringify({ userText: text, uiLanguage: language }),
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
       setFeedback(nextFeedback);
       setFeedbackError(false);
-      setCachedFeedback(npcId, messageId, text, toCachedFeedback(nextFeedback));
+      setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
       recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
@@ -838,20 +840,21 @@ export function ChatBubble({
   };
 
   const handleRegenerateFeedback = async () => {
-    removeCachedFeedback(npcId, messageId, text);
+    const language = uiLanguage === "en" ? "en" : "zh";
+    removeCachedFeedback(npcId, messageId, text, language);
     setFeedback(null);
     setLoading(true);
     setFeedbackError(false);
     try {
       const res = await fetch("/api/feedback", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: text }),
+        body: JSON.stringify({ userText: text, uiLanguage: language }),
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
       setFeedback(nextFeedback);
       setFeedbackError(false);
-      setCachedFeedback(npcId, messageId, text, toCachedFeedback(nextFeedback));
+      setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
       recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
