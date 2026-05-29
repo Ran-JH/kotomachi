@@ -141,10 +141,14 @@
 
 ## 8. Mobile Private Beta (R2)
 
+- [ ] 首页手机端：标题/语言切换不重叠，NPC 卡片不出屏，页面视觉重心不偏上。
+- [ ] 首页 desktop 端：标题区、语言切换、街景图区层级清楚，街景图在剩余空间自然居中。
 - [ ] Saved panel 在手机端有明显 `返回聊天 / Back to chat`，可退出回聊天。
 - [ ] Review Cards 列表和详情在手机端可通过 `返回聊天 / Back to chat` 退出。
-- [ ] `+` 菜单可看到 `添加到桌面 / Add to Home Screen` 说明。
-- [ ] `+` 菜单可看到 `使用提示 / Quick guide`，不遮挡输入框。
+- [ ] Help 面板可看到 `添加到桌面 / Add to Home Screen` 说明。
+- [ ] Help 面板可看到 `使用提示 / Quick guide`，且手机端可滚动、可关闭。
+- [ ] `+` 菜单只保留聊天动作（找话题、生成回顾卡），帮助信息从 `+` 菜单迁移到 Help。
+- [ ] 聊天页 Help 仅保留右上角入口，sidebar/mobile drawer 不再显示 Help。
 - [ ] Edge 里选中 NPC 消息词语可触发查词 popover。
 - [ ] 输入框支持多行自动增高，`Shift+Enter` 换行，`Enter` 发送。
 - [ ] 中文/日文 IME 组合输入时不会误发送。

@@ -70,12 +70,20 @@ export default function Home() {
   const worldContext = getWorldContext();
   const [hoveredId, setHoveredId] = useState<NpcId | null>(null);
   const [focusedId, setFocusedId] = useState<NpcId | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
   const activeId = hoveredId ?? focusedId;
   const copy = getUiCopy(uiLanguage);
 
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateMobile = () => setIsMobile(window.innerWidth < 768);
+    updateMobile();
+    window.addEventListener("resize", updateMobile);
+    return () => window.removeEventListener("resize", updateMobile);
   }, []);
 
   const handleLanguageChange = (language: UiLanguage) => {
@@ -87,32 +95,39 @@ export default function Home() {
     router.push(`/chat/${npcId}`);
   };
 
+  const cardHalfWidth = isMobile ? 80 : 96;
+
   return (
     <main
-    className="min-h-screen flex flex-col items-center justify-start relative overflow-hidden transition-colors duration-1000"
-    style={{ background: TIME_BG[timeOfDay] }}
+      className="min-h-[100dvh] flex flex-col relative overflow-x-hidden transition-colors duration-1000 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+      style={{ background: TIME_BG[timeOfDay] }}
     >
       {/* ====== 顶部品牌区 ====== */}
-      <div className="w-full max-w-[2529px] px-10 pt-8 self-start">
-        <h1 className="font-brand text-2xl font-light tracking-[0.3em] text-[#28231A]">
-          言街 Kotomachi
-        </h1>
-        <p className="text-[10px] text-[#7A7060]/60 mt-0.5 tracking-wider">
-          {TIME_LABELS[timeOfDay]} · {worldContext.atmosphere}
-        </p>
-      </div>
-      <LanguageToggle
-        language={uiLanguage}
-        onChange={handleLanguageChange}
-        className="absolute right-5 top-5 z-30"
-      />
+      <header className="w-full max-w-[2529px] mx-auto pt-[max(1rem,env(safe-area-inset-top))] md:pt-8">
+        <div className="flex items-start justify-between gap-3 md:gap-6">
+          <div className="min-w-0 pr-1">
+            <h1 className="font-brand text-[24px] sm:text-[30px] md:text-2xl font-light tracking-[0.14em] md:tracking-[0.3em] text-[#28231A] leading-tight break-words">
+              言街 Kotomachi
+            </h1>
+            <p className="text-[11px] md:text-[10px] text-[#7A7060]/60 mt-1.5 tracking-wider">
+              {TIME_LABELS[timeOfDay]} · {worldContext.atmosphere}
+            </p>
+          </div>
+          <LanguageToggle
+            language={uiLanguage}
+            onChange={handleLanguageChange}
+            className="relative z-30 shrink-0 mt-0.5"
+          />
+        </div>
+      </header>
 
       {/* ====== 街景主体 — SVG 内嵌建筑PNG ====== */}
-      <div className="relative w-full max-w-[2529px] px-4 flex-shrink-0 mt-24">
+      <section className="relative w-full flex-1 min-h-0 flex items-center justify-center py-3 md:py-6">
+        <div className="relative w-full max-w-[2529px] mx-auto px-1 md:px-4">
         <svg
           viewBox="0 0 2529 795"
           preserveAspectRatio="xMidYMid meet"
-          className="w-full h-auto block"
+          className="w-full h-auto max-h-[48vh] md:max-h-[54vh] lg:max-h-[58vh] block mx-auto"
         >
           {BUILDING_ZONES.map((zone) => (
             <g key={zone.id}>
@@ -147,7 +162,13 @@ export default function Home() {
                 onMouseLeave={() => setHoveredId(null)}
                 onFocus={() => setFocusedId(zone.id)}
                 onBlur={() => setFocusedId(null)}
-                onClick={() => openChat(zone.id)}
+                onClick={() => {
+                  if (isMobile && activeId !== zone.id) {
+                    setFocusedId(zone.id);
+                    return;
+                  }
+                  openChat(zone.id);
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
@@ -170,10 +191,7 @@ export default function Home() {
             <div
               key={`card-${zone.id}`}
               className="absolute z-20 -translate-x-1/2 -translate-y-full"
-              style={{
-                left: `${centerPercent}%`,
-                top: "0",
-              }}
+              style={{ left: `clamp(${cardHalfWidth}px, ${centerPercent}%, calc(100% - ${cardHalfWidth}px))`, top: "0" }}
             >
               <div
                 className={`transition-all duration-300 ease-out
@@ -182,8 +200,8 @@ export default function Home() {
                     : "opacity-0 -translate-y-2 pointer-events-none"
                   }`}
               >
-                <div className="bg-[#FAF6EE]/95 border border-[rgba(40,35,26,0.16)] rounded-xl px-4 py-3
-                  shadow-[0_10px_28px_rgba(40,35,26,0.14),0_2px_6px_rgba(40,35,26,0.08)] min-w-[188px] backdrop-blur-sm">
+                <div className="bg-[#FAF6EE]/95 border border-[rgba(40,35,26,0.16)] rounded-xl px-3.5 py-3
+                  shadow-[0_10px_28px_rgba(40,35,26,0.14),0_2px_6px_rgba(40,35,26,0.08)] w-[160px] md:min-w-[188px] md:w-auto max-w-[calc(100vw-1rem)] backdrop-blur-sm">
                 {/* 头像 + 姓名 */}
                 <div className="flex items-center gap-2.5 mb-1.5">
                   <img
@@ -214,10 +232,11 @@ export default function Home() {
             </div>
           );
         })}
-      </div>
+        </div>
+      </section>
 
       {/* ====== 底部提示 ====== */}
-      <div className="mt-8 mb-6 text-center space-y-3">
+      <div className="w-full max-w-[2529px] mx-auto mt-1 mb-1 md:mb-2 text-center space-y-3">
         <p className="font-brand text-base text-[#7A7060] tracking-[0.25em] font-light">
           {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
         </p>

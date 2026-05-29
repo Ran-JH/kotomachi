@@ -235,8 +235,7 @@ export default function ChatPage() {
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
-  const [isInstallHelpOpen, setIsInstallHelpOpen] = useState(false);
-  const [isQuickGuideOpen, setIsQuickGuideOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
   const [isInputComposing, setIsInputComposing] = useState(false);
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
@@ -300,12 +299,6 @@ export default function ChatPage() {
   }, [isInputActionsOpen]);
   useEffect(() => {
     if (!isInputActionsOpen) setIsTopicIdeasOpen(false);
-  }, [isInputActionsOpen]);
-  useEffect(() => {
-    if (!isInputActionsOpen) {
-      setIsInstallHelpOpen(false);
-      setIsQuickGuideOpen(false);
-    }
   }, [isInputActionsOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
@@ -730,37 +723,37 @@ export default function ChatPage() {
   const topicIdeasSubtitle = uiLanguage === "zh"
     ? "不知道说什么时，可以从这里开始"
     : "Pick a low-pressure prompt to keep talking";
+  const helpTitle = uiLanguage === "zh" ? "帮助" : "Help";
+  const helpSubtitle = uiLanguage === "zh" ? "使用提示与安装说明" : "Guide & install help";
   const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
-  const quickGuideSubtitle = uiLanguage === "zh"
-    ? "快速了解常用功能"
-    : "How to use key features";
   const quickGuideItems = uiLanguage === "zh"
     ? [
         "点气泡旁的提示按钮，可以比较几种自然说法。",
-        "选中 NPC 消息里的词，可以查看意思和读音。",
+        "手机端可先长按选中 NPC 消息里的词，再点查词入口查看意思和读音。",
         "点喇叭可以听发音。",
         "不知道说什么时，点 + 找话题。",
         "聊几句后，可以从 + 生成回顾卡。",
+        "收藏的表达和词语会保存在“收藏”里。",
       ]
     : [
         "Use Expression Hints to compare natural ways to say your message.",
-        "Select a word in an NPC message to look it up.",
+        "On mobile, long-press and select a word in an NPC message, then use the lookup action.",
         "Tap Listen to hear pronunciation.",
         "Use + for topic ideas when you are not sure what to say.",
         "After a short chat, use + to create a review card.",
+        "Saved words and expressions are stored in Saved.",
       ];
   const installHelpTitle = uiLanguage === "zh" ? "添加到桌面" : "Add to Home Screen";
-  const installHelpSubtitle = uiLanguage === "zh"
-    ? "安装成手机桌面 App"
-    : "Install for app-like use";
   const installHelpLines = uiLanguage === "zh"
     ? [
+        "Android：建议使用 Chrome 打开链接，点击浏览器菜单，选择“添加到主屏幕”或“安装应用”。",
         "iPhone：请用 Safari 打开链接，点击分享按钮，选择“添加到主屏幕”。",
-        "Android：请用 Chrome 或 Edge 打开链接，点击浏览器菜单，选择“添加到主屏幕”或“安装应用”。",
+        "Edge 等浏览器的安装入口可能因设备不同而变化；如果没有生成图标，请尝试 Chrome。",
       ]
     : [
-        "iPhone: Open in Safari, tap Share, then Add to Home Screen.",
-        "Android: Open in Chrome or Edge, open the browser menu, then choose Add to Home screen or Install app.",
+        "Android: For the most reliable install experience, open the link in Chrome and choose Add to Home screen or Install app.",
+        "iPhone: Open the link in Safari, tap Share, then Add to Home Screen.",
+        "Some browsers may behave differently. If Edge does not create an icon, try Chrome.",
       ];
   const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
   const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
@@ -1065,6 +1058,13 @@ export default function ChatPage() {
               </span>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsHelpOpen(true)}
+            className="inline-flex items-center rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-2.5 py-1.5 text-[11px] text-[#6B6254] hover:bg-[#E8E0CE] transition-colors"
+          >
+            {helpTitle}
+          </button>
         </div>
 
         {apiError && (
@@ -1209,40 +1209,6 @@ export default function ChatPage() {
                       </div>
                     </div>
                   )}
-                  {!isStandaloneMode && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setIsInstallHelpOpen((prev) => !prev)}
-                        className="mt-1 w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
-                      >
-                        <span className="block text-[12px] font-medium text-[#2D4A1F]">{installHelpTitle}</span>
-                        <span className="block mt-0.5 text-[10px] text-[#7A7060]">{installHelpSubtitle}</span>
-                      </button>
-                      {isInstallHelpOpen && (
-                        <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
-                          {installHelpLines.map((line) => (
-                            <p key={line} className="text-[10px] leading-relaxed text-[#6B6254]">{line}</p>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setIsQuickGuideOpen((prev) => !prev)}
-                    className="mt-1 w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
-                  >
-                    <span className="block text-[12px] font-medium text-[#2D4A1F]">{quickGuideTitle}</span>
-                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">{quickGuideSubtitle}</span>
-                  </button>
-                  {isQuickGuideOpen && (
-                    <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
-                      {quickGuideItems.map((line) => (
-                        <p key={line} className="text-[10px] leading-relaxed text-[#6B6254]">{line}</p>
-                      ))}
-                    </div>
-                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -1333,6 +1299,52 @@ export default function ChatPage() {
       {isReviewPanelOpen && !selectedSummaryCard && (
         <div className="fixed right-5 top-5 z-[91] rounded-full border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/95 px-3 py-1 text-[10px] text-[#7A7060]">
           {reviewPanelSummary}
+        </div>
+      )}
+      {isHelpOpen && (
+        <div className="fixed inset-0 z-[95] flex items-end md:items-center md:justify-center">
+          <button
+            type="button"
+            aria-label={copy.common.close}
+            className="absolute inset-0 bg-[#28231A]/25"
+            onClick={() => setIsHelpOpen(false)}
+          />
+          <section className="relative w-full md:w-[min(36rem,92vw)] max-h-[78vh] overflow-y-auto rounded-t-2xl md:rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-4 md:px-5 md:py-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-[14px] font-semibold text-[#2D4A1F]">{helpTitle}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="rounded-md px-2 py-1 text-[11px] text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+              >
+                {copy.common.close}
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              <div className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/65 px-3 py-2.5">
+                <p className="text-[12px] font-medium text-[#2D4A1F]">{quickGuideTitle}</p>
+                <div className="mt-1.5 space-y-1">
+                  {quickGuideItems.map((line) => (
+                    <p key={line} className="text-[11px] leading-relaxed text-[#6B6254]">{line}</p>
+                  ))}
+                </div>
+              </div>
+
+              {!isStandaloneMode && (
+                <div className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/65 px-3 py-2.5">
+                  <p className="text-[12px] font-medium text-[#2D4A1F]">{installHelpTitle}</p>
+                  <div className="mt-1.5 space-y-1">
+                    {installHelpLines.map((line) => (
+                      <p key={line} className="text-[11px] leading-relaxed text-[#6B6254]">{line}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       )}
     </div>
