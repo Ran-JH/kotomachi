@@ -206,7 +206,7 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
 ];
 
-import { pickStarterPrompts } from "@/lib/starter-prompts";
+import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";
 
 export default function ChatPage() {
   const params = useParams();
@@ -649,7 +649,9 @@ export default function ChatPage() {
   const topicIdeasSubtitle = uiLanguage === "zh"
     ? "不知道说什么时，可以从这里开始"
     : "Pick a low-pressure prompt to keep talking";
+  const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
   const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
+  const statusAwarePrompt = getStatusAwareTopicIdea(npcId);
   const recentSummaryMessages = useMemo<SessionSummaryMessage[]>(() => {
     return messages
       .filter((message) => message.sender === "user" || message.sender === "assistant")
@@ -1072,7 +1074,15 @@ export default function ChatPage() {
                   </button>
                   {isTopicIdeasOpen && (
                     <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
-                      <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
+                        className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                      >
+                        <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
+                        <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
+                      </button>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         {visibleStarterPrompts.map((prompt) => (
                           <button
                             key={`menu-${prompt}`}

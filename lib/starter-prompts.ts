@@ -1,4 +1,4 @@
-import type { NpcId } from "./npc";
+import { getNpcState, getWorldContext, type NpcId } from "./npc";
 
 type PromptCategory = "daily" | "mood" | "open" | "learning" | "npc_flavor";
 
@@ -113,4 +113,60 @@ export function pickStarterPrompts(npcId: NpcId, userMessageCount: number): stri
   }
 
   return result.slice(0, 3);
+}
+
+function pickBySeed(candidates: string[], seed: number): string {
+  if (candidates.length === 0) return "今日はどんな気分ですか？";
+  return candidates[Math.abs(seed) % candidates.length];
+}
+
+export function getStatusAwareTopicIdea(npcId: NpcId): string {
+  const state = getNpcState(npcId);
+  const world = getWorldContext();
+  const signal = `${state.label} ${state.thought} ${world.reactions[npcId] ?? ""}`.toLowerCase();
+  const seed = Math.floor(Date.now() / 86400000) + signal.length + npcId.charCodeAt(0);
+
+  if (/(疲|眠|夜勤|しんど|だる|sleep|tired)/.test(signal)) {
+    return pickBySeed([
+      "今日はちょっと大変でしたか？",
+      "最近、ちゃんと休めていますか？",
+      "今いちばん疲れる時間っていつですか？",
+    ], seed);
+  }
+
+  if (/(焦|試験|テスト|レポート|締め切り|exam|report)/.test(signal)) {
+    return pickBySeed([
+      "最近、いちばん気になっていることは何ですか？",
+      "今いちばん優先していることって何ですか？",
+      "今日はどの作業がいちばん大変でしたか？",
+    ], seed);
+  }
+
+  if (/(雨|じめ|蒸|暑|秋|風|冷|coffee|カフェイン|ハーブティー)/.test(signal)) {
+    return pickBySeed([
+      "今日はどんな飲み物がいちばん合いそうですか？",
+      "最近、夜に飲むなら何が落ち着きますか？",
+      "この天気だと、どんな過ごし方をしたくなりますか？",
+    ], seed);
+  }
+
+  if (npcId === "misaki") {
+    return pickBySeed([
+      "今日は少しゆっくり話したい気分ですか？",
+      "最近、落ち着く時間は取れていますか？",
+      "今の気分に合う一杯って、どんな感じですか？",
+    ], seed);
+  }
+  if (npcId === "kimura") {
+    return pickBySeed([
+      "今日はどんな一日でしたか？",
+      "最近、生活リズムは安定していますか？",
+      "今いちばん気を抜ける時間っていつですか？",
+    ], seed);
+  }
+  return pickBySeed([
+    "今日はどんなことで一息つきたい気分ですか？",
+    "最近、夜の過ごし方で変わったことはありますか？",
+    "今の気分をひとことで言うと、どんな感じですか？",
+  ], seed);
 }
