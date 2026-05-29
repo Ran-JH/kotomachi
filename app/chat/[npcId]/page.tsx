@@ -173,6 +173,49 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
 ];
 
+const STARTER_PROMPTS: Record<NpcId, string[]> = {
+  kimura: [
+    "今日は少しだけ話したいです。",
+    "最近、生活リズムが少し崩れています。",
+    "今日は何を話せばいいか迷っています。",
+    "最近、ちょっと考えすぎてしまいます。",
+    "今日は少し疲れているけど、話したい気分です。",
+    "最近、うまく言葉が出てこないです。",
+    "最近、ちょっと気になっていることがあります。",
+    "今日は小さい出来事について話したいです。",
+    "コンビニでつい買ってしまうものがあります。",
+  ],
+  misaki: [
+    "今日は少しだけ話したいです。",
+    "最近、勉強や仕事で少し疲れています。",
+    "今日は何を話せばいいか迷っています。",
+    "最近、ちょっと考えすぎてしまいます。",
+    "最近、うまく言葉が出てこないです。",
+    "最近、習慣にしたいことがあります。",
+    "最近、ちょっと気になっていることがあります。",
+    "カフェでぼーっとする時間が好きです。",
+    "勉強の合間に少し休みたいです。",
+  ],
+  taisho: [
+    "今日は少しだけ話したいです。",
+    "最近、夜になると少し考えすぎてしまいます。",
+    "今日は何を話せばいいか迷っています。",
+    "今日は少し疲れているけど、話したい気分です。",
+    "最近、うまく言葉が出てこないです。",
+    "最近、習慣にしたいことがあります。",
+    "最近、ちょっと気になっていることがあります。",
+    "仕事や勉強のあとに食べたいものがあります。",
+    "夜になると、少し話したくなります。",
+  ],
+};
+
+function pickStarterPrompts(npcId: NpcId, userMessageCount: number): string[] {
+  const pool = STARTER_PROMPTS[npcId];
+  const daySeed = Math.floor(Date.now() / 86400000);
+  const start = (daySeed + userMessageCount + npcId.length) % pool.length;
+  return [pool[start], pool[(start + 3) % pool.length], pool[(start + 6) % pool.length]];
+}
+
 export default function ChatPage() {
   const params = useParams();
   const rawNpcId = params.npcId as string;
@@ -197,6 +240,7 @@ export default function ChatPage() {
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
+  const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
   const copy = getUiCopy(uiLanguage);
   const reviewEntrySubtitle = uiLanguage === "zh" ? "聊天复习卡片" : "Chat review cards";
   const reviewDisabledHint = uiLanguage === "zh" ? "最近聊天太少，先多聊几句再生成" : "Not enough recent chat yet";
@@ -235,6 +279,9 @@ export default function ChatPage() {
     };
     window.addEventListener("mousedown", handleOutside);
     return () => window.removeEventListener("mousedown", handleOutside);
+  }, [isInputActionsOpen]);
+  useEffect(() => {
+    if (!isInputActionsOpen) setIsTopicIdeasOpen(false);
   }, [isInputActionsOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
@@ -524,6 +571,13 @@ export default function ChatPage() {
   };
 
   const handleSend = () => { setVoiceHint(null); void sendToNpc(inputText); };
+  const handleUseStarterPrompt = (prompt: string) => {
+    setVoiceHint(null);
+    setInputMode("text");
+    setInputText((prev) => (prev.trim() ? `${prev}\n${prompt}` : prompt));
+    setIsInputActionsOpen(false);
+    setIsTopicIdeasOpen(false);
+  };
 
   const pickRecorderMimeType = () => {
     const candidates = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/mp4", "audio/webm"];
@@ -575,6 +629,14 @@ export default function ChatPage() {
 
   const currentNpc = NPC_LIST.find((npc) => npc.id === npcId) ?? NPC_LIST[1];
   const userMessageCount = messages.filter((message) => message.sender === "user").length;
+  const showStarterPrompts = userMessageCount === 0;
+  const starterHeading = uiLanguage === "zh" ? "不知道怎么开始？" : "Not sure how to start?";
+  const starterSubheading = uiLanguage === "zh" ? "可以这样开口" : "Try one of these";
+  const topicIdeasTitle = uiLanguage === "zh" ? "找话题" : "Topic ideas";
+  const topicIdeasSubtitle = uiLanguage === "zh"
+    ? "不知道说什么时，可以从这里开始"
+    : "Pick a low-pressure prompt to keep talking";
+  const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
   const recentSummaryMessages = useMemo<SessionSummaryMessage[]>(() => {
     return messages
       .filter((message) => message.sender === "user" || message.sender === "assistant")
@@ -872,6 +934,24 @@ export default function ChatPage() {
         {/* 聊天消息区域 — max-w-4xl 居中 */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
+            {showStarterPrompts && (
+              <section className="rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3.5">
+                <p className="text-[12px] font-medium text-[#2D4A1F]">{starterHeading}</p>
+                <p className="mt-0.5 text-[10px] text-[#7A7060]">{starterSubheading}</p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {visibleStarterPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => handleUseStarterPrompt(prompt)}
+                      className="max-w-full rounded-full border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3 py-1.5 text-left text-[12px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                    >
+                      <span className="block break-words">{prompt}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {messages.map((msg, index) => (
               <div key={msg.id} className="space-y-4">
                 {shouldShowTimeDivider(messages[index - 1], msg) && (
@@ -935,6 +1015,30 @@ export default function ChatPage() {
               </button>
               {isInputActionsOpen && (
                 <div className="absolute bottom-11 left-0 z-30 w-56 rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
+                  <button
+                    type="button"
+                    onClick={() => setIsTopicIdeasOpen((prev) => !prev)}
+                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                  >
+                    <span className="block text-[12px] font-medium text-[#2D4A1F]">{topicIdeasTitle}</span>
+                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">{topicIdeasSubtitle}</span>
+                  </button>
+                  {isTopicIdeasOpen && (
+                    <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {visibleStarterPrompts.map((prompt) => (
+                          <button
+                            key={`menu-${prompt}`}
+                            type="button"
+                            onClick={() => handleUseStarterPrompt(prompt)}
+                            className="max-w-full rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-left text-[11px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                          >
+                            <span className="block break-words">{prompt}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
