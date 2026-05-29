@@ -83,9 +83,14 @@ nextTalkPrompt:
 }
 
 制限:
-- reusableExpressions 最大2件。
-- expressionUpgrades 最大2件。
-- reviewWords 最大5件。
+- quality > quantity。不要为了填满字段而硬凑内容。
+- 如果解释/学习点不具体有用，可以留空，或直接不输出该 item。
+- learning note 是可选字段。只有能讲清具体语言点（语法/句型/语气/词汇改写）时才写。
+- nextTalkPrompt 是可选字段。只有能给出具体、自然、贴合当前会话的延续话题时才写。
+- reusableExpressions: 1-3 件（不足时可更少）。
+- expressionUpgrades: 1-3 件（不足时可更少）。
+- reviewWords: 2-5 件（不足时可更少）。
+- nextTalkPrompt 只有在能具体贴合当前会话时才输出。
 - ユーザーが言っていないこと、調べていないことを捏造しない。
 - 原始 provider response や内部情報は出さない。`;
 
@@ -99,6 +104,52 @@ function truncate(value: string, maxLength: number): string {
 
 function includesAny(value: string, words: string[]): boolean {
   return words.some((word) => value.toLowerCase().includes(word.toLowerCase()));
+}
+
+function containsChineseText(value: string): boolean {
+  return /[\u4e00-\u9fff]/.test(value);
+}
+
+const BLOCKED_FILLER_TEXT = [
+  "approximate meaning; check sentence context",
+  "meaning in this chat context",
+  "meaning explained in this chat context",
+  "a reusable line that sounds natural in everyday conversation",
+  "useful when you want to talk naturally about this",
+  "this rewrite keeps your intent",
+  "this rewrites your sentence into natural japanese",
+  "a useful expression",
+  "a word from this conversation",
+  "context meaning",
+  "this is more natural japanese",
+  "this sounds better in conversation",
+  "this fits casual spoken japanese",
+  "removes broken phrasing",
+  "more natural",
+  "keeps your intent",
+  "会話で出てきた表現",
+  "文脈ごと復習",
+  "查过的词，建议结合原句复习",
+];
+
+function isBlockedFillerText(value: string): boolean {
+  const text = value.toLowerCase().trim();
+  if (!text) return true;
+  return BLOCKED_FILLER_TEXT.some((item) => text.includes(item.toLowerCase()));
+}
+
+function isFormulaicNextTopic(value: string): boolean {
+  const text = value.trim().toLowerCase();
+  if (!text) return false;
+  return includesAny(text, [
+    "keep going with",
+    "how it relates to your night routine, drinks, or sleep",
+    "talk about something interesting",
+    "one small recent moment",
+    "talk about how you felt",
+    "something interesting",
+    "small recent moment",
+  ]);
 }
 
 function conversationText(request: SessionSummaryRequest): string {
@@ -138,16 +189,36 @@ function sanitizeTitle(rawTitle: string, request: SessionSummaryRequest): string
   return truncate(title, 40);
 }
 
-function sanitizeTopicSummary(rawSummary: string, request: SessionSummaryRequest): string {
+function sanitizeTopicSummary(
+  rawSummary: string,
+  request: SessionSummaryRequest,
+  uiLanguage: "zh" | "en",
+): string {
   const summary = rawSummary.trim();
   if (
     summary &&
-    !includesAny(summary, ["今日のふりかえり", "いい会話", "続けて話"])
+    !includesAny(summary, ["今日のふりかえり", "いい会話", "続けて話", "You talked about your recent situation"])
   ) {
     return truncate(summary, 220);
   }
 
   const text = conversationText(request);
+  if (uiLanguage === "en") {
+    if (includesAny(text, ["coffee", "コーヒー", "カフェイン", "ハーブティー", "hot milk", "ホットミルク", "眠れ"])) {
+      return "You talked about night drinks, caffeine, and gentler options like hot milk or herbal tea for better sleep.";
+    }
+    if (includesAny(text, ["test", "exam", "試験", "テスト", "準備", "preparation"])) {
+      return "You talked about exam preparation and the relief of confirming your prep was finished.";
+    }
+    if (includesAny(text, ["夜勤", "sleep", "眠気", "寝たい"])) {
+      return "You talked about night-shift life, sleepiness, and how hard it is to rest when your rhythm is off.";
+    }
+    if (includesAny(text, ["哲学", "philosophy"])) {
+      return "You talked about philosophy feeling difficult and how that can make you sleepy during class.";
+    }
+    return "You reviewed key expressions from this chat and turned them into reusable Japanese lines.";
+  }
+
   if (includesAny(text, ["test", "exam", "試験", "テスト", "準備", "preparation"])) {
     return "試験の準備や、準備が終わったと確認できた安心感について話しました。";
   }
@@ -201,11 +272,12 @@ function normalizeReusableExpressions(value: unknown): SessionSummaryApiCard["re
     .map((item) => {
       const raw = item as Record<string, unknown>;
       const expression = truncate(pickString(raw.expression), 140);
-      const note = truncate(pickString(raw.note), 180);
+      const noteRaw = truncate(pickString(raw.note), 180);
+      const note = isBlockedFillerText(noteRaw) ? "" : noteRaw;
       return expression ? { expression, note } : null;
     })
     .filter((item): item is { expression: string; note: string } => Boolean(item))
-    .slice(0, 2);
+    .slice(0, 3);
 }
 
 function normalizeExpressionUpgrades(value: unknown): ExpressionUpgrade[] {
@@ -215,7 +287,8 @@ function normalizeExpressionUpgrades(value: unknown): ExpressionUpgrade[] {
       const raw = item as Record<string, unknown>;
       const original = truncate(pickString(raw.original), 180);
       const suggestion = truncate(pickString(raw.suggestion), 180);
-      const note = truncate(pickString(raw.note), 220);
+      const noteRaw = truncate(pickString(raw.note), 220);
+      const note = isBlockedFillerText(noteRaw) ? "" : noteRaw;
       if (!original || !suggestion) return null;
       return {
         original,
@@ -225,7 +298,7 @@ function normalizeExpressionUpgrades(value: unknown): ExpressionUpgrade[] {
       };
     })
     .filter((item): item is ExpressionUpgrade => Boolean(item))
-    .slice(0, 2);
+    .slice(0, 3);
 }
 
 function containsLatinText(value: string): boolean {
@@ -443,7 +516,7 @@ function normalizeReviewWords(value: unknown): ReviewWord[] {
     const raw = item as Record<string, unknown>;
     const word = truncate(pickString(raw.word), 80);
     const meaning = truncate(pickString(raw.meaning), 120);
-    if (!word || !meaning) continue;
+    if (!word || !meaning || isBlockedFillerText(meaning)) continue;
 
     words.push({
       word,
@@ -512,6 +585,74 @@ const KNOWN_REVIEW_WORDS: Record<string, Pick<ReviewWord, "reading" | "meaning" 
   },
 };
 
+const EN_WORD_MEANING_MAP: Record<string, string> = {
+  夜勤: "night shift",
+  誘惑: "temptation; strong pull",
+  眠気: "sleepiness; drowsiness",
+  哲学: "philosophy",
+  試験範囲: "exam scope; covered topics",
+  レポートを書かなきゃ: "I need to write my report",
+  眠気に負ける: "to give in to sleepiness",
+  ハーブティー: "herbal tea",
+  ホットミルク: "hot milk",
+  カフェイン: "caffeine",
+  眠れなくなる: "to become unable to sleep; can't fall asleep",
+};
+
+const GENERIC_EN_REVIEW_TEXT = [
+  "Meaning explained in this chat context.",
+  "A reusable line that sounds natural in everyday conversation.",
+  "This rewrite keeps your intent and improves wording and tone in natural Japanese.",
+  "A useful expression from this conversation.",
+];
+
+function isGenericEnglishText(value: string): boolean {
+  const text = value.trim();
+  if (!text) return true;
+  return GENERIC_EN_REVIEW_TEXT.some((item) => text.toLowerCase() === item.toLowerCase());
+}
+
+function englishMeaningFromWord(word: string, rawMeaning: string): string {
+  if (EN_WORD_MEANING_MAP[word]) return EN_WORD_MEANING_MAP[word];
+  const compact = rawMeaning.trim();
+  if (!compact) return "";
+  if (!containsChineseText(compact)) return compact;
+  if (compact.includes("夜班")) return "night shift";
+  if (compact.includes("诱惑")) return "temptation; strong pull";
+  if (compact.includes("困意")) return "sleepiness";
+  if (compact.includes("哲学")) return "philosophy";
+  if (compact.includes("考试范围")) return "exam scope";
+  if (compact.includes("报告")) return "report";
+  if (compact.includes("睡不着") || compact.includes("眠れなく")) return "can't fall asleep";
+  if (compact.includes("花草茶")) return "herbal tea";
+  if (compact.includes("打败") || compact.includes("撑不住")) return "to give in to sleepiness";
+  return "";
+}
+
+function buildReusableNote(expression: string): string {
+  const e = expression.trim();
+  if (includesAny(e, ["眠れなくなる"])) return "A natural way to explain that something can make it hard to fall asleep.";
+  if (includesAny(e, ["カフェイン"])) return "Useful for talking about caffeine effects or drink choices.";
+  if (includesAny(e, ["ホット", "ハーブティー", "ミルク"])) return "Useful when suggesting a gentler warm drink option.";
+  if (includesAny(e, ["〜と", "と、"])) return "Useful for linking cause and result in daily conversation.";
+  return "";
+}
+
+function buildUpgradeNote(original: string, suggestion: string): string {
+  const o = original.trim();
+  const s = suggestion.trim();
+  if (includesAny(o, ["feel relaxed", "confirm", "finished"]) || includesAny(s, ["確認", "安心"])) {
+    return "This keeps your idea but reorganizes it into natural Japanese flow, using 確認できて and 安心しました for clear cause and feeling.";
+  }
+  if (includesAny(o, ["sleep", "tired", "寝たい", "眠"]) || includesAny(s, ["寝たい", "眠れなくなる"])) {
+    return "This uses a sleep-focused Japanese pattern (like 眠れなくなる or 〜たい) to state condition and intent more clearly.";
+  }
+  if (includesAny(s, ["〜と", "と、", "可能性があります", "かもしれません"])) {
+    return "This adds a clear pattern for cause/result or soft probability, which sounds natural in practical conversation.";
+  }
+  return "";
+}
+
 function knownReviewWord(word: string): ReviewWord | null {
   const value = KNOWN_REVIEW_WORDS[word];
   if (!value) return null;
@@ -526,14 +667,19 @@ function knownReviewWord(word: string): ReviewWord | null {
 
 function reviewWordFromLookup(
   lookup: NonNullable<SessionSummaryRequest["recentLookups"]>[number],
+  uiLanguage: "zh" | "en",
 ): ReviewWord | null {
   const word = pickString(lookup.word);
   if (isLowValueReviewWord(word)) return null;
   const known = knownReviewWord(word);
+  const rawMeaning = pickString(lookup.meaning) || known?.meaning || "查过的词，建议结合原句复习。";
+  const resolvedMeaning = uiLanguage === "en" ? englishMeaningFromWord(word, rawMeaning) : rawMeaning;
+  if (!resolvedMeaning || isBlockedFillerText(resolvedMeaning)) return null;
+
   return {
     word,
     reading: pickString(lookup.reading) || known?.reading,
-    meaning: pickString(lookup.meaning) || known?.meaning || "查过的词，建议结合原句复习。",
+    meaning: resolvedMeaning,
     example: truncate(pickString(lookup.sourceSentence) || known?.example || "", 160) || undefined,
     source: "looked_up",
   };
@@ -541,6 +687,7 @@ function reviewWordFromLookup(
 
 function extractConversationReviewWords(
   messages: SessionSummaryRequest["messages"],
+  uiLanguage: "zh" | "en",
 ): ReviewWord[] {
   const seen = new Set<string>();
   const candidates: ReviewWord[] = [];
@@ -560,10 +707,14 @@ function extractConversationReviewWords(
     for (const match of matches) {
       const word = match.trim();
       if (word.length < 4 || seen.has(word) || isLowValueReviewWord(word)) continue;
+      const meaning = uiLanguage === "en"
+        ? englishMeaningFromWord(word, knownReviewWord(word)?.meaning ?? "")
+        : (knownReviewWord(word)?.meaning ?? "");
+      if (!meaning || isBlockedFillerText(meaning)) continue;
       seen.add(word);
       candidates.push({
         word,
-        meaning: "会話で出てきた表現。文脈ごと復習すると使いやすいです。",
+        meaning,
         source: "conversation",
       });
       if (candidates.length >= 3) return candidates;
@@ -576,12 +727,13 @@ function extractConversationReviewWords(
 function normalizeReviewWordsWithEvidence(
   value: unknown,
   request: SessionSummaryRequest,
+  uiLanguage: "zh" | "en",
 ): ReviewWord[] {
   const words: ReviewWord[] = [];
   const seen = new Set<string>();
 
   for (const lookup of request.recentLookups ?? []) {
-    const word = reviewWordFromLookup(lookup);
+    const word = reviewWordFromLookup(lookup, uiLanguage);
     if (!word || seen.has(word.word)) continue;
     words.push(word);
     seen.add(word.word);
@@ -598,7 +750,7 @@ function normalizeReviewWordsWithEvidence(
     if (words.length >= 5) return words;
   }
 
-  for (const word of extractConversationReviewWords(request.messages)) {
+  for (const word of extractConversationReviewWords(request.messages, uiLanguage)) {
     if (isLowValueReviewWord(word.word) || seen.has(word.word)) continue;
     words.push(word);
     seen.add(word.word);
@@ -608,7 +760,11 @@ function normalizeReviewWordsWithEvidence(
   return words;
 }
 
-function sanitizeNextTalkPrompt(rawPrompt: string, request: SessionSummaryRequest): string {
+function sanitizeNextTalkPrompt(
+  rawPrompt: string,
+  request: SessionSummaryRequest,
+  uiLanguage: "zh" | "en",
+): string {
   const prompt = rawPrompt.trim();
   const generic = !prompt || includesAny(prompt, [
     "继续聊",
@@ -617,10 +773,31 @@ function sanitizeNextTalkPrompt(rawPrompt: string, request: SessionSummaryReques
     "今日のこと",
     "練習しましょう",
     "日本語を練習",
+    "one small recent moment",
+    "something interesting",
   ]);
   if (!generic) return truncate(prompt, 160);
 
   const text = conversationText(request);
+  if (uiLanguage === "en") {
+    if (includesAny(text, ["coffee", "コーヒー", "カフェイン", "ハーブティー", "hot milk", "ホットミルク", "眠れ"])) {
+      return "Next, you could talk about what you usually drink at night when you want to sleep well.";
+    }
+    if (includesAny(text, ["夜勤"])) {
+      return "Next, you could continue with how you recover after a night shift and what helps you rest.";
+    }
+    if (includesAny(text, ["哲学", "philosophy"])) {
+      return "Next, you could talk about which parts of philosophy class make you sleepy and how you stay focused.";
+    }
+    if (includesAny(text, ["レポート", "report"])) {
+      return "Next, you could continue with how you choose a report topic and break it into small steps.";
+    }
+    if (includesAny(text, ["test", "exam", "試験", "テスト", "準備"])) {
+      return "Next, you could talk about what checks make you feel confident before an exam.";
+    }
+    return "Next, pick one expression from this chat and use it in a short update about your day.";
+  }
+
   if (includesAny(text, ["夜勤"])) {
     return "次は「夜勤明けにどうやって休むか」を少し話してみてもよさそうです。";
   }
@@ -639,15 +816,81 @@ function sanitizeNextTalkPrompt(rawPrompt: string, request: SessionSummaryReques
 function normalizeCard(
   raw: Record<string, unknown>,
   request: SessionSummaryRequest,
+  uiLanguage: "zh" | "en",
 ): SessionSummaryApiCard {
-  const reviewWords = normalizeReviewWordsWithEvidence(raw.reviewWords, request);
-  return {
+  const reviewWords = normalizeReviewWordsWithEvidence(raw.reviewWords, request, uiLanguage);
+  const card: SessionSummaryApiCard = {
     title: sanitizeTitle(pickString(raw.title), request),
-    topicSummary: sanitizeTopicSummary(pickString(raw.topicSummary), request),
+    topicSummary: sanitizeTopicSummary(pickString(raw.topicSummary), request, uiLanguage),
     reusableExpressions: normalizeReusableExpressions(raw.reusableExpressions),
     expressionUpgrades: normalizeExpressionUpgradesWithEvidence(raw.expressionUpgrades, request),
     reviewWords,
-    nextTalkPrompt: sanitizeNextTalkPrompt(pickString(raw.nextTalkPrompt), request),
+    nextTalkPrompt: sanitizeNextTalkPrompt(pickString(raw.nextTalkPrompt), request, uiLanguage),
+  };
+
+  const qualityCard: SessionSummaryApiCard = {
+    ...card,
+    reusableExpressions: card.reusableExpressions
+      .map((item) => ({ ...item, note: isBlockedFillerText(item.note) ? "" : item.note }))
+      .filter((item) => Boolean(item.expression) && (!item.note || !isBlockedFillerText(item.note))),
+    expressionUpgrades: card.expressionUpgrades
+      .map((item) => ({ ...item, note: isBlockedFillerText(item.note) ? "" : item.note })),
+    reviewWords: card.reviewWords.filter((item) => Boolean(item.meaning) && !isBlockedFillerText(item.meaning)),
+    nextTalkPrompt: isBlockedFillerText(card.nextTalkPrompt) || isFormulaicNextTopic(card.nextTalkPrompt)
+      ? ""
+      : card.nextTalkPrompt,
+  };
+
+  return localizeCardTeachingText(qualityCard, uiLanguage);
+}
+
+function localizeCardTeachingText(
+  card: SessionSummaryApiCard,
+  uiLanguage: "zh" | "en",
+): SessionSummaryApiCard {
+  if (uiLanguage !== "en") return card;
+
+  const anchorExpression =
+    card.reusableExpressions[0]?.expression ||
+    card.expressionUpgrades[0]?.suggestion ||
+    "this line";
+
+  const topicSummary = containsChineseText(card.topicSummary)
+    ? `You reviewed today's chat and practiced clearer Japanese around "${anchorExpression}".`
+    : card.topicSummary;
+
+  const reusableExpressions = card.reusableExpressions.map((item) => ({
+    ...item,
+    note: !item.note || containsChineseText(item.note) || isGenericEnglishText(item.note)
+      ? buildReusableNote(item.expression)
+      : item.note,
+  })).filter((item) => Boolean(item.note && !isBlockedFillerText(item.note)));
+
+  const expressionUpgrades = card.expressionUpgrades.map((item) => ({
+    ...item,
+    note: !item.note || containsChineseText(item.note) || isGenericEnglishText(item.note)
+      ? buildUpgradeNote(item.original, item.suggestion)
+      : item.note,
+  }));
+
+  const reviewWords = card.reviewWords.map((item) => ({
+    ...item,
+    meaning: containsChineseText(item.meaning) || isGenericEnglishText(item.meaning)
+      ? englishMeaningFromWord(item.word, item.meaning)
+      : item.meaning,
+  })).filter((item) => Boolean(item.meaning && !isBlockedFillerText(item.meaning)));
+
+  const nextTalkPrompt = containsChineseText(card.nextTalkPrompt) || isFormulaicNextTopic(card.nextTalkPrompt)
+    ? ""
+    : card.nextTalkPrompt;
+
+  return {
+    ...card,
+    topicSummary,
+    reusableExpressions,
+    expressionUpgrades,
+    reviewWords,
+    nextTalkPrompt,
   };
 }
 
@@ -724,7 +967,9 @@ function sanitizeRequest(body: unknown): SessionSummaryRequest | null {
 
 export async function POST(req: NextRequest) {
   try {
-    const request = sanitizeRequest(await req.json());
+    const body = await req.json();
+    const uiLanguage: "zh" | "en" = body?.uiLanguage === "en" ? "en" : "zh";
+    const request = sanitizeRequest(body);
     if (!request) {
       return NextResponse.json(
         { error: "もう少し話すと、ふりかえりを作れます。" },
@@ -736,7 +981,52 @@ export async function POST(req: NextRequest) {
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: JSON.stringify(request, null, 2),
+        content: `${JSON.stringify(request, null, 2)}
+
+uiLanguage: ${uiLanguage}
+
+Language rules:
+- Use the same selection logic for zh and en. Do not make English cards more generic than Chinese cards.
+- Reusable expressions must be selected by real usefulness in this chat, not category-like templates.
+- Expression upgrades must come from real user gaps or expression hints and explain the concrete rewrite point.
+- Review words should prioritize looked-up words and relevant conversation words; keep quality checks the same in zh/en.
+- nextTalkPrompt must continue this exact chat topic with concrete hooks.
+- Quality is more important than quantity. Do not fill a field just because schema has that field.
+- If explanation/note is not specific and useful, leave it empty.
+- Learning note is optional. Only include it when you can explain a concrete language point.
+- If the note is only "more natural / better wording / keeps your intent / casual spoken Japanese", return an empty note.
+- If a word meaning is uncertain and cannot be inferred, exclude that word item.
+- If an expression is not truly reusable, exclude it.
+- nextTalkPrompt is optional. If you cannot produce a concrete, natural continuation tied to this chat, return an empty string.
+- Do not use formulaic next-topic text like "keep going with X and how it relates to Y".
+- If uiLanguage is "en": topicSummary, reusable expression notes, learning notes, word meanings, and nextTalkPrompt must be in English only.
+- If uiLanguage is "zh": those teaching fields must be in Chinese.
+- Suggested Japanese expressions must remain Japanese.
+- Japanese words, readings, and Japanese examples must remain Japanese.
+- User original text must remain unchanged.
+- NPC quotes must remain Japanese.
+- Do not output Chinese labels or Chinese explanation paragraphs when uiLanguage is "en".
+- Explanations must be content-specific to the actual expression/word/sentence in this chat.
+- Never output placeholder lines like:
+  "approximate meaning; check sentence context"
+  "meaning in this chat context"
+  "Meaning explained in this chat context."
+  "A reusable line that sounds natural in everyday conversation."
+  "Useful when you want to talk naturally about this"
+  "This rewrites your sentence into natural Japanese"
+  "This rewrite keeps your intent and improves wording."
+  "A useful expression from this conversation."
+- For reviewWords.meaning in English UI, provide natural English meanings (e.g. ハーブティー -> herbal tea, 眠れなくなる -> can't fall asleep).
+- nextTalkPrompt must be concrete and tied to the actual chat topic, not a generic prompt.
+
+Before finalizing JSON, do an internal self-check (do not output this checklist):
+1) no placeholder text,
+2) reusable notes are specific,
+3) word meanings are real meanings,
+4) learning notes explain concrete rewrite points,
+5) nextTalkPrompt is tied to this chat,
+6) Japanese content stays Japanese,
+7) explanation language matches uiLanguage.`,
       },
     ];
 
@@ -754,7 +1044,7 @@ export async function POST(req: NextRequest) {
       parsed = {};
     }
 
-    return NextResponse.json({ card: normalizeCard(parsed, request) });
+    return NextResponse.json({ card: normalizeCard(parsed, request, uiLanguage) });
   } catch (error) {
     console.warn("[api/session-summary] failed", {
       message: error instanceof Error ? error.message : "unknown",

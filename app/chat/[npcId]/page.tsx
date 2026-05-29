@@ -101,6 +101,38 @@ function hashText(value: string): string {
   return Math.abs(hash).toString(36);
 }
 
+const REVIEW_FILLER_PATTERNS = [
+  "approximate meaning; check sentence context",
+  "meaning in this chat context",
+  "meaning explained in this chat context",
+  "a reusable line that sounds natural in everyday conversation",
+  "useful when you want to talk naturally about this",
+  "this rewrite keeps your intent",
+  "this rewrites your sentence into natural japanese",
+  "a useful expression",
+  "a word from this conversation",
+];
+
+const REVIEW_BAD_NEXT_TOPIC_PATTERNS = [
+  "keep going with",
+  "how it relates to your night routine, drinks, or sleep",
+  "talk about something interesting",
+  "one small recent moment",
+  "talk about how you felt",
+];
+
+function isReviewFiller(value: string | undefined): boolean {
+  const text = (value ?? "").trim().toLowerCase();
+  if (!text) return false;
+  return REVIEW_FILLER_PATTERNS.some((pattern) => text.includes(pattern));
+}
+
+function isBadReviewNextTopic(value: string | undefined): boolean {
+  const text = (value ?? "").trim().toLowerCase();
+  if (!text) return false;
+  return REVIEW_BAD_NEXT_TOPIC_PATTERNS.some((pattern) => text.includes(pattern));
+}
+
 function createWelcomeSourceFingerprint(npcId: NpcId, history: StoredMessage[]): string {
   const source = history
     .map((message) => `${message.role}:${message.content}`)
@@ -640,20 +672,31 @@ export default function ChatPage() {
   const buildSummaryCard = (
     apiCard: SessionSummaryApiCard,
     sourceInfo: ReturnType<typeof createSummarySourceInfo>,
-  ): SessionSummaryCard => ({
-    schemaVersion: 1,
-    id: createSummaryId("summary"),
-    createdAt: new Date().toISOString(),
-    npcId,
-    ...sourceInfo,
-    sourceUserMessageCount: userMessageCount,
-    title: apiCard.title,
-    topicSummary: apiCard.topicSummary,
-    reusableExpressions: apiCard.reusableExpressions ?? [],
-    expressionUpgrades: apiCard.expressionUpgrades ?? [],
-    reviewWords: apiCard.reviewWords ?? [],
-    nextTalkPrompt: apiCard.nextTalkPrompt,
-  });
+  ): SessionSummaryCard => {
+    const reusableExpressions = (apiCard.reusableExpressions ?? [])
+      .map((item) => ({ ...item, note: isReviewFiller(item.note) ? "" : item.note }))
+      .filter((item) => item.expression.trim());
+    const expressionUpgrades = (apiCard.expressionUpgrades ?? [])
+      .map((item) => ({ ...item, note: isReviewFiller(item.note) ? "" : item.note }));
+    const reviewWords = (apiCard.reviewWords ?? [])
+      .filter((item) => item.word.trim() && item.meaning.trim() && !isReviewFiller(item.meaning));
+    const nextTalkPrompt = isBadReviewNextTopic(apiCard.nextTalkPrompt) ? "" : apiCard.nextTalkPrompt;
+
+    return {
+      schemaVersion: 1,
+      id: createSummaryId("summary"),
+      createdAt: new Date().toISOString(),
+      npcId,
+      ...sourceInfo,
+      sourceUserMessageCount: userMessageCount,
+      title: apiCard.title,
+      topicSummary: apiCard.topicSummary,
+      reusableExpressions,
+      expressionUpgrades,
+      reviewWords,
+      nextTalkPrompt,
+    };
+  };
 
   const handleCreateSummary = async () => {
     if (existingSourceCard) {
@@ -692,6 +735,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           schemaVersion: 1,
           npcId,
+          uiLanguage: uiLanguage === "en" ? "en" : "zh",
           messages: recentSummaryMessages,
           recentLookups: loadRecentLookups(npcId, 5),
           recentExpressionHints: loadRecentExpressionHints(npcId, 5),
