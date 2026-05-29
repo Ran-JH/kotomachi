@@ -6,6 +6,14 @@ Kotomachi is a low-pressure AI-native Japanese speaking practice app. Chat with 
 
 [https://kotomachi.vercel.app/](https://kotomachi.vercel.app/)
 
+## Current Deployment Target
+
+Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use and small friend testing (alpha).
+
+- Open the link on mobile and add it to home screen for app-like usage.
+- This is **not** an App Store / Play Store native release.
+- You can optionally enable an alpha access code gate for limited testing.
+
 ## Core Ideas
 
 - **Low-pressure output**: The chat flow stays natural. NPC responds in casual Japanese and keeps the conversation going.
@@ -99,6 +107,7 @@ Notes:
 | `VOLCENGINE_TTS_VOICE_MISAKI` | Misaki voice | Optional |
 | `VOLCENGINE_TTS_VOICE_KIMURA` | Kimura voice | Optional |
 | `VOLCENGINE_TTS_VOICE_TAISHO` | Taisho voice | Optional |
+| `NEXT_PUBLIC_ALPHA_ACCESS_CODE` | Optional small-test access code gate (client-side) | Optional |
 
 ## Current Limitations
 

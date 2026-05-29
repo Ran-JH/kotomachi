@@ -11,6 +11,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
+import { buildClientApiUrl } from "@/lib/client-api-url";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
@@ -374,7 +375,7 @@ export default function ChatPage() {
 
     const npcState = getNpcState(targetNpcId);
     const worldContext = getWorldContext();
-    const request = fetch("/api/welcome", {
+    const request = fetch(buildClientApiUrl("/api/welcome"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -557,7 +558,7 @@ export default function ChatPage() {
     const cached = npcAudioCacheRef.current.get(cacheKey);
     if (cached) return cached;
     try {
-      const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, npcId }) });
+      const res = await fetch(buildClientApiUrl("/api/tts"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, npcId }) });
       if (!res.ok) return null;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -568,7 +569,7 @@ export default function ChatPage() {
 
   const extractMemory = async (userText: string) => {
     try {
-      const res = await fetch("/api/memory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userText }) });
+      const res = await fetch(buildClientApiUrl("/api/memory"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userText }) });
       const data = await res.json();
       if (data.fact) { saveLocalNPCMemory(npcId, data.fact); setMemories(getLocalNPCMemories(npcId)); }
     } catch { /* 静默 */ }
@@ -589,7 +590,7 @@ export default function ChatPage() {
     const npcState = getNpcState(npcId);
     const worldContext = getWorldContext();
     try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
+      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
       const useVoice = true;
@@ -633,7 +634,7 @@ export default function ChatPage() {
         setIsTyping(true);
         try {
           const formData = new FormData(); formData.append("audio", blob);
-          const sttRes = await fetch("/api/stt", { method: "POST", body: formData });
+          const sttRes = await fetch(buildClientApiUrl("/api/stt"), { method: "POST", body: formData });
           const sttData = await sttRes.json();
           if (!sttRes.ok) {
             if (sttData.code === "NO_SPEECH") {
@@ -786,7 +787,7 @@ export default function ChatPage() {
       .map((message) => ({ id: message.id, text: message.text }));
 
     try {
-      const res = await fetch("/api/session-summary", {
+      const res = await fetch(buildClientApiUrl("/api/session-summary"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1096,7 +1097,7 @@ export default function ChatPage() {
                 +
               </button>
               {isInputActionsOpen && (
-                <div className="absolute bottom-11 left-0 z-30 w-56 rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
+                <div className="absolute bottom-11 left-0 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
                   <button
                     type="button"
                     onClick={() => setIsTopicIdeasOpen((prev) => !prev)}

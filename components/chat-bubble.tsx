@@ -19,6 +19,7 @@ import { isWordSaved, isExpressionSaved, toggleSavedItem, type SavedWord, type S
 import { getCachedFeedback, setCachedFeedback, removeCachedFeedback, toCachedFeedback, fromCachedFeedback } from "@/lib/expression-hint-cache";
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
+import { buildClientApiUrl } from "@/lib/client-api-url";
 import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
 
 /* ============================================================
@@ -56,7 +57,7 @@ interface ChatBubbleProps {
 }
 
 async function fetchAndPlayTts(text: string, npcId: NpcId): Promise<void> {
-  const res = await fetch("/api/tts", {
+  const res = await fetch(buildClientApiUrl("/api/tts"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, npcId }),
@@ -132,7 +133,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
       setExplainError(false);
       setExpanded(false);
       try {
-        const res = await fetch("/api/explain", {
+        const res = await fetch(buildClientApiUrl("/api/explain"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -816,7 +817,7 @@ export function ChatBubble({
     setLoading(true);
     setFeedbackError(false);
     try {
-      const res = await fetch("/api/feedback", {
+      const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userText: text, uiLanguage: language }),
       });
@@ -846,7 +847,7 @@ export function ChatBubble({
     setLoading(true);
     setFeedbackError(false);
     try {
-      const res = await fetch("/api/feedback", {
+      const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userText: text, uiLanguage: language }),
       });
