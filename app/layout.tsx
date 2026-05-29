@@ -3,9 +3,9 @@ import "./globals.css";
 import { AlphaAccessGate } from "./alpha-access-gate";
 
 export const metadata: Metadata = {
-  title: "Kotomachi / 言街",
+  title: "Kotomachi",
   description: "Low-pressure Japanese speaking practice",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -13,10 +13,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
       { url: "/icons/icon.svg", type: "image/svg+xml" },
-      { url: "/avatars/misaki_avatar.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: [{ url: "/avatars/misaki_avatar.png", sizes: "192x192", type: "image/png" }],
+    shortcut: [{ url: "/icons/icon-192.png", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
