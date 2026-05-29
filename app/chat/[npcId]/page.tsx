@@ -120,6 +120,7 @@ const REVIEW_BAD_NEXT_TOPIC_PATTERNS = [
   "one small recent moment",
   "talk about how you felt",
 ];
+const ONBOARDING_HINT_DISMISSED_KEY = "kotomachi_onboarding_hint_dismissed";
 
 function isReviewFiller(value: string | undefined): boolean {
   const text = (value ?? "").trim().toLowerCase();
@@ -232,6 +233,7 @@ export default function ChatPage() {
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
+  const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
   const copy = getUiCopy(uiLanguage);
   const reviewEntrySubtitle = uiLanguage === "zh" ? "聊天复习卡片" : "Chat review cards";
   const reviewDisabledHint = uiLanguage === "zh" ? "最近聊天太少，先多聊几句再生成" : "Not enough recent chat yet";
@@ -277,6 +279,14 @@ export default function ChatPage() {
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setIsOnboardingHintDismissed(localStorage.getItem(ONBOARDING_HINT_DISMISSED_KEY) === "1");
+    } catch {
+      setIsOnboardingHintDismissed(false);
+    }
   }, []);
 
   const handleLanguageChange = (language: UiLanguage) => {
@@ -621,8 +631,20 @@ export default function ChatPage() {
   const currentNpc = NPC_LIST.find((npc) => npc.id === npcId) ?? NPC_LIST[1];
   const userMessageCount = messages.filter((message) => message.sender === "user").length;
   const showStarterPrompts = userMessageCount === 0;
+  const showOnboardingHint = userMessageCount === 0 && !isOnboardingHintDismissed;
   const starterHeading = uiLanguage === "zh" ? "不知道怎么开始？" : "Not sure how to start?";
   const starterSubheading = uiLanguage === "zh" ? "可以这样开口" : "Try one of these";
+  const onboardingHintTitle = uiLanguage === "zh" ? "可以随便开口" : "Start however you can";
+  const onboardingHintLine1 = uiLanguage === "zh"
+    ? "不用说完整日语。中 / 英 / 日混着说也可以。"
+    : "You do not need perfect Japanese. Mixing Chinese, English, and Japanese is okay.";
+  const onboardingHintLine2 = uiLanguage === "zh"
+    ? "不知道说什么时，可以点 “+” 找话题。"
+    : "If you are not sure what to say, tap “+” for topic ideas.";
+  const onboardingHintLine3 = uiLanguage === "zh"
+    ? "我会帮你把想法整理成自然日语。"
+    : "Kotomachi helps turn your rough thoughts into natural Japanese.";
+  const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
   const topicIdeasTitle = uiLanguage === "zh" ? "找话题" : "Topic ideas";
   const topicIdeasSubtitle = uiLanguage === "zh"
     ? "不知道说什么时，可以从这里开始"
@@ -939,6 +961,28 @@ export default function ChatPage() {
           <div className="max-w-4xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
             {showStarterPrompts && (
               <section className="rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3.5">
+                {showOnboardingHint && (
+                  <div className="mb-3 rounded-lg border border-[rgba(40,35,26,0.07)] bg-[#F3EDE0]/65 px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[12px] font-medium text-[#2D4A1F]">{onboardingHintTitle}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOnboardingHintDismissed(true);
+                          try { localStorage.setItem(ONBOARDING_HINT_DISMISSED_KEY, "1"); } catch {}
+                        }}
+                        className="shrink-0 text-[10px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
+                        aria-label={dismissOnboardingHintLabel}
+                        title={dismissOnboardingHintLabel}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine1}</p>
+                    <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine2}</p>
+                    <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine3}</p>
+                  </div>
+                )}
                 <p className="text-[12px] font-medium text-[#2D4A1F]">{starterHeading}</p>
                 <p className="mt-0.5 text-[10px] text-[#7A7060]">{starterSubheading}</p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
