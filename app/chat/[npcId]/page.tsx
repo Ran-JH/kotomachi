@@ -26,6 +26,7 @@ import {
 } from "@/lib/memory";
 import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
 import {
+  SAVED_ITEMS_UPDATED_EVENT,
   loadSavedItems,
   removeSavedItem,
   type SavedItem,
@@ -235,7 +236,25 @@ export default function ChatPage() {
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
   const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
   const copy = getUiCopy(uiLanguage);
-  const reviewEntrySubtitle = uiLanguage === "zh" ? "聊天复习卡片" : "Chat review cards";
+  const savedExpressionCount = savedItems.filter((item) => item.type === "expression").length;
+  const savedWordCount = savedItems.filter((item) => item.type === "word").length;
+  const savedTotalCount = savedExpressionCount + savedWordCount;
+  const savedEntrySubtitle = savedTotalCount === 0
+    ? (uiLanguage === "zh" ? "还没有收藏" : "No saved items yet")
+    : (uiLanguage === "zh"
+      ? `已保存 ${savedTotalCount} 个表达和词语`
+      : `${savedTotalCount} saved words & expressions`);
+  const reviewEntrySubtitle = allSummaryCards.length === 0
+    ? (uiLanguage === "zh" ? "还没有回顾卡" : "No review cards yet")
+    : (uiLanguage === "zh"
+      ? `已生成 ${allSummaryCards.length} 张回顾卡`
+      : `${allSummaryCards.length} review cards`);
+  const savedPanelSummary = uiLanguage === "zh"
+    ? `已保存 ${savedExpressionCount} 个表达，${savedWordCount} 个词语`
+    : `${savedExpressionCount} expressions, ${savedWordCount} words saved`;
+  const reviewPanelSummary = uiLanguage === "zh"
+    ? `已生成 ${allSummaryCards.length} 张回顾卡`
+    : `${allSummaryCards.length} review cards created`;
   const reviewDisabledHint = uiLanguage === "zh" ? "最近聊天太少，先多聊几句再生成" : "Not enough recent chat yet";
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -279,6 +298,20 @@ export default function ChatPage() {
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
+  }, []);
+  useEffect(() => {
+    setSavedItems(loadSavedItems());
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== "kotomachi_saved_items_v1") return;
+      setSavedItems(loadSavedItems());
+    };
+    const handleSavedItemsUpdated = () => setSavedItems(loadSavedItems());
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(SAVED_ITEMS_UPDATED_EVENT, handleSavedItemsUpdated);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(SAVED_ITEMS_UPDATED_EVENT, handleSavedItemsUpdated);
+    };
   }, []);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -880,7 +913,7 @@ export default function ChatPage() {
               <span className={`text-[13px] block ${isSavedPanelOpen ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>
                 {copy.sidebar.savedTitle}
               </span>
-              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/55 block">{copy.sidebar.savedSubtitle}</span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/55 block">{savedEntrySubtitle}</span>
             </button>
             <button
               type="button"
@@ -1168,12 +1201,22 @@ export default function ChatPage() {
       <ChatToast toast={summaryToast} />
       {renderSummaryDetail()}
       {isSavedPanelOpen && (
-        <SavedItemsPanel
-          copy={copy}
-          items={savedItems}
-          onDelete={handleDeleteSavedItem}
-          onClose={() => setIsSavedPanelOpen(false)}
-        />
+        <>
+          <div className="fixed right-5 top-5 z-[91] rounded-full border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/95 px-3 py-1 text-[10px] text-[#7A7060]">
+            {savedPanelSummary}
+          </div>
+          <SavedItemsPanel
+            copy={copy}
+            items={savedItems}
+            onDelete={handleDeleteSavedItem}
+            onClose={() => setIsSavedPanelOpen(false)}
+          />
+        </>
+      )}
+      {isReviewPanelOpen && !selectedSummaryCard && (
+        <div className="fixed right-5 top-5 z-[91] rounded-full border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/95 px-3 py-1 text-[10px] text-[#7A7060]">
+          {reviewPanelSummary}
+        </div>
       )}
     </div>
   );

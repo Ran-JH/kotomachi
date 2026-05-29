@@ -1,6 +1,7 @@
 import type { NpcId } from "./npc";
 
 const STORAGE_KEY = "kotomachi_saved_items_v1";
+export const SAVED_ITEMS_UPDATED_EVENT = "kotomachi:saved-items-updated";
 const MAX_ITEMS = 200;
 
 export interface SavedSummaryCard {
@@ -92,6 +93,7 @@ export function saveSavedItems(items: SavedItem[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new Event(SAVED_ITEMS_UPDATED_EVENT));
   } catch {
     // quota exceeded or other storage error — silently fail
   }
