@@ -81,7 +81,7 @@ export function pickStarterPrompts(npcId: NpcId, userMessageCount: number): stri
 
   const seenCategories = new Set(picked.map((p) => p.category));
   if (seenCategories.size < 3 && globalPool.length > 2) {
-    const missingCategories: PromptCategory[] = ["daily", "mood", "open", "learning"].filter(
+    const missingCategories = (["daily", "mood", "open", "learning"] as const).filter(
       (c) => !seenCategories.has(c)
     );
     if (missingCategories.length > 0) {
