@@ -1141,6 +1141,22 @@ Always report:
 - 已收藏项保留保存时语言
 - 不要一次性改三条链路，应分包实现
 
+### Pack H: Homepage Architecture
+
+详细规格见 [`docs/homepage-architecture-spec.md`](homepage-architecture-spec.md)。
+
+- **Pack H0** 🔄：Homepage architecture doc（本文档，不修改代码）
+- **Pack H1**：Home scene data model（新增 lib/home-scenes.ts）
+- **Pack H2**：Hybrid homepage layout（实现 header / hero / scene entry section）
+- **Pack H3**：Recent chats and inspiration（增加继续上次聊天和今日灵感）
+- **Pack H4**：Retire heat-zone dependency（稳定后弱化或删除旧 SVG heat zone 主导航依赖）
+
+核心原则：
+- 保留街区氛围，但不再被街区图绑死
+- 入口结构化：场景 → NPC
+- Mobile-first，不依赖 hover
+- 低压力入口设计
+
 ### Pack O: Lightweight Onboarding / First-Chat Guidance
 
 - **O1** ✅：First-chat starter prompts（空聊天状态显示 3 条话题建议）
