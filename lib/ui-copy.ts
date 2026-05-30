@@ -18,7 +18,7 @@ export const UI_COPY = {
       talkAction: "去聊聊",
     },
     sidebar: {
-      residents: "店员",
+      residents: "街上的人",
       learningSection: "学习",
       reviewTitle: "回顾卡片",
       reviewSubtitle: "ふりかえり",
@@ -160,7 +160,7 @@ export const UI_COPY = {
       talkAction: "Start chatting",
     },
     sidebar: {
-      residents: "Staff",
+      residents: "People on the street",
       learningSection: "Learning",
       reviewTitle: "Review Cards",
       reviewSubtitle: "ふりかえり",

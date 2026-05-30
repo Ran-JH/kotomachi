@@ -25,7 +25,7 @@ import {
   incrementConversationCount,
   type StoredMessage,
 } from "@/lib/memory";
-import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
+import { isNpcId, NPC_AVATARS, getNpcHomeCardLine, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
 import {
   SAVED_ITEMS_UPDATED_EVENT,
   loadSavedItems,
@@ -716,7 +716,13 @@ export default function ChatPage() {
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
 
-  const currentNpc = NPC_LIST.find((npc) => npc.id === npcId) ?? NPC_LIST[1];
+  const headerAtmosphereLine = getNpcHomeCardLine(npcId);
+  const placeBackLabel =
+    uiLanguage === "zh"
+      ? "返回街区"
+      : uiLanguage === "en"
+        ? "Back to street"
+        : copy.sidebar.backToMap;
   const userMessageCount = messages.filter((message) => message.sender === "user").length;
   const showStarterPrompts = userMessageCount === 0;
   const showOnboardingHint = userMessageCount === 0 && !isOnboardingHintDismissed;
@@ -945,7 +951,7 @@ export default function ChatPage() {
             onClick={handleNavigate}
             className="flex items-center rounded-lg px-3 py-2 text-[12px] text-[#D4C8A8]/86 transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[#D4C8A8]"
           >
-            {copy.sidebar.backToMap}
+            {placeBackLabel}
           </Link>
 
           <section className="space-y-1.5 pt-2.5">
@@ -1024,7 +1030,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F3EDE0]">
+    <div className="flex h-screen overflow-hidden bg-[#F1EBDD]">
       {/* ====== 移动端 NPC drawer ====== */}
       <button
         type="button"
@@ -1052,10 +1058,11 @@ export default function ChatPage() {
       </aside>
 
       {/* ====== 右侧聊天主区域 — 自适应宽屏 ====== */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-[linear-gradient(180deg,#F4EEE1_0%,#F1EBDD_100%)]">
         {/* 顶部栏 */}
-        <div className="flex items-center justify-between px-4 py-4 md:px-8 bg-[#FAF6EE] border-b border-[rgba(40,35,26,0.08)]">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="px-4 py-3.5 md:px-8 md:py-4 bg-[#FAF6EE]/96 border-b border-[rgba(40,35,26,0.08)]">
+          <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-3">
+            <div className="min-w-0 flex items-center gap-3 rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#F7F1E4]/88 px-3.5 py-2.5 shadow-[0_2px_10px_rgba(40,35,26,0.06)]">
             <button
               type="button"
               aria-label={copy.sidebar.openMenu}
@@ -1064,21 +1071,23 @@ export default function ChatPage() {
             >
               <MenuIcon size={17} />
             </button>
-            <img src={NPC_AVATARS[npcId]} alt={currentNpc.name} className="w-9 h-9 rounded-full object-cover" />
             <div className="min-w-0">
-              <span className="font-medium text-sm text-[#28231A] block truncate">{currentNpc.name}</span>
-              <span className="text-[9px] text-[#7A7060] block truncate">
-                {currentNpc.subname}・{currentNpc.location}
+              <span className="text-[11px] text-[#7A7060] block truncate">
+                {uiLanguage === "zh" ? "今日街区气氛" : "Today in the street"}
+              </span>
+              <span className="font-ja text-[13px] text-[#2D4A1F] block truncate">
+                「{headerAtmosphereLine}」
               </span>
             </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsHelpOpen(true)}
+              className="shrink-0 inline-flex items-center rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-2.5 py-1.5 text-[11px] text-[#6B6254] hover:bg-[#E8E0CE] transition-colors"
+            >
+              {helpTitle}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsHelpOpen(true)}
-            className="inline-flex items-center rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-2.5 py-1.5 text-[11px] text-[#6B6254] hover:bg-[#E8E0CE] transition-colors"
-          >
-            {helpTitle}
-          </button>
         </div>
 
         {apiError && (
@@ -1087,7 +1096,7 @@ export default function ChatPage() {
 
         {/* 聊天消息区域 — max-w-4xl 居中 */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
+          <div className="max-w-5xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
             {showStarterPrompts && (
               <section className="rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3.5">
                 {showOnboardingHint && (
@@ -1158,20 +1167,20 @@ export default function ChatPage() {
         </div>
 
         {/* 底部输入区域 */}
-        <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/95">
+        <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#F8F2E6]/96">
           {voiceHint && (
-            <div className="max-w-4xl mx-auto px-4 pt-3 md:px-8">
+            <div className="max-w-5xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
                 {voiceHint}
               </p>
             </div>
           )}
-          <div className="max-w-4xl mx-auto px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-8 flex items-center gap-3">
+          <div className="max-w-5xl mx-auto px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-8 flex items-center gap-3 rounded-t-2xl">
             <button
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
               disabled={isTyping}
-              className="w-9 h-9 shrink-0 rounded-full bg-[#E8E0CE] hover:bg-[#D8CFBC] flex items-center justify-center text-sm text-[#28231A] transition-colors disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
+              className="w-9 h-9 shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] hover:bg-[#E0D6C5] flex items-center justify-center text-sm text-[#28231A] transition-colors disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
               aria-label={inputMode === "text" ? copy.chat.switchToVoice : copy.chat.switchToText}
               title={inputMode === "text" ? copy.chat.voiceInput : copy.chat.textInput}
             >
@@ -1183,8 +1192,8 @@ export default function ChatPage() {
                 aria-label={copy.sidebar.moreActions}
                 title={copy.sidebar.moreActions}
                 onClick={() => setIsInputActionsOpen((prev) => !prev)}
-                className={`w-9 h-9 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EDE7D8] text-[#2D4A1F] flex items-center justify-center text-lg leading-none transition-colors ${
-                  isInputActionsOpen ? "bg-[#E8E0CE]" : "hover:bg-[#E8E0CE]"
+                className={`w-9 h-9 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EEE6D8] text-[#2D4A1F] flex items-center justify-center text-lg leading-none transition-colors ${
+                  isInputActionsOpen ? "bg-[#E3D9C7]" : "hover:bg-[#E3D9C7]"
                 }`}
               >
                 +
@@ -1261,7 +1270,7 @@ export default function ChatPage() {
                   onCompositionEnd={() => setIsInputComposing(false)}
                   placeholder={copy.chat.placeholder}
                   rows={1}
-                  className="min-w-0 flex-1 resize-none bg-[#EDE7D8] text-[#28231A] border border-[rgba(40,35,26,0.08)] rounded-xl px-4 py-2.5 md:px-5 text-sm leading-relaxed outline-none focus:bg-[#F3EDE0] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  className="min-w-0 flex-1 resize-none bg-[#EEE6D8] text-[#28231A] border border-[rgba(40,35,26,0.1)] rounded-xl px-4 py-2.5 md:px-5 text-sm leading-relaxed outline-none focus:bg-[#F6F0E3] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/55 disabled:cursor-not-allowed disabled:opacity-60 transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
                   disabled={isTyping}
                 />
                 <button

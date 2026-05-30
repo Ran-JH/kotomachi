@@ -972,10 +972,10 @@ export function ChatBubble({
               onTouchEnd={handlePointerSelection}
               onDoubleClick={handleDoubleClick}
               data-message-text="1"
-              className={`rounded-xl px-5 py-3.5 text-[13px] leading-relaxed select-text transition-colors duration-200 ${
+            className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed select-text transition-colors duration-200 ${
                 sender === "user"
-                  ? "font-ui bg-[#2D4A1F] text-[#F3EDE0] whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-                  : "font-ja bg-[#FAF6EE] text-[#28231A] border border-[rgba(40,35,26,0.1)] shadow-[0_1px_3px_rgba(40,35,26,0.04)] hover:border-[rgba(40,35,26,0.15)]"
+                  ? "font-ui bg-[#2D4A1F] text-[#F3EDE0] whitespace-pre-wrap break-words [overflow-wrap:anywhere] shadow-[0_3px_10px_rgba(20,36,12,0.18)]"
+                  : "font-ja bg-[#FCF8F0] text-[#28231A] border border-[rgba(40,35,26,0.1)] shadow-[0_2px_8px_rgba(40,35,26,0.06)] hover:border-[rgba(40,35,26,0.15)]"
               }`}
             >
               {text}
