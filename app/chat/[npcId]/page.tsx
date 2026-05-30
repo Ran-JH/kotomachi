@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
@@ -273,6 +273,8 @@ export default function ChatPage() {
   const summaryToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const starterAppliedRef = useRef(false);
+  const searchParams = useSearchParams();
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -301,6 +303,14 @@ export default function ChatPage() {
     if (!isInputActionsOpen) setIsTopicIdeasOpen(false);
   }, [isInputActionsOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
+  useEffect(() => {
+    if (starterAppliedRef.current) return;
+    const starter = searchParams.get("starter")?.trim();
+    if (!starter) return;
+    if (inputText.trim()) return;
+    setInputText(starter);
+    starterAppliedRef.current = true;
+  }, [searchParams, inputText]);
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
   }, []);

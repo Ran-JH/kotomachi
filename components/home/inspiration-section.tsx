@@ -7,10 +7,10 @@ import { getStatusAwareTopicIdea } from "@/lib/starter-prompts";
 import { getNpcDisplayName, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { type UiLanguage } from "@/lib/ui-language";
 
-const NPC_PLACES: Record<string, { zh: string; en: string }> = {
-  kimura: { zh: "便利店", en: "convenience store" },
-  misaki: { zh: "咖啡店", en: "cafe" },
-  taisho: { zh: "居酒屋", en: "izakaya" },
+const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
+  kimura: { name: "木村", kana: "きむら", place: "便利店" },
+  misaki: { name: "美咲", kana: "みさき", place: "咖啡店" },
+  taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
 };
 
 interface InspirationSectionProps {
@@ -53,18 +53,8 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
     ? "不知道说什么时，可以从一句轻松的话题开始。"
     : "When you’re not sure what to say, start with a small prompt.";
 
-  const openChat = (npcId: NpcId) => {
-    router.push(`/chat/${npcId}`);
-  };
-
-  const getActionText = (npcId: NpcId) => {
-    const name = getNpcDisplayName(npcId);
-    return isZh ? `去找${name}` : `Talk with ${name}`;
-  };
-
-  const getIcon = (index: number) => {
-    const icons = ["☕", "🍃", "✨", "🌙", "🌸"];
-    return icons[index % icons.length];
+  const openChat = (npcId: NpcId, idea: string) => {
+    router.push(`/chat/${npcId}?starter=${encodeURIComponent(idea)}`);
   };
 
   return (
@@ -81,29 +71,50 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
         </div>
       </div>
 
-      {/* Inspiration chips */}
-      <div className="flex flex-wrap gap-2">
-        {ideas.map((item, index) => (
-          <button
-            key={item.npcId}
-            type="button"
-            onClick={() => openChat(item.npcId)}
-            className="flex items-center gap-2 px-3 py-2 rounded-full border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left shrink-0"
-          >
-            {/* Icon */}
-            <span className="text-sm">{getIcon(index)}</span>
+      {/* Inspiration cards */}
+      <div className="flex flex-wrap gap-3">
+        {ideas.map((item) => {
+          const info = NPC_INFO[item.npcId];
+          const avatar = NPC_AVATARS[item.npcId];
+          const name = getNpcDisplayName(item.npcId);
+          const ctaText = isZh ? `找${name}聊这个` : `Talk with ${name}`;
+          return (
+            <button
+              key={item.npcId}
+              type="button"
+              onClick={() => openChat(item.npcId, item.idea)}
+              className="flex flex-col gap-3 px-4 py-4 rounded-2xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left w-full sm:w-auto sm:flex-1 sm:min-w-[220px] sm:max-w-[280px]"
+            >
+              {/* NPC Identity - Row 1 */}
+              <div className="flex items-center gap-3">
+                <img
+                  src={avatar}
+                  alt={name}
+                  className="w-10 h-10 rounded-full object-cover border border-[rgba(40,35,26,0.08)]"
+                />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-[#28231A]">{name}</span>
+                  <span className="text-[10px] text-[#7A7060] ml-2">{info.place}</span>
+                </div>
+              </div>
 
-            {/* Idea text */}
-            <span className="text-xs text-[#28231A] max-w-[140px] md:max-w-[180px] truncate">
-              {item.idea}
-            </span>
+              {/* Inspiration Text - Row 2 */}
+              <div className="flex-1 min-h-[3.5rem] flex items-center">
+                <p className="text-sm text-[#28231A] leading-relaxed line-clamp-2">
+                  {item.idea}
+                </p>
+              </div>
 
-            {/* CTA */}
-            <span className="text-[10px] text-[#6B8F5E] font-medium">
-              {getActionText(item.npcId)}
-            </span>
-          </button>
-        ))}
+              {/* CTA - Row 3 */}
+              <div className="flex justify-end">
+                <span className="text-[10px] text-[#6B8F5E] font-medium flex items-center gap-0.5">
+                  {ctaText}
+                  <span className="text-[11px]">→</span>
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
