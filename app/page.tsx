@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ContinueSection } from "@/components/home/continue-section";
+import { InspirationSection } from "@/components/home/inspiration-section";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
 import { getNpcState, getTimeOfDay, getWorldContext, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getUiCopy } from "@/lib/ui-copy";
@@ -249,6 +250,9 @@ export default function Home() {
 
       {/* ====== Continue Section ====== */}
       <ContinueSection uiLanguage={uiLanguage} />
+
+      {/* ====== Inspiration Section ====== */}
+      <InspirationSection uiLanguage={uiLanguage} />
 
       {/* ====== 底部留白 ====== */}
       <div className="w-full h-6 md:h-10" />

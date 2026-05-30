@@ -36,3 +36,19 @@ export const HOME_SCENES: HomeScene[] = [
 export function getActiveHomeScenes(): HomeScene[] {
   return HOME_SCENES.filter((scene) => scene.status === "active");
 }
+
+export function getActiveHomeNpcIds(): NpcId[] {
+  const seen = new Set<NpcId>();
+  const result: NpcId[] = [];
+
+  for (const scene of getActiveHomeScenes()) {
+    for (const npcId of scene.npcIds) {
+      if (!seen.has(npcId)) {
+        seen.add(npcId);
+        result.push(npcId);
+      }
+    }
+  }
+
+  return result;
+}
