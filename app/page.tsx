@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/language-toggle";
+import { SceneEntrySection } from "@/components/home/scene-entry-section";
 import { getNpcState, getTimeOfDay, getWorldContext, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
@@ -122,12 +123,12 @@ export default function Home() {
       </header>
 
       {/* ====== 街景主体 — SVG 内嵌建筑PNG ====== */}
-      <section className="relative w-full flex-1 min-h-0 flex items-center justify-center py-3 md:py-6">
-        <div className="relative w-full max-w-[2529px] mx-auto px-1 md:px-4">
+      <section className="relative w-full py-3 md:py-6 px-2 md:px-4">
+        <div className="relative w-full max-w-[1200px] mx-auto rounded-3xl overflow-hidden border border-[rgba(40,35,26,0.08)] shadow-[0_8px_32px_rgba(40,35,26,0.08),0_2px_8px_rgba(40,35,26,0.04)] bg-[#FAF6EE]/50">
         <svg
           viewBox="0 0 2529 795"
           preserveAspectRatio="xMidYMid meet"
-          className="w-full h-auto max-h-[48vh] md:max-h-[54vh] lg:max-h-[58vh] block mx-auto"
+          className="w-full h-auto max-h-[38vh] md:max-h-[42vh] lg:max-h-[48vh] block mx-auto"
         >
           {BUILDING_ZONES.map((zone) => (
             <g key={zone.id}>
@@ -235,15 +236,18 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ====== 底部提示 ====== */}
-      <div className="w-full max-w-[2529px] mx-auto mt-1 mb-1 md:mb-2 text-center space-y-3">
-        <p className="font-brand text-base text-[#7A7060] tracking-[0.25em] font-light">
+      {/* ====== 环境氛围短句 ====== */}
+      <div className="w-full text-center pt-3 pb-2">
+        <p className="font-brand text-[12px] md:text-[13px] text-[#7A7060]/60 tracking-[0.18em] font-light">
           {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
         </p>
-        <p className="inline-flex rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/55 px-4 py-2 text-[12px] text-[#6F6556] shadow-[0_2px_10px_rgba(40,35,26,0.04)]">
-          {copy.home.cta}
-        </p>
       </div>
+
+      {/* ====== Scene Entry Section ====== */}
+      <SceneEntrySection uiLanguage={uiLanguage} />
+
+      {/* ====== 底部留白 ====== */}
+      <div className="w-full h-6 md:h-10" />
     </main>
   );
 }
