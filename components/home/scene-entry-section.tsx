@@ -29,10 +29,10 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
   };
 
   return (
-    <section className="w-full max-w-[700px] mx-auto px-4 py-2 md:py-4">
+    <section className="w-full max-w-[1160px] mx-auto px-3 md:px-4 py-2 md:py-4">
       {/* 标题 */}
-      <div className="text-center mb-4 md:mb-5">
-        <h2 className="text-[17px] md:text-lg font-medium text-[#2D4A1F] tracking-wide">
+      <div className="text-left mb-4 md:mb-5 px-1">
+        <h2 className="text-[18px] md:text-[21px] font-medium text-[#2D4A1F] tracking-wide">
           {heading}
         </h2>
       </div>
@@ -78,15 +78,17 @@ function SceneCard({ scene, uiLanguage, npcActionLabel, onNpcClick }: SceneCardP
       </div>
 
       {/* NPC 卡片网格 */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        {scene.npcIds.map((npcId) => (
-          <NpcMiniCard
-            key={npcId}
-            npcId={npcId}
-            actionLabel={npcActionLabel}
-            onClick={() => onNpcClick(npcId)}
-          />
-        ))}
+      <div className="-mx-1 px-1 overflow-x-auto pb-1">
+        <div className="flex gap-3 md:gap-4 min-w-max pr-1">
+          {scene.npcIds.map((npcId) => (
+            <NpcMiniCard
+              key={npcId}
+              npcId={npcId}
+              actionLabel={npcActionLabel}
+              onClick={() => onNpcClick(npcId)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -107,13 +109,13 @@ function NpcMiniCard({ npcId, actionLabel, onClick }: NpcMiniCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-center text-center p-3 md:p-3.5 rounded-xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40"
+      className="group w-[190px] sm:w-[210px] md:w-[230px] lg:w-[240px] aspect-[1/1.02] shrink-0 flex flex-col items-center text-center p-3.5 md:p-4 rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 hover:bg-white/68 hover:border-[rgba(40,35,26,0.14)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40"
     >
       {/* 头像 */}
       <img
         src={avatar}
         alt={info.name}
-        className="w-11 h-11 rounded-full object-cover border border-[rgba(40,35,26,0.06)] mb-2 group-hover:border-[rgba(40,35,26,0.14)] transition-colors"
+        className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover border border-[rgba(40,35,26,0.06)] mb-2.5 group-hover:border-[rgba(40,35,26,0.14)] transition-colors"
       />
 
       {/* 姓名 */}
@@ -127,7 +129,7 @@ function NpcMiniCard({ npcId, actionLabel, onClick }: NpcMiniCardProps) {
       </span>
 
       {/* 今日近况 */}
-      <div className="h-[3rem] w-full flex items-center justify-center px-1 mb-2">
+      <div className="flex-1 w-full flex items-center justify-center px-1 mb-2.5">
         <span className="text-xs text-[#6B8F5E] leading-relaxed line-clamp-2">
           「{homeCardLine}」
         </span>

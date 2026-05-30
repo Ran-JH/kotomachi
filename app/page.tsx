@@ -6,7 +6,6 @@ import { ContinueSection } from "@/components/home/continue-section";
 import { InspirationSection } from "@/components/home/inspiration-section";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
 import { getTimeOfDay, getWorldContext } from "@/lib/npc";
-import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 
 const TIME_LABELS: Record<string, string> = {
@@ -16,19 +15,18 @@ const TIME_LABELS: Record<string, string> = {
   夜: "夜の街",
 };
 
-/** 时段对应的背景渐变 — 在米白基础上微调，体现天色变化 */
+/** 时段对应的页面底色：保留原先低压力暖色基调。 */
 const TIME_BG: Record<string, string> = {
-  朝: "linear-gradient(180deg, #F5E4CE 0%, #F3EDE0 50%)",   // 晨光暖橘
-  昼: "#F3EDE0",                                                // 正午明亮米白
-  夕: "linear-gradient(180deg, #EEDDC8 0%, #F3EDE0 45%)",    // 夕照琥珀
-  夜: "linear-gradient(180deg, #DDD6C8 0%, #E8E1D4 60%)",    // 夜幕沉暖
+  朝: "linear-gradient(180deg, #F5E4CE 0%, #F3EDE0 50%)",
+  昼: "#F3EDE0",
+  夕: "linear-gradient(180deg, #EEDDC8 0%, #F3EDE0 45%)",
+  夜: "linear-gradient(180deg, #DDD6C8 0%, #E8E1D4 60%)",
 };
 
 export default function Home() {
   const timeOfDay = getTimeOfDay();
   const worldContext = getWorldContext();
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
-  const copy = getUiCopy(uiLanguage);
 
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
@@ -39,58 +37,63 @@ export default function Home() {
     saveUiLanguage(language);
   };
 
+  const timeLabel = TIME_LABELS[timeOfDay] ?? "街の時間";
+  const background = TIME_BG[timeOfDay] ?? "#F3EDE0";
+  const ambientText =
+    worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length];
+
   return (
     <main
-      className="min-h-[100dvh] flex flex-col relative overflow-x-hidden transition-colors duration-1000 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
-      style={{ background: TIME_BG[timeOfDay] }}
+      className="min-h-[100dvh] relative overflow-x-hidden pb-[max(1.25rem,env(safe-area-inset-bottom))] transition-colors duration-1000"
+      style={{ background }}
     >
-      {/* ====== 顶部品牌区 ====== */}
-      <header className="w-full max-w-[2529px] mx-auto pt-[max(1rem,env(safe-area-inset-top))] md:pt-8">
-        <div className="flex items-start justify-between gap-3 md:gap-6">
-          <div className="min-w-0 pr-1">
-            <h1 className="font-brand text-[24px] sm:text-[30px] md:text-2xl font-light tracking-[0.14em] md:tracking-[0.3em] text-[#28231A] leading-tight break-words">
-              言街 Kotomachi
-            </h1>
-            <p className="text-[11px] md:text-[10px] text-[#7A7060]/60 mt-1.5 tracking-wider">
-              {TIME_LABELS[timeOfDay]} · {worldContext.atmosphere}
-            </p>
-          </div>
-          <LanguageToggle
-            language={uiLanguage}
-            onChange={handleLanguageChange}
-            className="relative z-30 shrink-0 mt-0.5"
-          />
-        </div>
-      </header>
+      {/* Top landing canvas:
+          hero is a scene background layer.
+          Brand + language toggle + atmosphere + scene entry stay in one visual block. */}
+      <section className="w-full px-3 md:px-5 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-6">
+        <div className="w-full max-w-[1240px] mx-auto">
+          <div className="relative overflow-hidden rounded-[24px] md:rounded-[30px] border border-[rgba(40,35,26,0.1)] shadow-[0_12px_36px_rgba(40,35,26,0.12)]">
+            <img
+              src="/home/home-hero-rainy-street.png"
+              alt="A quiet rainy Japanese street with a cafe, convenience store, and izakaya"
+              className="absolute inset-0 h-full w-full object-cover pointer-events-none select-none"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#F3EDE0]/88 via-[#F3EDE0]/50 to-[#F3EDE0]/82" />
 
-      {/* ====== 首页 hero banner ====== */}
-      <section className="relative w-full py-2 md:py-4 px-2 md:px-4">
-        <div className="relative w-full max-w-[1200px] mx-auto rounded-3xl overflow-hidden border border-[rgba(40,35,26,0.08)] shadow-[0_8px_32px_rgba(40,35,26,0.08),0_2px_8px_rgba(40,35,26,0.04)] bg-[#FAF6EE]/50">
-          <img
-            src="/home/home-hero-rainy-street.png"
-            alt="A quiet rainy Japanese street with a cafe, convenience store, and izakaya"
-            className="w-full h-auto max-h-[32vh] md:max-h-[36vh] lg:max-h-[40vh] object-contain"
-          />
+            <div className="relative z-10 min-h-[230px] sm:min-h-[280px] md:min-h-[360px] lg:min-h-[420px] px-4 sm:px-6 md:px-8 py-4 md:py-6 flex flex-col">
+              <div className="flex items-start justify-between gap-3 md:gap-6">
+                <div className="min-w-0 pr-1 rounded-2xl px-2.5 py-1.5 md:px-3 md:py-2 bg-[#F6F0E3]/78 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.08)]">
+                  <h1 className="font-brand text-[24px] sm:text-[30px] md:text-[34px] font-light tracking-[0.14em] md:tracking-[0.22em] text-[#211B14] leading-tight break-words">
+                    言街 Kotomachi
+                  </h1>
+                  <p className="text-[11px] md:text-[12px] text-[#6D6151] mt-1.5 tracking-wider">
+                    {timeLabel} · {worldContext.atmosphere}
+                  </p>
+                </div>
+                <LanguageToggle
+                  language={uiLanguage}
+                  onChange={handleLanguageChange}
+                  className="relative z-20 shrink-0 mt-0.5 rounded-full bg-[#F6F0E3]/82 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.09)] p-0.5"
+                />
+              </div>
+
+              <div className="mt-auto pt-6 md:pt-10">
+                <p className="font-brand text-[12px] md:text-[13px] text-[#6F6557]/80 tracking-[0.14em] md:tracking-[0.18em] font-light">
+                  {ambientText}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 md:mt-4 relative z-20">
+            <SceneEntrySection uiLanguage={uiLanguage} />
+          </div>
         </div>
       </section>
 
-      {/* ====== 环境氛围短句 ====== */}
-      <div className="w-full text-center pt-2 pb-2">
-        <p className="font-brand text-[12px] md:text-[13px] text-[#7A7060]/60 tracking-[0.18em] font-light">
-          {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
-        </p>
-      </div>
-
-      {/* ====== Scene Entry Section ====== */}
-      <SceneEntrySection uiLanguage={uiLanguage} />
-
-      {/* ====== Continue Section ====== */}
       <ContinueSection uiLanguage={uiLanguage} />
-
-      {/* ====== Inspiration Section ====== */}
       <InspirationSection uiLanguage={uiLanguage} />
 
-      {/* ====== 底部留白 ====== */}
       <div className="w-full h-6 md:h-10" />
     </main>
   );
