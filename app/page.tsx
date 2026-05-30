@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ContinueSection } from "@/components/home/continue-section";
 import { InspirationSection } from "@/components/home/inspiration-section";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
-import { getNpcState, getTimeOfDay, getWorldContext, NPC_AVATARS, type NpcId } from "@/lib/npc";
+import { getTimeOfDay, getWorldContext, type NpcId } from "@/lib/npc";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 
@@ -68,37 +67,19 @@ const TIME_BG: Record<string, string> = {
 };
 
 export default function Home() {
-  const router = useRouter();
   const timeOfDay = getTimeOfDay();
   const worldContext = getWorldContext();
-  const [hoveredId, setHoveredId] = useState<NpcId | null>(null);
-  const [focusedId, setFocusedId] = useState<NpcId | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
-  const activeId = hoveredId ?? focusedId;
   const copy = getUiCopy(uiLanguage);
 
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
-  }, []);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const updateMobile = () => setIsMobile(window.innerWidth < 768);
-    updateMobile();
-    window.addEventListener("resize", updateMobile);
-    return () => window.removeEventListener("resize", updateMobile);
   }, []);
 
   const handleLanguageChange = (language: UiLanguage) => {
     setUiLanguage(language);
     saveUiLanguage(language);
   };
-
-  const openChat = (npcId: NpcId) => {
-    router.push(`/chat/${npcId}`);
-  };
-
-  const cardHalfWidth = isMobile ? 80 : 96;
 
   return (
     <main
@@ -133,108 +114,20 @@ export default function Home() {
           className="w-full h-auto max-h-[38vh] md:max-h-[42vh] lg:max-h-[48vh] block mx-auto"
         >
           {BUILDING_ZONES.map((zone) => (
-            <g key={zone.id}>
-              {/* 建筑图片 — hover 时沿轮廓发光 */}
-              <image
-                href={`/buildings/${zone.file}`}
-                x={zone.x}
-                y={0}
-                width={zone.width}
-                height={795}
-                preserveAspectRatio="xMidYMid meet"
-                style={{
-                  filter: activeId === zone.id
-                    ? "drop-shadow(0 0 30px rgba(201,168,76,0.72)) drop-shadow(0 10px 22px rgba(40,35,26,0.16)) brightness(1.08)"
-                    : "drop-shadow(0 4px 12px rgba(40,35,26,0.12)) brightness(1)",
-                  transition: "filter 0.35s ease",
-                }}
-              />
-              {/* 透明热区，负责事件 */}
-              <rect
-                x={zone.x}
-                y={0}
-                width={zone.width}
-                height={795}
-                fill="transparent"
-                role="link"
-                tabIndex={0}
-                focusable="true"
-                aria-label={copy.home.talkToNpc(zone.npc)}
-                className="cursor-pointer outline-none"
-                onMouseEnter={() => setHoveredId(zone.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                onFocus={() => setFocusedId(zone.id)}
-                onBlur={() => setFocusedId(null)}
-                onClick={() => {
-                  if (isMobile && activeId !== zone.id) {
-                    setFocusedId(zone.id);
-                    return;
-                  }
-                  openChat(zone.id);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    openChat(zone.id);
-                  }
-                }}
-              />
-            </g>
+            <image
+              key={zone.id}
+              href={`/buildings/${zone.file}`}
+              x={zone.x}
+              y={0}
+              width={zone.width}
+              height={795}
+              preserveAspectRatio="xMidYMid meet"
+              style={{
+                filter: "drop-shadow(0 4px 12px rgba(40,35,26,0.12)) brightness(1)",
+              }}
+            />
           ))}
         </svg>
-
-        {/* NPC 信息卡 — hover 时浮现 */}
-        {BUILDING_ZONES.map((zone) => {
-          const npcState = getNpcState(zone.id);
-          const isActive = activeId === zone.id;
-          // 信息卡定位：基于热区中心点的百分比
-          const centerPercent = ((zone.x + zone.width / 2) / 2529) * 100;
-
-          return (
-            <div
-              key={`card-${zone.id}`}
-              className="absolute z-20 -translate-x-1/2 -translate-y-full"
-              style={{ left: `clamp(${cardHalfWidth}px, ${centerPercent}%, calc(100% - ${cardHalfWidth}px))`, top: "0" }}
-            >
-              <div
-                className={`transition-all duration-300 ease-out
-                  ${isActive
-                    ? "opacity-100 -translate-y-5 pointer-events-auto"
-                    : "opacity-0 -translate-y-2 pointer-events-none"
-                  }`}
-              >
-                <div className="bg-[#FAF6EE]/95 border border-[rgba(40,35,26,0.16)] rounded-xl px-3.5 py-3
-                  shadow-[0_10px_28px_rgba(40,35,26,0.14),0_2px_6px_rgba(40,35,26,0.08)] w-[160px] md:min-w-[188px] md:w-auto max-w-[calc(100vw-1rem)] backdrop-blur-sm">
-                {/* 头像 + 姓名 */}
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <img
-                    src={NPC_AVATARS[zone.id]}
-                    alt={zone.npc}
-                    className="w-9 h-9 rounded-full object-cover border border-[rgba(40,35,26,0.08)]"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-[#28231A] block leading-tight">
-                      {zone.npc}
-                    </span>
-                    <span className="text-[9px] text-[#7A7060]">{zone.npcSub}</span>
-                  </div>
-                </div>
-                {/* 心里话 */}
-                <p className="text-[10px] text-[#6F6556] leading-relaxed pl-0.5">
-                  ☁️ {npcState.thought}
-                </p>
-                <p className="mt-2 inline-flex items-center rounded-full bg-[#E8E0CE]/70 px-2.5 py-1 text-[9px] font-medium tracking-wide text-[#2D4A1F]">
-                  {copy.home.talkAction}
-                </p>
-                {/* 小三角 */}
-                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2
-                  w-3 h-3 bg-[#FAF6EE] border-r border-b border-[rgba(40,35,26,0.1)]
-                  rotate-45" />
-                </div>
-              </div>
-            </div>
-          );
-        })}
         </div>
       </section>
 

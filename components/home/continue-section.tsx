@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getRecentChats, type RecentChat } from "@/lib/home-continue";
 import { type UiLanguage } from "@/lib/ui-language";
+import type { NpcId } from "@/lib/npc";
 
-const NPC_INFO: Record<string, { name: string; kana: string; place: string }> = {
+const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
   kimura: { name: "木村", kana: "きむら", place: "便利店" },
   misaki: { name: "美咲", kana: "みさき", place: "咖啡店" },
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
@@ -32,7 +33,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
   const heading = isZh ? "继续上次聊天" : "Continue where you left off";
   const subtitle = isZh ? "回到刚才聊过的住人那里。" : "Return to a neighbor you recently talked with.";
 
-  const openChat = (npcId: string) => {
+  const openChat = (npcId: NpcId) => {
     router.push(`/chat/${npcId}`);
   };
 
