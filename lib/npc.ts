@@ -6,6 +6,16 @@ export const NPC_NAMES: Record<NpcId, string> = {
   taisho: "大将 🍺",
 };
 
+export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
+  kimura: "木村",
+  misaki: "美咲",
+  taisho: "大将",
+};
+
+export function getNpcDisplayName(npcId: NpcId): string {
+  return NPC_DISPLAY_NAMES[npcId];
+}
+
 export const NPC_AVATARS: Record<NpcId, string> = {
   misaki: "/avatars/misaki_avatar2.png",
   kimura: "/avatars/kimura_avatar2.png",

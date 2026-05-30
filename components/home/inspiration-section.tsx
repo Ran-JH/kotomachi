@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getActiveHomeNpcIds } from "@/lib/home-scenes";
 import { getStatusAwareTopicIdea } from "@/lib/starter-prompts";
-import { NPC_NAMES } from "@/lib/npc";
+import { getNpcDisplayName, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { type UiLanguage } from "@/lib/ui-language";
 
 const NPC_PLACES: Record<string, { zh: string; en: string }> = {
@@ -19,7 +19,7 @@ interface InspirationSectionProps {
 
 export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
   const router = useRouter();
-  const [ideas, setIdeas] = useState<Array<{ npcId: string; idea: string }> | null>(null);
+  const [ideas, setIdeas] = useState<Array<{ npcId: NpcId; idea: string }> | null>(null);
 
   useEffect(() => {
     const allNpcIds = getActiveHomeNpcIds();
@@ -37,7 +37,7 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
     
     const result = selectedNpcIds.map((npcId) => ({
       npcId,
-      idea: getStatusAwareTopicIdea(npcId as any),
+      idea: getStatusAwareTopicIdea(npcId),
     }));
     
     setIdeas(result);
@@ -53,18 +53,12 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
     ? "不知道说什么时，可以从一句轻松的话题开始。"
     : "When you’re not sure what to say, start with a small prompt.";
 
-  const openChat = (npcId: string) => {
+  const openChat = (npcId: NpcId) => {
     router.push(`/chat/${npcId}`);
   };
 
-  const getNpcName = (npcId: string) => {
-    const name = NPC_NAMES[npcId as any];
-    if (!name) return npcId;
-    return name.replace(/[\u{2600}-\u{1F999}]/gu, "").trim();
-  };
-
-  const getActionText = (npcId: string) => {
-    const name = getNpcName(npcId);
+  const getActionText = (npcId: NpcId) => {
+    const name = getNpcDisplayName(npcId);
     return isZh ? `去找${name}` : `Talk with ${name}`;
   };
 
