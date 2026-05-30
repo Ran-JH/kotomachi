@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/language-toggle";
+import { ContinueSection } from "@/components/home/continue-section";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
 import { getNpcState, getTimeOfDay, getWorldContext, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getUiCopy } from "@/lib/ui-copy";
@@ -245,6 +246,9 @@ export default function Home() {
 
       {/* ====== Scene Entry Section ====== */}
       <SceneEntrySection uiLanguage={uiLanguage} />
+
+      {/* ====== Continue Section ====== */}
+      <ContinueSection uiLanguage={uiLanguage} />
 
       {/* ====== 底部留白 ====== */}
       <div className="w-full h-6 md:h-10" />
