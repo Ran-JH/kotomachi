@@ -32,7 +32,7 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 - **Topic ideas**: First-chat starter prompts and inspiration chips to reduce "I don't know what to say" friction.
 - **Continue last chat**: Quick entry to resume conversations with neighbors you've talked to recently.
 - **UI language toggle**: Chinese / English interface. Japanese learning content stays in Japanese.
-- **Responsive chat / sidebar**: Desktop sidebar and mobile drawer with unified navigation for residents, learning assets, and review cards.
+- **Responsive chat / sidebar**: Desktop sidebar and mobile drawer with unified navigation for people in town, learning assets, and review cards.
 - **Voice interaction**: TTS playback for NPC messages and expression samples. STT input with post-processing for punctuation and casing.
 - **NPC life arc system**: Each NPC has ongoing life situations that change daily, making conversations feel connected across sessions.
 - **Shared world state**: Weather and atmosphere change daily; all NPCs experience the same day but react differently.

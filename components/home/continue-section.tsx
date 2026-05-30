@@ -31,7 +31,6 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
 
   const isZh = uiLanguage === "zh";
   const heading = isZh ? "继续上次聊天" : "Continue where you left off";
-  const subtitle = isZh ? "回到刚才聊过的住人那里。" : "Return to a neighbor you recently talked with.";
 
   const openChat = (npcId: NpcId) => {
     router.push(`/chat/${npcId}`);
@@ -70,9 +69,6 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
           <h3 className="text-sm md:text-base font-medium text-[#2D4A1F]">
             {heading}
           </h3>
-          <p className="text-[11px] text-[#7A7060] mt-0.5">
-            {subtitle}
-          </p>
         </div>
       </div>
 

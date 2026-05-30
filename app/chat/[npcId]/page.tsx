@@ -25,7 +25,7 @@ import {
   incrementConversationCount,
   type StoredMessage,
 } from "@/lib/memory";
-import { isNpcId, NPC_AVATARS, getNpcHomeCardLine, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
+import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
 import {
   SAVED_ITEMS_UPDATED_EVENT,
   loadSavedItems,
@@ -716,7 +716,6 @@ export default function ChatPage() {
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
 
-  const headerAtmosphereLine = getNpcHomeCardLine(npcId);
   const placeBackLabel =
     uiLanguage === "zh"
       ? "返回街区"
@@ -1062,7 +1061,6 @@ export default function ChatPage() {
         {/* 顶部栏 */}
         <div className="px-4 py-3.5 md:px-8 md:py-4 bg-[#FAF6EE]/96 border-b border-[rgba(40,35,26,0.08)]">
           <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-3">
-            <div className="min-w-0 flex items-center gap-3 rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#F7F1E4]/88 px-3.5 py-2.5 shadow-[0_2px_10px_rgba(40,35,26,0.06)]">
             <button
               type="button"
               aria-label={copy.sidebar.openMenu}
@@ -1071,15 +1069,7 @@ export default function ChatPage() {
             >
               <MenuIcon size={17} />
             </button>
-            <div className="min-w-0">
-              <span className="text-[11px] text-[#7A7060] block truncate">
-                {uiLanguage === "zh" ? "今日街区气氛" : "Today in the street"}
-              </span>
-              <span className="font-ja text-[13px] text-[#2D4A1F] block truncate">
-                「{headerAtmosphereLine}」
-              </span>
-            </div>
-            </div>
+            <div className="flex-1 md:block" />
             <button
               type="button"
               onClick={() => setIsHelpOpen(true)}
