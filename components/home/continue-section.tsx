@@ -60,10 +60,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
-  const truncateMessage = (text: string, maxLength: number = 40): string => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + "...";
-  };
+  // Remove hardcoded truncation, let CSS truncate handle it dynamically based on width
 
   return (
     <section className="w-full max-w-[1120px] mx-auto px-4 md:px-5 py-4">
@@ -111,7 +108,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
 
                 {/* 最后消息预览 */}
                 <p className="text-xs text-[#7A7060] truncate">
-                  {truncateMessage(chat.lastMessagePreview)}
+                  {chat.lastMessagePreview}
                 </p>
               </div>
 

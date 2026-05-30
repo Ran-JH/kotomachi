@@ -83,14 +83,14 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
               key={item.npcId}
               type="button"
               onClick={() => openChat(item.npcId, item.idea)}
-              className="flex flex-col gap-3 px-4 py-4 rounded-2xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left w-full sm:w-auto sm:flex-1 sm:min-w-[220px] sm:max-w-[280px]"
+              className="flex flex-col gap-2 px-3 py-3 md:px-4 md:py-4 rounded-2xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left w-full sm:w-auto sm:flex-1 sm:min-w-[220px] sm:max-w-[280px] md:gap-3"
             >
               {/* NPC Identity - Row 1 */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 <img
                   src={avatar}
                   alt={name}
-                  className="w-10 h-10 rounded-full object-cover border border-[rgba(40,35,26,0.08)]"
+                  className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border border-[rgba(40,35,26,0.08)]"
                 />
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-medium text-[#28231A]">{name}</span>
@@ -99,14 +99,14 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
               </div>
 
               {/* Inspiration Text - Row 2 */}
-              <div className="flex-1 min-h-[3.5rem] flex items-center">
-                <p className="text-sm text-[#28231A] leading-relaxed line-clamp-2">
+              <div className="min-h-0">
+                <p className="text-sm text-[#28231A] leading-relaxed line-clamp-3">
                   {item.idea}
                 </p>
               </div>
 
               {/* CTA - Row 3 */}
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-1">
                 <span className="text-[10px] text-[#6B8F5E] font-medium flex items-center gap-0.5">
                   {ctaText}
                   <span className="text-[11px]">→</span>
