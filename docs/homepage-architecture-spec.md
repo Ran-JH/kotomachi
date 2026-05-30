@@ -1,4 +1,4 @@
-# Kotomachi 首页新架构 Spec v0.1
+# Kotomachi 首页新架构 Spec v1.0 (✅ Implemented)
 
 ## 1. 背景
 
@@ -430,3 +430,39 @@ Commit: `refactor: retire home heat zone navigation`
 ## 16. 一句话设计结论
 
 Kotomachi 首页不应继续依赖“AI 街景图 + 手动热区”作为长期入口。新的首页应该保留街区氛围，但把真正的导航交给结构化场景和 NPC 模块。这样既保留“言街”的世界感，也让未来扩展生活、留学、工作场景变得可控。
+
+---
+
+## 17. 已完成 v1 总结 (2026-05-30)
+
+### 17.1 实现范围
+
+✅ **已完成**：
+
+- 首页场景数据模型 (`lib/home-scenes.ts`)
+- Hybrid 首页布局：Hero banner + 场景入口 + 继续聊天 + 今日灵感
+- 新版单一 Hero banner (`/home/home-hero-rainy-street.png`)
+- SceneEntrySection：结构化场景/NPC 入口卡片
+- ContinueSection：最近聊天历史入口
+- InspirationSection：今日灵感与 starter prefill（不自动发送）
+- 旧 heat-zone 交互完全退役
+- 首页来源统一：NPC 都从 `HOME_SCENES` 派生，避免硬编码
+- 响应式布局：Mobile-first，hero 不占满首屏
+
+### 17.2 关键架构决策
+
+- **Hero = 氛围层**：只负责视觉氛围，不承担点击导航
+- **SceneEntry = 真实入口层**：结构化场景/NPC 卡片，来自 `HOME_SCENES` 数据模型
+- **Continue = 延续层**：降低打开 friction
+- **Inspiration = 轻引导层**：降低“不知道说什么”的压力
+- **旧 heat-zone 完全退役**：不再依赖 SVG 透明热区交互
+- **未来场景**：study_abroad / work 先不展示，等有真实内容再上线
+
+### 17.3 产品与工程叙事要点（用于作品集/面试）
+
+- 从 clickable heat-zone MVP 迁移到 data-driven scene architecture
+- 分离了氛围层和导航层，避免被图片结构绑死
+- 通过 Continue 和 Inspiration 解决了“持续打开”和“不知道说什么”的两个核心问题
+- 用 `HOME_SCENES` 作为单一事实源，新增 NPC 只需要加数据，不需要重做大图
+- Starter prefill 但不 auto-send，保留用户控制感和低压力体验
+- 体现了产品判断：先稳定当前，不提前展示空场景

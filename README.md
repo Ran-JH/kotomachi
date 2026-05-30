@@ -23,11 +23,14 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 
 ## Current Features
 
+- **Hybrid homepage v1**: Street scene hero banner as atmosphere layer, with structured scene/NPC entry, continue last chat, and daily inspiration sections.
 - **NPC chat**: Three neighbors — Misaki (cafe), Kimura (convenience store), Taisho (izakaya) — each with their own personality, life arc, and speaking style.
 - **Expression hints**: Three register levels (casual / neutral / formal) for each message you send, with audio playback and analysis.
 - **Word explanation**: Double-click or select any word to see reading, meaning, sentence context, and nuance explanation.
 - **Review cards**: Generate a session summary card from your conversation — what you talked about, good expressions, suggestions, and new words.
 - **Saved words and expressions**: Save items from word explanations and expression hints to a personal collection. Filter, review, and delete.
+- **Topic ideas**: First-chat starter prompts and inspiration chips to reduce "I don't know what to say" friction.
+- **Continue last chat**: Quick entry to resume conversations with neighbors you've talked to recently.
 - **UI language toggle**: Chinese / English interface. Japanese learning content stays in Japanese.
 - **Responsive chat / sidebar**: Desktop sidebar and mobile drawer with unified navigation for residents, learning assets, and review cards.
 - **Voice interaction**: TTS playback for NPC messages and expression samples. STT input with post-processing for punctuation and casing.

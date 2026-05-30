@@ -94,7 +94,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
               <img
                 src={chat.avatar}
                 alt={info.name}
-                className="w-10 h-10 rounded-full object-cover border border-[rgba(40,35,26,0.08)"
+                className="w-10 h-10 rounded-full object-cover border border-[rgba(40,35,26,0.08)]"
               />
 
               {/* 内容 */}
