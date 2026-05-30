@@ -29,7 +29,7 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
   };
 
   return (
-    <section className="w-full max-w-[1160px] mx-auto px-3 md:px-4 py-2 md:py-4">
+    <section className="w-full max-w-[1120px] mx-auto px-4 md:px-5 py-2 md:py-4">
       {/* 标题 */}
       <div className="text-left mb-4 md:mb-5 px-1">
         <h2 className="text-[18px] md:text-[21px] font-medium text-[#2D4A1F] tracking-wide">

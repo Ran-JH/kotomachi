@@ -66,7 +66,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
   };
 
   return (
-    <section className="w-full max-w-[700px] mx-auto px-4 py-4">
+    <section className="w-full max-w-[1120px] mx-auto px-4 md:px-5 py-4">
       {/* 标题 */}
       <div className="flex items-center justify-between mb-4">
         <div>

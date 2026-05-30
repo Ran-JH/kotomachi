@@ -50,17 +50,17 @@ export default function Home() {
       {/* Top landing canvas:
           hero is a scene background layer.
           Brand + language toggle + atmosphere + scene entry stay in one visual block. */}
-      <section className="w-full px-3 md:px-5 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-6">
-        <div className="w-full max-w-[1240px] mx-auto">
-          <div className="relative overflow-hidden rounded-[24px] md:rounded-[30px] border border-[rgba(40,35,26,0.1)] shadow-[0_12px_36px_rgba(40,35,26,0.12)]">
+      <section className="w-full px-0 md:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-6">
+        <div className="w-full max-w-[1320px] mx-auto">
+          <div className="relative overflow-hidden md:rounded-[24px]">
             <img
               src="/home/home-hero-rainy-street.png"
               alt="A quiet rainy Japanese street with a cafe, convenience store, and izakaya"
               className="absolute inset-0 h-full w-full object-cover pointer-events-none select-none"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#F3EDE0]/88 via-[#F3EDE0]/50 to-[#F3EDE0]/82" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#F3EDE0]/90 via-[#F3EDE0]/52 to-[#F3EDE0]/84" />
 
-            <div className="relative z-10 min-h-[230px] sm:min-h-[280px] md:min-h-[360px] lg:min-h-[420px] px-4 sm:px-6 md:px-8 py-4 md:py-6 flex flex-col">
+            <div className="relative z-10 min-h-[220px] sm:min-h-[270px] md:min-h-[350px] lg:min-h-[410px] px-4 sm:px-6 md:px-8 py-4 md:py-6 flex flex-col">
               <div className="flex items-start justify-between gap-3 md:gap-6">
                 <div className="min-w-0 pr-1 rounded-2xl px-2.5 py-1.5 md:px-3 md:py-2 bg-[#F6F0E3]/78 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.08)]">
                   <h1 className="font-brand text-[24px] sm:text-[30px] md:text-[34px] font-light tracking-[0.14em] md:tracking-[0.22em] text-[#211B14] leading-tight break-words">
