@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getNpcStateLabel, NPC_AVATARS, type NpcId } from "@/lib/npc";
+import { getNpcHomeCardLine, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getActiveHomeScenes, type HomeScene } from "@/lib/home-scenes";
 import { type UiLanguage } from "@/lib/ui-language";
 
@@ -83,7 +83,6 @@ function SceneCard({ scene, uiLanguage, npcActionLabel, onNpcClick }: SceneCardP
           <NpcMiniCard
             key={npcId}
             npcId={npcId}
-            uiLanguage={uiLanguage}
             actionLabel={npcActionLabel}
             onClick={() => onNpcClick(npcId)}
           />
@@ -95,15 +94,14 @@ function SceneCard({ scene, uiLanguage, npcActionLabel, onNpcClick }: SceneCardP
 
 interface NpcMiniCardProps {
   npcId: NpcId;
-  uiLanguage: UiLanguage;
   actionLabel: string;
   onClick: () => void;
 }
 
-function NpcMiniCard({ npcId, uiLanguage, actionLabel, onClick }: NpcMiniCardProps) {
+function NpcMiniCard({ npcId, actionLabel, onClick }: NpcMiniCardProps) {
   const info = NPC_INFO[npcId];
   const avatar = NPC_AVATARS[npcId];
-  const stateLabel = getNpcStateLabel(npcId, uiLanguage);
+  const homeCardLine = getNpcHomeCardLine(npcId);
 
   return (
     <button
@@ -123,15 +121,17 @@ function NpcMiniCard({ npcId, uiLanguage, actionLabel, onClick }: NpcMiniCardPro
         {info.name}
       </span>
 
-      {/* 状态标签 */}
-      <span className="text-[10px] text-[#6B8F5E] mb-0.5 leading-tight">
-        {stateLabel}
-      </span>
-
       {/* 假名和地点 */}
-      <span className="text-[10px] text-[#7A7060] mb-2.5">
+      <span className="text-[11px] text-[#7A7060] mb-2">
         {info.kana} · {info.place}
       </span>
+
+      {/* 今日近况 */}
+      <div className="h-[3rem] w-full flex items-center justify-center px-1 mb-2">
+        <span className="text-xs text-[#6B8F5E] leading-relaxed line-clamp-2">
+          「{homeCardLine}」
+        </span>
+      </div>
 
       {/* 操作按钮 */}
       <span className="inline-flex items-center rounded-full bg-[#E8E0CE]/60 px-2.5 py-0.5 text-[10px] font-medium text-[#2D4A1F] group-hover:bg-[#D8CFBB]/80 transition-colors">

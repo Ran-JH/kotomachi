@@ -424,47 +424,49 @@ export function isNpcId(id: string): id is NpcId {
   return id === "kimura" || id === "misaki" || id === "taisho";
 }
 
-const LABEL_LOCALIZATION: Record<string, { zh: string; en: string }> = {
-  疲惫: { zh: "疲惫", en: "Tired" },
-  犯困: { zh: "犯困", en: "Drowsy" },
-  烦躁: { zh: "烦躁", en: "Irritated" },
-  期待周末: { zh: "期待周末", en: "Weekend ahead" },
-  恢复中: { zh: "恢复中", en: "Recovering" },
-  焦虑: { zh: "焦虑", en: "Anxious" },
-  埋头苦干: { zh: "埋头苦干", en: "Deep in work" },
-  卡壳: { zh: "卡壳", en: "Stuck" },
-  突破: { zh: "突破", en: "Breaking through" },
-  提交后: { zh: "提交后", en: "Submitted" },
-  期待: { zh: "期待中", en: "Looking forward" },
-  沉浸: { zh: "沉浸中", en: "Immersed" },
-  分享欲: { zh: "分享欲", en: "Feeling shareworthy" },
-  回味: { zh: "回味中", en: "Still thinking about it" },
-  平静: { zh: "平静", en: "Peaceful" },
-  沉思: { zh: "沉思中", en: "Pensive" },
-  小感悟: { zh: "小感悟", en: "Small realizations" },
-  温柔: { zh: "温柔", en: "Feeling tender" },
-  日常: { zh: "日常", en: "Ordinary day" },
-  悠闲: { zh: "悠闲", en: "Leisurely" },
-  找乐子: { zh: "找乐子", en: "Looking for fun" },
-  社交: { zh: "社交中", en: "Socializing" },
-  小确幸: { zh: "小确幸", en: "Little joys" },
-  忙碌: { zh: "忙碌", en: "Busy" },
-  充实: { zh: "充实", en: "Fulfilling" },
-  欣慰: { zh: "欣慰", en: "Grateful" },
-  收尾: { zh: "收尾中", en: "Wrapping up" },
-  清闲: { zh: "清闲", en: "Quiet shift" },
-  怀旧: { zh: "怀旧", en: "Nostalgic" },
-  操心: { zh: "操心", en: "Worried" },
-  想办法: { zh: "想办法", en: "Problem-solving" },
-  调整: { zh: "调整中", en: "Adapting" },
-  感慨: { zh: "感慨", en: "Sentimental" },
-  回忆: { zh: "回忆中", en: "Reminiscing" },
-  想念老友: { zh: "想念老友", en: "Missing old friends" },
-  小聚: { zh: "小聚", en: "Small gathering" },
-  释然: { zh: "释然", en: "At peace" },
+const HOME_CARD_LINES: Record<NpcId, string[]> = {
+  kimura: [
+    "新商品、ちょっとだけ気になってるんだ。",
+    "雨の日って、コンビニの明かりが少し落ち着くんですよ。",
+    "今日は店が静かで、少しぼんやりしてます。",
+    "夜勤明けでちょっと眠い…でも元気だよ。",
+    "最近新しいお菓子入ったんだけど、試してみる？",
+    "お客さんの話を聞くのが結構楽しいんだよね。",
+    "コンビニの定食、意外とおいしいんですよ。",
+    "今日は特別忙しくないから、ゆっくり話せるよ。",
+    "天気悪い日は、温かいコーヒーが売れるんだよ。",
+    "あの商品、よくお客さんに選ばれてるんだよね。",
+  ],
+  misaki: [
+    "雨の日は、深煎りの香りがよく合いますね。",
+    "今日は少し静かに、コーヒーの話でもしたい気分です。",
+    "窓の外を見ながら、ゆっくり淹れていました。",
+    "新しい豆を仕入れたんです。香りが素敵ですよ。",
+    "今日のエスプレッソ、抽出時間ちょうどいい感じです。",
+    "コーヒー豆の産地について、ちょっと話しませんか？",
+    "雨音とコーヒーの香り、最高の組み合わせです。",
+    "ゆっくりした時間が、一番好きです。",
+    "今日は、手作りのケーキも出しましたよ。",
+    "季節のフレーバーを考えているんです。何かいいアイデアは？",
+  ],
+  taisho: [
+    "雨宿りがてら、ちょっと話していきや。",
+    "今日はのんびり話すには、ちょうどええ夜やな。",
+    "まあ座り。今日はゆっくり聞いたるで。",
+    "新しいメニュー考えたんや。試してみるか？",
+    "晩酌のお供に、この前の新商品どうだい？",
+    "今日は定常客が来てくれたんや。うれしいわ。",
+    "時々はゆっくりビールを飲みながら話すのもいいよな。",
+    "天気の悪い日は、居酒屋の暖かさが特に感じられるんや。",
+    "昔の話をすると、時間があっという間に過ぎるんやよ。",
+    "お前の話、ちゃんと聞くからな。どうぞ。",
+  ],
 };
 
-export function getNpcStateLabel(npcId: NpcId, uiLanguage: "zh" | "en"): string {
-  const { label } = getNpcState(npcId);
-  return LABEL_LOCALIZATION[label]?.[uiLanguage] ?? label;
+export function getNpcHomeCardLine(npcId: NpcId): string {
+  const today = new Date();
+  const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const lines = HOME_CARD_LINES[npcId];
+  const index = dateSeed % lines.length;
+  return lines[index];
 }
