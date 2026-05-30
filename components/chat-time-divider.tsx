@@ -4,7 +4,7 @@ export interface TimeDividerMessage {
   createdAt?: string;
 }
 
-const MESSAGE_TIME_DIVIDER_GAP_MS = 15 * 60 * 1000;
+export const MESSAGE_TIME_DIVIDER_GAP_MS = 15 * 60 * 1000;
 
 function parseMessageTime(value?: string): number | null {
   if (!value) return null;

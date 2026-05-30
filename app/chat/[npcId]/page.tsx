@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatSummaryDetail } from "@/components/chat-summary-detail";
 import { ChatToast } from "@/components/chat-toast";
-import { TimeDivider, shouldShowTimeDivider } from "@/components/chat-time-divider";
+import { TimeDivider, shouldShowTimeDivider, MESSAGE_TIME_DIVIDER_GAP_MS } from "@/components/chat-time-divider";
 import { LanguageToggle } from "@/components/language-toggle";
 import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
@@ -486,10 +486,15 @@ export default function ChatPage() {
     if (wasSeenThisSession) return;
 
     const lastMessage = restoredHistory[restoredHistory.length - 1];
-    if (!lastMessage || lastMessage.role !== "assistant") return;
+    if (!lastMessage) return;
+
+    const lastMessageTime = lastMessage.createdAt ? new Date(lastMessage.createdAt).getTime() : 0;
+    const now = Date.now();
+    const timeSinceLastMessage = now - lastMessageTime;
+
+    if (timeSinceLastMessage < MESSAGE_TIME_DIVIDER_GAP_MS) return;
 
     const userMessageCount = countUserMessages(restoredHistory);
-    if (userMessageCount === 0) return;
 
     const sourceFingerprint = createWelcomeSourceFingerprint(targetNpcId, restoredHistory);
     if (generatedRevisitWelcomeSourcesRef.current.has(sourceFingerprint)) return;
@@ -498,7 +503,7 @@ export default function ChatPage() {
     if (
       marker &&
       (marker.sourceFingerprint === sourceFingerprint ||
-        userMessageCount <= marker.userMessageCount)
+        (userMessageCount > 0 && userMessageCount <= marker.userMessageCount))
     ) {
       return;
     }
@@ -520,7 +525,6 @@ export default function ChatPage() {
 
       const currentHistory = loadChatHistory(targetNpcId);
       if (countUserMessages(currentHistory) !== userMessageCount) return;
-      if (currentHistory[currentHistory.length - 1]?.role !== "assistant") return;
 
       const welcomeMsg: ChatMessage = {
         id: `welcome-revisit-${targetNpcId}-${Date.now()}`,
