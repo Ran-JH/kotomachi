@@ -5,51 +5,9 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ContinueSection } from "@/components/home/continue-section";
 import { InspirationSection } from "@/components/home/inspiration-section";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
-import { getTimeOfDay, getWorldContext, type NpcId } from "@/lib/npc";
+import { getTimeOfDay, getWorldContext } from "@/lib/npc";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
-
-/* ============================================================
-   首页街景 — 单张街道图 + SVG 热区覆盖
-   ============================================================ */
-
-/** 建筑热区配置 — 对应 SVG 内建筑位置 */
-const BUILDING_ZONES: {
-  id: NpcId;
-  npc: string;
-  npcSub: string;
-  /** 建筑PNG文件名 */
-  file: string;
-  /** SVG x 坐标 */
-  x: number;
-  /** SVG 宽度 */
-  width: number;
-}[] = [
-  {
-    id: "misaki",
-    npc: "美咲",
-    npcSub: "みさき",
-    file: "cafe3.png",
-    x: 0,
-    width: 954,
-  },
-  {
-    id: "kimura",
-    npc: "木村",
-    npcSub: "きむら",
-    file: "conbini3.png",
-    x: 946,
-    width: 804,
-  },
-  {
-    id: "taisho",
-    npc: "大将",
-    npcSub: "たいしょう",
-    file: "izakaya3.png",
-    x: 1740,
-    width: 780,
-  },
-];
 
 const TIME_LABELS: Record<string, string> = {
   朝: "朝の街",
@@ -105,34 +63,19 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ====== 街景主体 — SVG 内嵌建筑PNG ====== */}
-      <section className="relative w-full py-3 md:py-6 px-2 md:px-4">
+      {/* ====== 首页 hero banner ====== */}
+      <section className="relative w-full py-2 md:py-4 px-2 md:px-4">
         <div className="relative w-full max-w-[1200px] mx-auto rounded-3xl overflow-hidden border border-[rgba(40,35,26,0.08)] shadow-[0_8px_32px_rgba(40,35,26,0.08),0_2px_8px_rgba(40,35,26,0.04)] bg-[#FAF6EE]/50">
-        <svg
-          viewBox="0 0 2529 795"
-          preserveAspectRatio="xMidYMid meet"
-          className="w-full h-auto max-h-[38vh] md:max-h-[42vh] lg:max-h-[48vh] block mx-auto"
-        >
-          {BUILDING_ZONES.map((zone) => (
-            <image
-              key={zone.id}
-              href={`/buildings/${zone.file}`}
-              x={zone.x}
-              y={0}
-              width={zone.width}
-              height={795}
-              preserveAspectRatio="xMidYMid meet"
-              style={{
-                filter: "drop-shadow(0 4px 12px rgba(40,35,26,0.12)) brightness(1)",
-              }}
-            />
-          ))}
-        </svg>
+          <img
+            src="/home/home-hero-rainy-street.png"
+            alt="A quiet rainy Japanese street with a cafe, convenience store, and izakaya"
+            className="w-full h-auto max-h-[32vh] md:max-h-[36vh] lg:max-h-[40vh] object-contain"
+          />
         </div>
       </section>
 
       {/* ====== 环境氛围短句 ====== */}
-      <div className="w-full text-center pt-3 pb-2">
+      <div className="w-full text-center pt-2 pb-2">
         <p className="font-brand text-[12px] md:text-[13px] text-[#7A7060]/60 tracking-[0.18em] font-light">
           {worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length]}
         </p>
