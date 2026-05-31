@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getActiveHomeNpcIds } from "@/lib/home-scenes";
 import { getStatusAwareTopicIdea } from "@/lib/starter-prompts";
@@ -18,7 +18,6 @@ interface InspirationSectionProps {
 }
 
 export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
-  const router = useRouter();
   const [ideas, setIdeas] = useState<Array<{ npcId: NpcId; idea: string }> | null>(null);
 
   useEffect(() => {
@@ -53,10 +52,6 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
     ? "不知道说什么时，可以从一句轻松的话题开始。"
     : "When you’re not sure what to say, start with a small prompt.";
 
-  const openChat = (npcId: NpcId, idea: string) => {
-    router.push(`/chat/${npcId}?starter=${encodeURIComponent(idea)}`);
-  };
-
   return (
     <section className="w-full max-w-[1120px] mx-auto px-4 md:px-5 py-4">
       {/* 标题 */}
@@ -79,11 +74,10 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
           const name = getNpcDisplayName(item.npcId);
           const ctaText = isZh ? `找${name}聊这个` : `Talk with ${name}`;
           return (
-            <button
+            <Link
               key={item.npcId}
-              type="button"
-              onClick={() => openChat(item.npcId, item.idea)}
-              className="flex flex-col gap-2 px-3 py-3 md:px-4 md:py-4 rounded-2xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left w-full sm:w-auto sm:flex-1 sm:min-w-[220px] sm:max-w-[280px] md:gap-3"
+              href={{ pathname: `/chat/${item.npcId}`, query: { starter: item.idea } }}
+              className="flex flex-col gap-2 px-3 py-3 md:px-4 md:py-4 rounded-2xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(45,74,31,0.18)] hover:shadow-[0_4px_14px_rgba(40,35,26,0.06)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.995] transition-all duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left w-full sm:w-auto sm:flex-1 sm:min-w-[220px] sm:max-w-[280px] md:gap-3"
             >
               {/* NPC Identity - Row 1 */}
               <div className="flex items-center gap-2 md:gap-3">
@@ -112,7 +106,7 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
                   <span className="text-[11px]">→</span>
                 </span>
               </div>
-            </button>
+            </Link>
           );
         })}
       </div>

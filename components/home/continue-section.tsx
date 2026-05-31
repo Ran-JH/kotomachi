@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getRecentChats, type RecentChat } from "@/lib/home-continue";
 import { type UiLanguage } from "@/lib/ui-language";
@@ -17,7 +17,6 @@ interface ContinueSectionProps {
 }
 
 export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
-  const router = useRouter();
   const [recentChats, setRecentChats] = useState<RecentChat[] | null>(null);
 
   useEffect(() => {
@@ -31,10 +30,6 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
 
   const isZh = uiLanguage === "zh";
   const heading = isZh ? "继续上次聊天" : "Continue where you left off";
-
-  const openChat = (npcId: NpcId) => {
-    router.push(`/chat/${npcId}`);
-  };
 
   const formatRelativeTime = (timestamp: number, lang: UiLanguage): string => {
     const now = Date.now();
@@ -77,11 +72,10 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
         {recentChats.map((chat) => {
           const info = NPC_INFO[chat.npcId];
           return (
-            <button
+            <Link
               key={chat.npcId}
-              type="button"
-              onClick={() => openChat(chat.npcId)}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(40,35,26,0.12)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left"
+              href={`/chat/${chat.npcId}`}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(45,74,31,0.18)] hover:shadow-[0_4px_14px_rgba(40,35,26,0.06)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.995] transition-all duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left"
             >
               {/* 头像 */}
               <img
@@ -112,7 +106,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
               <span className="text-[10px] text-[#9A9080] shrink-0">
                 {formatRelativeTime(chat.lastChatTime, uiLanguage)}
               </span>
-            </button>
+            </Link>
           );
         })}
       </div>

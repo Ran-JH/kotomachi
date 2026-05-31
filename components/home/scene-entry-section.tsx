@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getNpcHomeCardLine, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getActiveHomeScenes, type HomeScene } from "@/lib/home-scenes";
 import { type UiLanguage } from "@/lib/ui-language";
@@ -16,17 +16,12 @@ interface SceneEntrySectionProps {
 }
 
 export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
-  const router = useRouter();
   const activeScenes = getActiveHomeScenes();
 
   const isZh = uiLanguage === "zh";
 
   const heading = isZh ? "今天想去哪儿聊？" : "Where do you want to stop by today?";
   const npcActionLabel = isZh ? "去聊天" : "Start chat";
-
-  const openChat = (npcId: NpcId) => {
-    router.push(`/chat/${npcId}`);
-  };
 
   return (
     <section className="w-full max-w-[1120px] mx-auto px-4 md:px-5 py-2 md:py-4">
@@ -45,7 +40,6 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
             scene={scene}
             uiLanguage={uiLanguage}
             npcActionLabel={npcActionLabel}
-            onNpcClick={openChat}
           />
         ))}
       </div>
@@ -57,10 +51,9 @@ interface SceneCardProps {
   scene: HomeScene;
   uiLanguage: UiLanguage;
   npcActionLabel: string;
-  onNpcClick: (npcId: NpcId) => void;
 }
 
-function SceneCard({ scene, uiLanguage, npcActionLabel, onNpcClick }: SceneCardProps) {
+function SceneCard({ scene, uiLanguage, npcActionLabel }: SceneCardProps) {
   const isZh = uiLanguage === "zh";
   const title = isZh ? scene.title.zh : scene.title.en;
   const subtitle = isZh ? scene.subtitle.zh : scene.subtitle.en;
@@ -85,7 +78,6 @@ function SceneCard({ scene, uiLanguage, npcActionLabel, onNpcClick }: SceneCardP
               key={npcId}
               npcId={npcId}
               actionLabel={npcActionLabel}
-              onClick={() => onNpcClick(npcId)}
             />
           ))}
         </div>
@@ -97,19 +89,17 @@ function SceneCard({ scene, uiLanguage, npcActionLabel, onNpcClick }: SceneCardP
 interface NpcMiniCardProps {
   npcId: NpcId;
   actionLabel: string;
-  onClick: () => void;
 }
 
-function NpcMiniCard({ npcId, actionLabel, onClick }: NpcMiniCardProps) {
+function NpcMiniCard({ npcId, actionLabel }: NpcMiniCardProps) {
   const info = NPC_INFO[npcId];
   const avatar = NPC_AVATARS[npcId];
   const homeCardLine = getNpcHomeCardLine(npcId);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group w-[190px] sm:w-[210px] md:w-[230px] lg:w-[240px] aspect-[1/1.02] shrink-0 flex flex-col items-center text-center p-3.5 md:p-4 rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 hover:bg-white/68 hover:border-[rgba(40,35,26,0.14)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40"
+    <Link
+      href={`/chat/${npcId}`}
+      className="group w-[190px] sm:w-[210px] md:w-[230px] lg:w-[240px] aspect-[1/1.02] shrink-0 flex flex-col items-center text-center p-3.5 md:p-4 rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 hover:bg-white/68 hover:border-[rgba(45,74,31,0.22)] hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40"
     >
       {/* 头像 */}
       <img
@@ -139,6 +129,6 @@ function NpcMiniCard({ npcId, actionLabel, onClick }: NpcMiniCardProps) {
       <span className="inline-flex items-center rounded-full bg-[#E8E0CE]/60 px-2.5 py-0.5 text-[10px] font-medium text-[#2D4A1F] group-hover:bg-[#D8CFBB]/80 transition-colors">
         {actionLabel}
       </span>
-    </button>
+    </Link>
   );
 }

@@ -1177,7 +1177,7 @@ export default function ChatPage() {
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
               disabled={isTyping}
-              className="w-9 h-9 shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] hover:bg-[#E0D6C5] flex items-center justify-center text-sm text-[#28231A] transition-colors disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
+              className="w-9 h-9 shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] hover:bg-[#E0D6C5] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:scale-[0.95] flex items-center justify-center text-sm text-[#28231A] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
               aria-label={inputMode === "text" ? copy.chat.switchToVoice : copy.chat.switchToText}
               title={inputMode === "text" ? copy.chat.voiceInput : copy.chat.textInput}
             >
@@ -1189,8 +1189,8 @@ export default function ChatPage() {
                 aria-label={copy.sidebar.moreActions}
                 title={copy.sidebar.moreActions}
                 onClick={() => setIsInputActionsOpen((prev) => !prev)}
-                className={`w-9 h-9 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EEE6D8] text-[#2D4A1F] flex items-center justify-center text-lg leading-none transition-colors ${
-                  isInputActionsOpen ? "bg-[#E3D9C7]" : "hover:bg-[#E3D9C7]"
+                className={`w-9 h-9 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EEE6D8] text-[#2D4A1F] flex items-center justify-center text-lg leading-none transition-all duration-150 ${
+                  isInputActionsOpen ? "bg-[#E3D9C7] shadow-[0_2px_8px_rgba(40,35,26,0.06)]" : "hover:bg-[#E3D9C7] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:scale-[0.95]"
                 }`}
               >
                 +
@@ -1274,7 +1274,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={handleSend}
                   disabled={isTyping || !inputText.trim()}
-                  className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 transition-colors disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
+                  className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 hover:shadow-[0_4px_12px_rgba(45,74,31,0.3)] active:translate-y-0.5 active:shadow-[0_2px_6px_rgba(45,74,31,0.2)] transition-all duration-150 disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
                 >
                   {isTyping ? copy.chat.sending : copy.chat.send}
                 </button>
@@ -1290,8 +1290,8 @@ export default function ChatPage() {
                 disabled={isTyping}
                 aria-label={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 title={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
-                className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
-                  isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] active:bg-[#2D4A1F] active:text-[#F3EDE0]"
+                className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
+                  isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:bg-[#2D4A1F] active:text-[#F3EDE0] active:shadow-[0_4px_12px_rgba(45,74,31,0.3)]"
                 }`}
               >
                 <MicIcon size={15} />
