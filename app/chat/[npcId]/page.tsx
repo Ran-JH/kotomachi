@@ -1127,6 +1127,13 @@ export default function ChatPage() {
                 </div>
               </section>
             )}
+            {messages.length === 0 && isTyping && (
+              <div className="flex justify-center pt-8">
+                <p className="text-[11px] text-[#7A7060]/70">
+                  {uiLanguage === "zh" ? "正在准备对话…" : "Getting ready…"}
+                </p>
+              </div>
+            )}
             {messages.map((msg, index) => (
               <div key={msg.id} className="space-y-4">
                 {shouldShowTimeDivider(messages[index - 1], msg) && (
