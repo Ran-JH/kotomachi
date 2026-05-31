@@ -125,3 +125,98 @@ Observation -> Diagnosis -> Fix -> Eval Case -> Public Note
 - 严重程度：P2 / watchlist（不是功能阻塞，但影响低压力开口体验）
 - 状态：Open / Watchlist
 - 后续阈值：如果后续真实使用中出现 2-3 次类似问题，或在多个 NPC 上复现，再做 prompt policy fix。
+
+## 2026-05-30 - 第一次外部测试反馈：App 模式体验正面，语音播放首次出现回声/失真
+
+- 来源：真实使用 / 外部 beta 测试
+- NPC：木村（测试中涉及）
+- 输入方式：文字（测试者选择不用语音）
+- 用户输入：不适用（正向反馈）
+- NPC 回复：不适用
+- 功能区域：Homepage / TTS / UX
+- 问题类型：TTS 首次播放失真 / 回声效果；用户体验反馈
+
+- 正向反馈：
+  - PWA / app mode feels convenient（添加到主屏幕后像原生 app）
+  - Typing-based use is understandable（用户因当时不方便用语音，选择打字）
+  - Homepage/onboarding seems to guide users well enough to start without voice（首页引导有效，用户知道从哪里开始）
+
+- Observation / 观察：
+  - 测试者第一次使用时点了好几次播放键
+  - 播放出来的是"很空灵的回声效果"（echo-like / hollow / distorted audio）
+  - 开发者自己也偶尔遇到第一次语音播放像电音的问题
+  - 用户可能在等待时多次点击，因为 loading / playing 状态不明显
+
+- Diagnosis / 诊断：
+  - 播放按钮缺少明确的 loading/playing 状态反馈
+  - 重复点击可能创建多个重叠的音频实例导致回声
+  - 首次使用时音频初始化可能有问题
+  - 不阻塞文字使用，但影响首次语音体验和用户对语音功能的信任
+
+- Fix / 修复：**记录为 P1 watch/fix candidate**
+  - 期望行为：
+    - Play button should show loading/playing state（按钮应显示加载中/播放中状态）
+    - Repeated clicks should not create overlapping playback（重复点击不应创建重叠播放）
+    - While one TTS audio is loading or playing, additional clicks should be ignored, queued, or stop/restart cleanly（当前 TTS 加载或播放时，其他点击应被忽略或干净地停止/重启）
+    - No echo/electric first playback（首次播放不应有回声/电音）
+  - 建议方向：
+    - 前端阻止重复点击（disabled 状态或 debounce）
+    - 播放前先停止已有音频实例
+    - 可考虑首次播放前加短暂静音/测试音
+    - 避免大规模 TTS 重写
+
+- Eval Case / 评估用例：
+  - 首次点击 NPC 消息播放按钮时，不应出现回声/电音效果
+  - 快速连续点击播放按钮时，不应创建多个重叠音频
+  - 播放中再次点击应正确停止或重启，不产生回声
+
+- Public Note / 公开复盘：
+  - 这个 case 说明即使语音功能是可选的，首次播放体验仍然重要
+  - 外部测试者能发现"点几次才出声音 + 声音奇怪"的问题，说明这类细节会影响用户对 app 整体质量的判断
+  - PWA 模式和文字优先体验得到验证，说明产品方向正确
+
+- 严重程度：P1（不是功能阻塞，但不修复会影响首次语音体验和用户信任）
+- 状态：Open / Watchlist
+- 后续行动：可以做一次小的 TTS playback hardening task，不需要大规模 TTS 重写
+
+## 2026-05-30 - 国内网络访问 Vercel beta 受限 / 部署可访问性问题
+
+- 来源：真实使用 / 外部 beta 测试
+- NPC：不适用
+- 输入方式：不适用
+- 用户输入：不适用
+- NPC 回复：不适用
+- 功能区域：Deployment / Infrastructure
+- 问题类型：跨境访问限制 / 部署可访问性
+
+- Observation / 观察：
+  - 外部 beta 用户在中国大陆不开 VPN 时，页面卡在图标/启动页，无法进入首页
+  - 开 VPN 后可继续测试
+  - 判断为 Vercel / 跨境访问 beta limitation，而不是 app 首屏逻辑 bug
+
+- Diagnosis / 诊断：
+  - Vercel 默认部署在中国大陆访问不稳定
+  - 不是代码或首屏逻辑问题
+  - 是部署基础设施层面的访问限制
+  - 影响国内朋友测试门槛，可能影响 PWA/app mode 初体验
+
+- Fix / 修复：**短期不修代码，只做测试说明**
+  - 当前处理：
+    - 短期在测试说明中提示国内网络可能需要 VPN
+    - 暂不迁移部署（维持 Vercel beta 简单部署）
+  - 后续观察：
+    - 如果国内测试用户增多，再评估自定义域名、国内 CDN、国内部署方案
+    - 可考虑：Vercel + 自定义域名 + 国内 CDN，或迁移到国内平台
+
+- Eval Case / 评估用例：
+  - 国内用户不开 VPN 时应能访问基本功能（长期目标）
+  - 当前短期：测试说明中明确提示 VPN 需求
+
+- Public Note / 公开复盘：
+  - 这个 case 说明 Vercel 部署对国内用户有访问门槛
+  - 作为 beta / MVP 阶段可以接受，但如果有国内用户增长需求，需要考虑部署方案
+  - 部署可访问性是产品可触达性的基础设施层问题
+
+- 严重程度：P1 beta limitation / deployment accessibility（影响国内测试，但不是代码 bug）
+- 状态：Open / Watchlist
+- 后续阈值：如果国内测试用户增多或反馈频繁，考虑部署方案调整

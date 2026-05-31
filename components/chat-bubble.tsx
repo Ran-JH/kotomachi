@@ -56,6 +56,40 @@ interface ChatBubbleProps {
   isVoiceMessage?: boolean;
 }
 
+type ManagedAudioSource = {
+  audio: HTMLAudioElement;
+  cleanup?: () => void;
+  onStop?: () => void;
+};
+
+let activeManagedAudio: ManagedAudioSource | null = null;
+
+function stopActiveManagedAudio(): void {
+  if (!activeManagedAudio) return;
+  const { audio, cleanup, onStop } = activeManagedAudio;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.src = "";
+    audio.load();
+  } catch {
+    // no-op: cleanup should never block UI interaction.
+  }
+  try {
+    cleanup?.();
+  } catch {
+    // no-op
+  }
+  try {
+    onStop?.();
+  } catch {
+    // no-op
+  }
+  activeManagedAudio = null;
+}
+
 async function fetchAndPlayTts(text: string, npcId: NpcId): Promise<void> {
   const res = await fetch(buildClientApiUrl("/api/tts"), {
     method: "POST",
@@ -755,6 +789,8 @@ export function ChatBubble({
   const [userAudioError, setUserAudioError] = useState(false);
   const [feedbackRecordId, setFeedbackRecordId] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
+  const [isNpcAudioLoading, setIsNpcAudioLoading] = useState(false);
+  const [isNpcAudioPlaying, setIsNpcAudioPlaying] = useState(false);
 
   const [popover, setPopover] = useState<{
     selectedText: string; fullSentence: string; anchorRect: DOMRect;
@@ -763,6 +799,9 @@ export function ChatBubble({
   const bubbleRef = useRef<HTMLDivElement>(null);
   const userAudioRef = useRef<HTMLAudioElement | null>(null);
   const userTempAudioUrlRef = useRef<string | null>(null);
+  const npcAudioRef = useRef<HTMLAudioElement | null>(null);
+  const npcObjectUrlRef = useRef<string | null>(null);
+  const npcPlaybackRequestIdRef = useRef(0);
   const copy = getUiCopy(uiLanguage);
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
@@ -813,6 +852,24 @@ export function ChatBubble({
     return () => {
       userAudioRef.current?.pause();
       revokeUserTempAudioUrl();
+      if (npcAudioRef.current && activeManagedAudio?.audio === npcAudioRef.current) {
+        stopActiveManagedAudio();
+      } else if (npcAudioRef.current) {
+        try {
+          npcAudioRef.current.pause();
+          npcAudioRef.current.currentTime = 0;
+          npcAudioRef.current.onended = null;
+          npcAudioRef.current.onerror = null;
+          npcAudioRef.current.src = "";
+          npcAudioRef.current.load();
+        } catch {
+          // no-op
+        }
+      }
+      if (npcObjectUrlRef.current) {
+        URL.revokeObjectURL(npcObjectUrlRef.current);
+        npcObjectUrlRef.current = null;
+      }
     };
   }, [revokeUserTempAudioUrl]);
 
@@ -881,9 +938,114 @@ export function ChatBubble({
     } finally { setLoading(false); }
   };
 
-  const playStandardAudio = () => {
-    if (npcAudioUrl) { new Audio(npcAudioUrl).play(); }
-    else if (onPlayNpcAudio) { onPlayNpcAudio(); }
+  const playStandardAudio = async () => {
+    // Guard against repeated clicks while this bubble is requesting or playing.
+    if (isNpcAudioLoading || isNpcAudioPlaying) return;
+
+    const requestId = npcPlaybackRequestIdRef.current + 1;
+    npcPlaybackRequestIdRef.current = requestId;
+    setIsNpcAudioLoading(true);
+
+    // Stop any currently playing audio (possibly from another message bubble).
+    stopActiveManagedAudio();
+    if (npcObjectUrlRef.current) {
+      URL.revokeObjectURL(npcObjectUrlRef.current);
+      npcObjectUrlRef.current = null;
+    }
+
+    let currentAudio: HTMLAudioElement | null = null;
+    try {
+      let audioUrl = npcAudioUrl ?? "";
+      let cleanup: (() => void) | undefined;
+
+      if (!audioUrl) {
+        const res = await fetch(buildClientApiUrl("/api/tts"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, npcId }),
+        });
+        if (!res.ok) {
+          throw new Error(`TTS request failed (${res.status})`);
+        }
+        const blob = await res.blob();
+        audioUrl = URL.createObjectURL(blob);
+        npcObjectUrlRef.current = audioUrl;
+        cleanup = () => {
+          if (npcObjectUrlRef.current === audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+            npcObjectUrlRef.current = null;
+          }
+        };
+      }
+
+      // Ignore stale response when user has triggered another playback intent.
+      if (npcPlaybackRequestIdRef.current !== requestId) {
+        cleanup?.();
+        return;
+      }
+
+      const audio = new Audio(audioUrl);
+      currentAudio = audio;
+      npcAudioRef.current = audio;
+      activeManagedAudio = {
+        audio,
+        cleanup,
+        onStop: () => {
+          if (npcAudioRef.current === audio) {
+            setIsNpcAudioPlaying(false);
+            setIsNpcAudioLoading(false);
+            npcAudioRef.current = null;
+          }
+        },
+      };
+
+      audio.onended = () => {
+        if (npcAudioRef.current === audio) {
+          setIsNpcAudioPlaying(false);
+          setIsNpcAudioLoading(false);
+          npcAudioRef.current = null;
+        }
+        if (activeManagedAudio?.audio === audio) {
+          stopActiveManagedAudio();
+        }
+      };
+
+      audio.onerror = () => {
+        if (npcAudioRef.current === audio) {
+          setIsNpcAudioPlaying(false);
+          setIsNpcAudioLoading(false);
+          npcAudioRef.current = null;
+        }
+        if (activeManagedAudio?.audio === audio) {
+          stopActiveManagedAudio();
+        }
+        // keep non-blocking error signal in console, avoid disruptive UI alerts.
+        console.warn("NPC audio playback error.");
+      };
+
+      setIsNpcAudioLoading(false);
+      setIsNpcAudioPlaying(true);
+      await audio.play();
+    } catch (error) {
+      setIsNpcAudioLoading(false);
+      setIsNpcAudioPlaying(false);
+      if (npcAudioRef.current === currentAudio) {
+        npcAudioRef.current = null;
+      }
+      if (currentAudio && activeManagedAudio?.audio === currentAudio) {
+        stopActiveManagedAudio();
+      }
+      if (npcObjectUrlRef.current && !npcAudioUrl) {
+        URL.revokeObjectURL(npcObjectUrlRef.current);
+        npcObjectUrlRef.current = null;
+      }
+      // Browser autoplay/promise rejection should not lock the UI state.
+      console.warn("NPC audio play() rejected or TTS fetch failed.", error);
+      if (onPlayNpcAudio && !npcAudioUrl) {
+        // Non-blocking fallback: keep compatibility with parent playback hook.
+        onPlayNpcAudio();
+      }
+    }
   };
 
   const playUserAudio = useCallback(() => {
@@ -991,12 +1153,19 @@ export function ChatBubble({
                 <button
                   type="button"
                   onClick={playStandardAudio}
+                  disabled={isNpcAudioLoading || isNpcAudioPlaying}
                   aria-label={copy.audio.playNpc}
                   title={copy.audio.play}
-                  className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
+                  className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <VolumeIcon size={11} />
-                  <span>{copy.audio.play}</span>
+                  <span>
+                    {isNpcAudioLoading
+                      ? copy.common.working
+                      : isNpcAudioPlaying
+                        ? (uiLanguage === "zh" ? "播放中…" : "Playing…")
+                        : copy.audio.play}
+                  </span>
                 </button>
               )}
               {hasUserRecording && (
