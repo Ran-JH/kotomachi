@@ -25,13 +25,38 @@ interface WelcomeRequestBody {
   worldReaction?: string;
 }
 
-function sanitizeWelcomeMessage(message: string): string {
+const NPC_DISPLAY_NAMES: Record<string, string> = {
+  kimura: "木村",
+  misaki: "美咲",
+  taisho: "大将",
+};
+
+function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): string {
+  if (isInitialVisit) {
+    if (npcId === "taisho") return "よっ、いらっしゃい。今日はどうした？";
+    if (npcId === "kimura") return "いらっしゃい。今日は何か探してる？";
+    return "こんにちは。今日はどんな話をしましょうか？";
+  }
+  if (npcId === "taisho") return "おっ、また来たな。今日はどんな調子だ？";
+  if (npcId === "kimura") return "お、また来たね。今日は何があった？";
+  return "また来てくれてうれしいです。今日はどんな一日でしたか？";
+}
+
+function sanitizeWelcomeMessage(message: string, npcId: string, isInitialVisit: boolean): string {
+  const ownName = NPC_DISPLAY_NAMES[npcId] ?? "";
+  const revisitTonePattern =
+    /(久しぶり|また来(?:た|てくれた)|今日も来(?:た|てくれた)|よく来てくれた|しばらくぶり|前回|この前|さっきの話)/g;
   const cleaned = message
     .replace(/[0-9０-９]+[ 　]*(時間|分|日|週間|ヶ月|か月|年)ぶり/g, "久しぶり")
     .replace(/[一二三四五六七八九十百千万]+[ 　]*(時間|分|日|週間|ヶ月|か月|年)ぶり/g, "久しぶり")
+    .replace(ownName ? new RegExp(`^\\s*${ownName}[、，]\\s*`) : /$^/, "")
     .trim();
 
-  return cleaned || "また来てくれたんだ。今日は少し話していく？";
+  if (!cleaned) return getFallbackWelcomeMessage(npcId, isInitialVisit);
+  if (isInitialVisit && revisitTonePattern.test(cleaned)) {
+    return getFallbackWelcomeMessage(npcId, true);
+  }
+  return cleaned;
 }
 
 function buildWelcomePrompt(
@@ -59,9 +84,15 @@ function buildWelcomePrompt(
   const recentAssistantText = recentAssistantMessages.length > 0
     ? recentAssistantMessages.map((message) => `- ${message}`).join("\n")
     : "なし";
-  const visitContext = timeDiffText === "初回"
+  const isInitialVisit = timeDiffText === "初回";
+  const visitContext = isInitialVisit
     ? "このNPCとの新しい会話。初対面に近い自然な入り方にする。"
     : "再訪の可能性はあるが、経過時間を具体的に言わない。";
+  const revisitRuleText = isInitialVisit
+    ? `- これは初回/リセット直後の新しい会話です。既に親しい前提を置かない。
+- 回訪ニュアンスは禁止：久しぶり、また来た、また来てくれた、今日も来た、今日も来てくれた、よく来てくれた、しばらくぶり、前回、この前、さっきの話。`
+    : `- これは再訪シーンです。軽い再訪ニュアンスは可（例：久しぶり、また来てくれたんだ）。
+- ただし過度に親密にしない。`;
 
   return [
     {
@@ -112,8 +143,12 @@ ${recentAssistantText}
 ## welcome 禁止事项
 - 绝对不要说精确时间差或精确日期差
 - 禁止输出：13時間ぶり、19時間ぶり、何時間ぶり、何分ぶり、N日ぶり、N週間ぶり、具体日期差
-- 可以使用：久しぶり、また来てくれたんだ、この前の話、今日も来てくれてうれしい、しばらくぶり
 - 如果 timeDiffText 中包含精确时间，也只能当作内部参考，不能复述
+- ${revisitRuleText}
+- NPC 自己的名字由 UI 显示，不需要写进 welcomeMessage 正文；禁止句首自称呼语：
+  - 大将、...
+  - 木村、...
+  - 美咲、...
 
 ## 输出格式
 严格返回 JSON 对象，包含且仅包含以下两个字段，不要输出任何其他文本：
@@ -173,6 +208,7 @@ export async function POST(req: NextRequest) {
       worldDescription,
       worldReaction
     );
+    const isInitialVisit = timeDiffText === "初回";
 
     // 调用大模型，启用 JSON 模式确保结构化输出
     const raw = await createChatCompletion(messages, {
@@ -189,7 +225,7 @@ export async function POST(req: NextRequest) {
       // JSON 解析失败时兜底：保留旧事实，把原始输出当作欢迎语
       return NextResponse.json({
         extractedFacts: existingFacts ?? [],
-        welcomeMessage: sanitizeWelcomeMessage(raw),
+        welcomeMessage: sanitizeWelcomeMessage(raw, npcId, isInitialVisit),
       });
     }
 
@@ -202,7 +238,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       extractedFacts,
       welcomeMessage: sanitizeWelcomeMessage(
-        parsed.welcomeMessage ?? "また来てくれたんだ。今日は少し話していく？",
+        parsed.welcomeMessage ?? getFallbackWelcomeMessage(npcId, isInitialVisit),
+        npcId,
+        isInitialVisit,
       ),
     });
   } catch (error: unknown) {

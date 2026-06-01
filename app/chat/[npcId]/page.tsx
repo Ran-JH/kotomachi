@@ -23,6 +23,7 @@ import {
   saveLocalNPCFacts,
   saveLocalNPCMemory,
   incrementConversationCount,
+  clearNpcChatData,
   type StoredMessage,
 } from "@/lib/memory";
 import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
@@ -236,6 +237,7 @@ export default function ChatPage() {
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
   const [isInputComposing, setIsInputComposing] = useState(false);
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
@@ -302,6 +304,16 @@ export default function ChatPage() {
   useEffect(() => {
     if (!isInputActionsOpen) setIsTopicIdeasOpen(false);
   }, [isInputActionsOpen]);
+  useEffect(() => {
+    if (!isResetConfirmOpen) return;
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsResetConfirmOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isResetConfirmOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     if (starterAppliedRef.current) return;
@@ -1258,6 +1270,21 @@ export default function ChatPage() {
                         : reviewDisabledHint}
                     </span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsInputActionsOpen(false);
+                      setIsResetConfirmOpen(true);
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                  >
+                    <span className="block text-[12px] font-medium text-[#9A5555]">
+                      {uiLanguage === "zh" ? "重新开始" : "Start over"}
+                    </span>
+                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                      {uiLanguage === "zh" ? "清空当前对话，重新开始聊天" : "Clear chat and start fresh"}
+                    </span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1371,6 +1398,50 @@ export default function ChatPage() {
               )}
             </div>
           </section>
+        </div>
+      )}
+
+      {isResetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4">
+          <div
+            className="absolute inset-0 bg-[rgba(31,42,24,0.14)] backdrop-blur-[2px]"
+            onClick={() => setIsResetConfirmOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-[24.5rem] rounded-2xl border border-[rgba(55,72,42,0.14)] bg-[#f7f1e6] px-5 py-5 md:px-6 md:py-6 shadow-[0_18px_50px_rgba(31,42,24,0.16)]">
+            <div>
+              <h3 className="text-[17px] font-medium text-[#2D4A1F] leading-snug">
+                {uiLanguage === "zh" ? "重新开始这段对话？" : "Start this chat over?"}
+              </h3>
+              <p className="mt-2.5 text-[13px] text-[#6B6254] leading-relaxed">
+                {uiLanguage === "zh"
+                  ? `会清空当前与${NPC_LIST.find(n => n.id === npcId)?.name}的聊天和临时记忆，但不会删除收藏和回顾卡。`
+                  : `This clears the current chat and temporary memory for ${NPC_LIST.find(n => n.id === npcId)?.name}, but keeps saved items and review cards.`}
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsResetConfirmOpen(false)}
+                className="inline-flex items-center rounded-lg border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/8 px-4 py-2 text-[13px] font-medium text-[#6B6254] hover:bg-[#F3EDE0] transition-colors"
+              >
+                {uiLanguage === "zh" ? "取消" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearNpcChatData(npcId);
+                  setMessages([]);
+                  setMemories([]);
+                  setIsResetConfirmOpen(false);
+                  generatedInitialWelcomeForNpcRef.current.delete(npcId);
+                  void triggerInitialWelcome(npcId, []);
+                }}
+                className="inline-flex items-center rounded-lg bg-[#2D4A1F] px-4 py-2 text-[13px] font-medium text-[#FAF6EE] hover:bg-[#243D18] active:scale-[0.99] transition-all"
+              >
+                {uiLanguage === "zh" ? "重新开始" : "Start over"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -114,3 +114,19 @@ export function incrementConversationCount(npcId: string): void {
   const current = getConversationCount(npcId);
   localStorage.setItem(`kotomachi_count_${npcId}`, String(current + 1));
 }
+
+/** 清除指定 NPC 的所有聊天相关数据（用于重新开始对话） */
+export function clearNpcChatData(npcId: string): void {
+  if (typeof window === "undefined") return;
+  
+  localStorage.removeItem(`kotomachi_history_${npcId}`);
+  localStorage.removeItem(`kotomachi_facts_${npcId}`);
+  localStorage.removeItem(`kotomachi_last_time_${npcId}`);
+  localStorage.removeItem(`kotomachi_revisit_welcome_marker_${npcId}`);
+  
+  try {
+    sessionStorage.removeItem(`kotomachi_session_visit_${npcId}`);
+  } catch {
+    // sessionStorage 不可用时忽略
+  }
+}
