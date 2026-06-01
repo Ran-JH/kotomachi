@@ -220,3 +220,47 @@ Observation -> Diagnosis -> Fix -> Eval Case -> Public Note
 - 严重程度：P1 beta limitation / deployment accessibility（影响国内测试，但不是代码 bug）
 - 状态：Open / Watchlist
 - 后续阈值：如果国内测试用户增多或反馈频繁，考虑部署方案调整
+
+## 2026-05-31 - PWA maskable icon 是 Android 手机端图标核心资产
+
+- 来源：真实使用 / Android Chrome PWA 测试
+- NPC：不适用
+- 输入方式：不适用
+- 用户输入：不适用
+- NPC 回复：不适用
+- 功能区域：PWA / Icon / Mobile
+- 问题类型：移动端 / 窄屏布局难用（PWA 图标边框问题）
+
+- Observation / 观察：
+  - Android Chrome PWA 中，修改 `public/icons/maskable-512-v3.png` 后，同时影响了：
+    1. 手机桌面 app 图标
+    2. 点开 PWA 后的启动/加载页图标（splash）
+  - 之前尝试把普通 icon 和 maskable icon 拆成两套（splash 用透明底，launcher 用深绿满底），但发现 Android 实际主要使用 maskable icon
+  - 普通图标（icon-192/icon-512）在 Android 手机端影响较小，主要用于 manifest fallback、浏览器标签、桌面端等
+
+- Diagnosis / 诊断：
+  - Android Chrome PWA 对 maskable icon 的处理：同时用于桌面图标和启动页
+  - 无法为 splash 和 launcher 强行拆两套完全独立的图标
+  - 如果 maskable 有深绿满底，启动页也会显示深绿方框
+  - 如果 maskable 用透明底，桌面图标可能显示不完整
+
+- Fix / 修复：**当前策略收束**
+  - 把 `maskable-512-v3.png` 当作核心图标资产来处理
+  - 保证 maskable 图标设计能同时适应桌面图标和启动页
+  - 普通图标（icon-192-v3/icon-512-v3）保留用于 fallback 和非 Android 场景
+  - 不继续为 splash 和 launcher 强行拆两套
+  - 未来如果要正式 App 化，再重新做完整 icon asset system
+
+- Eval Case / 评估用例：
+  - Android Chrome 添加到主屏幕后，桌面图标应无突兀边框
+  - 点开 PWA 后启动页图标应与桌面图标一致
+  - iOS Safari 添加到主屏幕图标应正常（使用 apple-touch-icon）
+
+- Public Note / 公开复盘：
+  - 这个 case 说明 PWA 图标系统在不同平台表现不一致
+  - Android 主要依赖 maskable icon，iOS 使用 apple-touch-icon
+  - 设计图标时需要考虑多平台适配，但优先保证主要目标平台（当前为 Android）
+
+- 严重程度：P2 / 已收束（图标问题已处理，策略已确定）
+- 状态：Fixed / Strategy settled
+- 后续行动：未来正式 App 化时，重新设计完整 icon asset system
