@@ -106,3 +106,17 @@ export function TrashIcon(props: IconProps) {
     </BaseIcon>
   );
 }
+
+export function TranslateIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M4 5h8" />
+      <path d="M8 5v2" />
+      <path d="M6 11c1.8-1 3.1-2.7 3.8-5" />
+      <path d="M5.5 9.5c1 1.3 2.3 2.3 3.8 3" />
+      <path d="M14 15h6" />
+      <path d="M17 12v6" />
+      <path d="m13.5 20 3.5-8 3.5 8" />
+    </BaseIcon>
+  );
+}

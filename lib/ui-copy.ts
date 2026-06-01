@@ -54,6 +54,9 @@ export const UI_COPY = {
     chat: {
       typing: "正在回复…",
       placeholder: "输入消息，日中英都可以…",
+      translate: "翻译",
+      translating: "翻译中…",
+      translationFailed: "翻译失败，请稍后再试",
       send: "发送",
       sending: "发送中…",
       switchToVoice: "切换到语音输入",
@@ -196,6 +199,9 @@ export const UI_COPY = {
     chat: {
       typing: "Replying…",
       placeholder: "Type in Chinese, English, or Japanese…",
+      translate: "Translate",
+      translating: "Translating…",
+      translationFailed: "Translation failed. Try again later.",
       send: "Send",
       sending: "Sending…",
       switchToVoice: "Switch to voice input",

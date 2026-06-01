@@ -20,7 +20,7 @@ import { getCachedFeedback, setCachedFeedback, removeCachedFeedback, toCachedFee
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
 import { buildClientApiUrl } from "@/lib/client-api-url";
-import { LightbulbIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
+import { LightbulbIcon, TranslateIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
 
 /* ============================================================
    Figma Design Tokens → Tailwind 映射
@@ -791,6 +791,10 @@ export function ChatBubble({
   const [feedbackError, setFeedbackError] = useState(false);
   const [isNpcAudioLoading, setIsNpcAudioLoading] = useState(false);
   const [isNpcAudioPlaying, setIsNpcAudioPlaying] = useState(false);
+  const [isTranslationOpen, setIsTranslationOpen] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationText, setTranslationText] = useState<string | null>(null);
+  const [translationError, setTranslationError] = useState(false);
 
   const [popover, setPopover] = useState<{
     selectedText: string; fullSentence: string; anchorRect: DOMRect;
@@ -803,6 +807,8 @@ export function ChatBubble({
   const npcObjectUrlRef = useRef<string | null>(null);
   const npcPlaybackRequestIdRef = useRef(0);
   const copy = getUiCopy(uiLanguage);
+  const actionButtonClass =
+    "mt-1 inline-flex items-center gap-1.5 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/72 px-2.5 py-1 text-[9px] text-[#6F6658] transition-colors hover:bg-[#E8E0CE] hover:text-[#2D4A1F] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
     setFeedbackError(false);
@@ -1074,6 +1080,49 @@ export function ChatBubble({
     }
   }, [revokeUserTempAudioUrl, userAudioBlob, userAudioUrl]);
 
+  const handleToggleTranslation = useCallback(async () => {
+    if (sender !== "assistant") return;
+
+    if (isTranslationOpen) {
+      setIsTranslationOpen(false);
+      return;
+    }
+
+    if (translationText) {
+      setTranslationError(false);
+      setIsTranslationOpen(true);
+      return;
+    }
+
+    if (isTranslating) return;
+
+    setIsTranslating(true);
+    setTranslationError(false);
+    try {
+      const targetLanguage = uiLanguage === "en" ? "en" : "zh";
+      const res = await fetch(buildClientApiUrl("/api/translate"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          targetLanguage,
+        }),
+      });
+      if (!res.ok) throw new Error("translate failed");
+      const json = (await res.json()) as { translation?: string };
+      const translated = (json.translation ?? "").trim();
+      if (!translated) throw new Error("empty translation");
+      setTranslationText(translated);
+      setIsTranslationOpen(true);
+    } catch (error) {
+      console.warn("[chat-bubble] translate failed", error);
+      setTranslationError(true);
+      setIsTranslationOpen(true);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [isTranslating, isTranslationOpen, sender, text, translationText, uiLanguage]);
+
   const handleTextSelection = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
@@ -1145,7 +1194,7 @@ export function ChatBubble({
 
             {/* 按钮区域：气泡外部下方，hover 淡入 */}
             <div
-              className={`flex gap-2 transition-all duration-200 ${
+              className={`flex flex-wrap gap-2 transition-all duration-200 ${
                 isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none"
               } ${sender === "user" ? "justify-end" : "justify-start"}`}
             >
@@ -1156,15 +1205,30 @@ export function ChatBubble({
                   disabled={isNpcAudioLoading || isNpcAudioPlaying}
                   aria-label={copy.audio.playNpc}
                   title={copy.audio.play}
-                  className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  className={actionButtonClass}
                 >
-                  <VolumeIcon size={11} />
+                  <VolumeIcon size={12} />
                   <span>
                     {isNpcAudioLoading
-                      ? copy.common.working
+                      ? (uiLanguage === "zh" ? "播放中…" : "Playing…")
                       : isNpcAudioPlaying
                         ? (uiLanguage === "zh" ? "播放中…" : "Playing…")
                         : copy.audio.play}
+                  </span>
+                </button>
+              )}
+              {sender === "assistant" && (
+                <button
+                  type="button"
+                  onClick={() => { void handleToggleTranslation(); }}
+                  disabled={isTranslating}
+                  className={actionButtonClass}
+                  aria-label={copy.chat.translate}
+                  title={copy.chat.translate}
+                >
+                  <TranslateIcon size={12} />
+                  <span>
+                    {isTranslating ? copy.chat.translating : copy.chat.translate}
                   </span>
                 </button>
               )}
@@ -1174,9 +1238,9 @@ export function ChatBubble({
                   onClick={playUserAudio}
                   aria-label={copy.feedback.userRecording}
                   title={copy.audio.listenRecording}
-                  className="mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
+                  className={actionButtonClass}
                 >
-                  <VolumeIcon size={11} />
+                  <VolumeIcon size={12} />
                   <span>{copy.audio.listenRecording}</span>
                 </button>
               )}
@@ -1186,15 +1250,26 @@ export function ChatBubble({
                   onClick={handleOpenFeedback}
                   aria-label={copy.feedback.trigger}
                   title={copy.feedback.trigger}
-                  className={`mt-1 flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors ${
-                    drawerOpen ? "!opacity-100" : ""
-                  }`}
+                  className={`${actionButtonClass} ${drawerOpen ? "bg-[#E8E0CE] text-[#2D4A1F] border-[rgba(40,35,26,0.16)]" : ""}`}
                 >
-                  <LightbulbIcon size={11} />
+                  <LightbulbIcon size={12} />
                   <span>{copy.feedback.trigger}</span>
                 </button>
               )}
             </div>
+            {sender === "assistant" && isTranslationOpen && (
+              <div className="mt-1.5 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/65 px-3 py-2">
+                {translationError ? (
+                  <p className="text-[10px] leading-relaxed text-[#7A7060] break-words">
+                    {copy.chat.translationFailed}
+                  </p>
+                ) : (
+                  <p className="text-[10px] leading-relaxed text-[#4A4438] break-words">
+                    {translationText}
+                  </p>
+                )}
+              </div>
+            )}
             {userAudioError && (
               <p className="mt-1 text-right text-[9px] text-[#9A6B2F]">
                 {copy.audio.recordingFailure}
