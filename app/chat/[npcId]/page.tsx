@@ -2,7 +2,7 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatSummaryDetail } from "@/components/chat-summary-detail";
 import { ChatToast } from "@/components/chat-toast";
@@ -306,7 +306,7 @@ export default function ChatPage() {
   }, [isInputActionsOpen]);
   useEffect(() => {
     if (!isResetConfirmOpen) return;
-    const handleEsc = (event: KeyboardEvent) => {
+    const handleEsc = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsResetConfirmOpen(false);
       }
@@ -671,7 +671,7 @@ export default function ChatPage() {
   };
 
   const handleSend = () => { setVoiceHint(null); void sendToNpc(inputText); };
-  const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter") return;
     if (isInputComposing) return;
     if (event.shiftKey) return;
