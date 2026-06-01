@@ -576,7 +576,9 @@ export default function ChatPage() {
     setMemories(storedMemories);
     const history = loadChatHistory(npcId);
 
-    if (history.length > 0) {
+    const hasUserMessage = history.some((m) => m.role === "user");
+
+    if (hasUserMessage) {
       const restored: ChatMessage[] = history.map((m, i) => ({
         id: `stored-${i}`, sender: m.role === "user" ? "user" : "assistant",
         text: m.content, type: "text" as const, createdAt: m.createdAt,
@@ -584,6 +586,10 @@ export default function ChatPage() {
       setMessages(restored);
       void triggerRevisitWelcome(npcId, storedMemories, history, wasSeenThisSession);
       return;
+    }
+
+    if (history.length > 0 && !hasUserMessage) {
+      saveChatHistory(npcId, []);
     }
 
     setMessages([]);
