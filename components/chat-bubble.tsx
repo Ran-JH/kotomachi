@@ -298,7 +298,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     };
     void fetchExplain();
     return () => { cancelled = true; };
-  }, [copy.explain.error, fullSentence, messageId, npcId, selectedText]);
+  }, [copy.explain.error, fullSentence, messageId, npcId, selectedText, uiLanguage]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

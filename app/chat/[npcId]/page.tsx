@@ -341,10 +341,6 @@ export default function ChatPage() {
   }, [isResetConfirmOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
-    setTopicIdeas(null);
-    setIsTopicIdeasLoading(false);
-  }, [npcId]);
-  useEffect(() => {
     if (starterAppliedRef.current) return;
     const starter = searchParams.get("starter")?.trim();
     if (!starter) return;
@@ -436,7 +432,7 @@ export default function ChatPage() {
     summaryToastTimerRef.current = setTimeout(() => setSummaryToast(null), 3200);
   };
 
-  const getWelcomeRequest = (
+  const getWelcomeRequest = useCallback((
     requestKey: string,
     targetNpcId: NpcId,
     existingFacts: string[],
@@ -479,9 +475,9 @@ export default function ChatPage() {
 
     welcomeRequests.set(requestKey, request);
     return request;
-  };
+  }, []);
 
-  const triggerInitialWelcome = async (
+  const triggerInitialWelcome = useCallback(async (
     targetNpcId: NpcId,
     existingFacts: string[],
   ) => {
@@ -526,9 +522,9 @@ export default function ChatPage() {
     } finally {
       if (activeNpcRef.current === targetNpcId) setIsTyping(false);
     }
-  };
+  }, [getWelcomeRequest]);
 
-  const triggerRevisitWelcome = async (
+  const triggerRevisitWelcome = useCallback(async (
     targetNpcId: NpcId,
     existingFacts: string[],
     restoredHistory: StoredMessage[],
@@ -603,7 +599,12 @@ export default function ChatPage() {
     } finally {
       if (activeNpcRef.current === targetNpcId) setIsTyping(false);
     }
-  };
+  }, [getWelcomeRequest]);
+
+  useEffect(() => {
+    setTopicIdeas(null);
+    setIsTopicIdeasLoading(false);
+  }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
 
   useEffect(() => {
     activeNpcRef.current = npcId;
@@ -635,7 +636,7 @@ export default function ChatPage() {
 
     setMessages([]);
     void triggerInitialWelcome(npcId, storedMemories);
-  }, [npcId]);
+  }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
 
   const fetchTtsUrl = useCallback(async (text: string): Promise<string | null> => {
     const cacheKey = `${npcId}:${text}`;
@@ -825,7 +826,10 @@ export default function ChatPage() {
         "Some browsers may behave differently. If Edge does not create an icon, try Chrome.",
       ];
   const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
-  const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
+  const visibleStarterPrompts = useMemo(
+    () => pickStarterPrompts(npcId, userMessageCount),
+    [npcId, userMessageCount],
+  );
   const statusAwarePrompt = getStatusAwareTopicIdea(npcId);
   const recentSummaryMessages = useMemo<SessionSummaryMessage[]>(() => {
     return messages
@@ -850,11 +854,10 @@ export default function ChatPage() {
     if (userMessageCount === 0) return `starter:${npcId}:${uiLanguage}`;
     return buildTopicIdeasCacheKey(npcId, uiLanguage, topicIdeasRecentMessages);
   }, [npcId, topicIdeasRecentMessages, uiLanguage, userMessageCount]);
-  const visibleStarterPromptKey = useMemo(() => visibleStarterPrompts.join("\u0001"), [visibleStarterPrompts]);
   const fallbackTopicIdeas = useMemo(() => {
     const fallback = [statusAwarePrompt, ...visibleStarterPrompts];
     return fallback.filter(Boolean).slice(0, 3);
-  }, [statusAwarePrompt, visibleStarterPromptKey]);
+  }, [statusAwarePrompt, visibleStarterPrompts]);
   const topicIdeasToDisplay =
     userMessageCount === 0 ? fallbackTopicIdeas : topicIdeas ?? fallbackTopicIdeas;
   useEffect(() => {
