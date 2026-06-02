@@ -57,23 +57,34 @@ interface ChatBubbleProps {
 }
 
 type ManagedAudioSource = {
-  audio: HTMLAudioElement;
+  requestId: number;
+  key: string;
+  controller: AbortController;
+  audio: HTMLAudioElement | null;
   cleanup?: () => void;
   onStop?: () => void;
 };
 
 let activeManagedAudio: ManagedAudioSource | null = null;
+let managedAudioRequestSeq = 0;
 
 function stopActiveManagedAudio(): void {
   if (!activeManagedAudio) return;
-  const { audio, cleanup, onStop } = activeManagedAudio;
+  const { audio, cleanup, onStop, controller } = activeManagedAudio;
   try {
-    audio.pause();
-    audio.currentTime = 0;
-    audio.onended = null;
-    audio.onerror = null;
-    audio.src = "";
-    audio.load();
+    controller.abort();
+  } catch {
+    // no-op: abort should never block UI interaction.
+  }
+  try {
+    audio?.pause();
+    if (audio) {
+      audio.currentTime = 0;
+      audio.onended = null;
+      audio.onerror = null;
+      audio.src = "";
+      audio.load();
+    }
   } catch {
     // no-op: cleanup should never block UI interaction.
   }
@@ -90,27 +101,92 @@ function stopActiveManagedAudio(): void {
   activeManagedAudio = null;
 }
 
-async function fetchAndPlayTts(text: string, npcId: NpcId): Promise<void> {
-  const res = await fetch(buildClientApiUrl("/api/tts"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, npcId }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as { error?: string }).error ?? `TTS 失败 (${res.status})`
-    );
+async function fetchAndPlayTts(
+  text: string,
+  npcId: NpcId,
+  playbackKey = `tts:${npcId}:${text}`,
+  onStop?: () => void,
+  providedAudioUrl?: string | null,
+): Promise<void> {
+  const existing = activeManagedAudio;
+  if (existing && existing.key === playbackKey && !existing.controller.signal.aborted) {
+    return;
   }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  audio.onended = () => URL.revokeObjectURL(url);
-  audio.onerror = () => URL.revokeObjectURL(url);
+
+  stopActiveManagedAudio();
+  const requestId = ++managedAudioRequestSeq;
+  const controller = new AbortController();
+  const sessionKey = playbackKey;
+  let cleanup: (() => void) | undefined;
+  let audioUrl = providedAudioUrl?.trim() || null;
+
+  activeManagedAudio = {
+    requestId,
+    key: sessionKey,
+    controller,
+    audio: null,
+    onStop,
+  };
+
   try {
+    if (!audioUrl) {
+      const req = await fetch(buildClientApiUrl("/api/tts"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, npcId }),
+        signal: controller.signal,
+      });
+      if (!req.ok) {
+        const err = await req.json().catch(() => ({}));
+        throw new Error(
+          (err as { error?: string }).error ?? `TTS request failed (${req.status})`
+        );
+      }
+
+      const blob = await req.blob();
+      audioUrl = URL.createObjectURL(blob);
+      cleanup = () => URL.revokeObjectURL(audioUrl as string);
+    }
+
+    if (!activeManagedAudio || activeManagedAudio.requestId !== requestId || controller.signal.aborted) {
+      cleanup?.();
+      return;
+    }
+
+    if (!audioUrl) {
+      cleanup?.();
+      return;
+    }
+
+    const audio = new Audio(audioUrl);
+    activeManagedAudio.audio = audio;
+    activeManagedAudio.cleanup = cleanup;
+
+    audio.onended = () => {
+      if (activeManagedAudio?.requestId === requestId) {
+        stopActiveManagedAudio();
+      } else {
+        cleanup?.();
+      }
+    };
+    audio.onerror = () => {
+      if (activeManagedAudio?.requestId === requestId) {
+        stopActiveManagedAudio();
+      } else {
+        cleanup?.();
+      }
+    };
+
     await audio.play();
   } catch (err) {
-    URL.revokeObjectURL(url);
+    if (controller.signal.aborted) {
+      cleanup?.();
+      return;
+    }
+    cleanup?.();
+    if (activeManagedAudio?.requestId === requestId) {
+      stopActiveManagedAudio();
+    }
     throw err;
   }
 }
@@ -327,13 +403,13 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-[8px] font-medium text-[#7A7060]">读音</span>
                     <span className="font-ja text-[10px] text-[#4A4438]">{data.pronunciation}</span>
-                    <button
-                      type="button"
-                      onClick={() => { void fetchAndPlayTts(selectedText, npcId); }}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] transition-colors"
-                      aria-label={copy.explain.listen}
-                      title={copy.explain.listen}
-                    >
+                      <button
+                        type="button"
+                        onClick={() => { void fetchAndPlayTts(selectedText, npcId, `lookup:${messageId}:${selectedText}`).catch(() => undefined); }}
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] transition-colors"
+                        aria-label={copy.explain.listen}
+                        title={copy.explain.listen}
+                      >
                       <VolumeIcon size={12} />
                     </button>
                   </div>
@@ -522,7 +598,7 @@ function FeedbackDrawer({
     }
     setTtsErrorKey(null);
     setTtsLoadingKey(key);
-    try { await fetchAndPlayTts(sampleText, npcId); }
+    try { await fetchAndPlayTts(sampleText, npcId, `feedback:${messageId}:${key}`); }
     catch { setTtsErrorKey(key); }
     finally { setTtsLoadingKey(null); }
   };
@@ -805,7 +881,6 @@ export function ChatBubble({
   const userTempAudioUrlRef = useRef<string | null>(null);
   const npcAudioRef = useRef<HTMLAudioElement | null>(null);
   const npcObjectUrlRef = useRef<string | null>(null);
-  const npcPlaybackRequestIdRef = useRef(0);
   const copy = getUiCopy(uiLanguage);
   const actionButtonClass =
     "mt-1 inline-flex items-center gap-1.5 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/72 px-2.5 py-1 text-[9px] text-[#6F6658] transition-colors hover:bg-[#E8E0CE] hover:text-[#2D4A1F] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
@@ -858,7 +933,7 @@ export function ChatBubble({
     return () => {
       userAudioRef.current?.pause();
       revokeUserTempAudioUrl();
-      if (npcAudioRef.current && activeManagedAudio?.audio === npcAudioRef.current) {
+      if (activeManagedAudio) {
         stopActiveManagedAudio();
       } else if (npcAudioRef.current) {
         try {
@@ -945,105 +1020,56 @@ export function ChatBubble({
   };
 
   const playStandardAudio = async () => {
+    const playbackKey = `assistant:${messageId}`;
     // Guard against repeated clicks while this bubble is requesting or playing.
     if (isNpcAudioLoading || isNpcAudioPlaying) return;
-
-    const requestId = npcPlaybackRequestIdRef.current + 1;
-    npcPlaybackRequestIdRef.current = requestId;
-    setIsNpcAudioLoading(true);
-
-    // Stop any currently playing audio (possibly from another message bubble).
-    stopActiveManagedAudio();
-    if (npcObjectUrlRef.current) {
-      URL.revokeObjectURL(npcObjectUrlRef.current);
-      npcObjectUrlRef.current = null;
+    if (activeManagedAudio && activeManagedAudio.key === playbackKey && !activeManagedAudio.controller.signal.aborted) {
+      return;
     }
 
-    let currentAudio: HTMLAudioElement | null = null;
-    try {
-      let audioUrl = npcAudioUrl ?? "";
-      let cleanup: (() => void) | undefined;
+    setIsNpcAudioLoading(true);
 
-      if (!audioUrl) {
-        const res = await fetch(buildClientApiUrl("/api/tts"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, npcId }),
-        });
-        if (!res.ok) {
-          throw new Error(`TTS request failed (${res.status})`);
+    const handleManagedAudioStop = () => {
+      if (npcAudioRef.current) {
+        try {
+          npcAudioRef.current.pause();
+          npcAudioRef.current.currentTime = 0;
+          npcAudioRef.current.onended = null;
+          npcAudioRef.current.onerror = null;
+          npcAudioRef.current.src = "";
+          npcAudioRef.current.load();
+        } catch {
+          // no-op: state cleanup should never block UI interaction.
         }
-        const blob = await res.blob();
-        audioUrl = URL.createObjectURL(blob);
-        npcObjectUrlRef.current = audioUrl;
-        cleanup = () => {
-          if (npcObjectUrlRef.current === audioUrl) {
-            URL.revokeObjectURL(audioUrl);
-            npcObjectUrlRef.current = null;
-          }
-        };
       }
+      npcAudioRef.current = null;
+      setIsNpcAudioLoading(false);
+      setIsNpcAudioPlaying(false);
+    };
 
-      // Ignore stale response when user has triggered another playback intent.
-      if (npcPlaybackRequestIdRef.current !== requestId) {
-        cleanup?.();
+    try {
+      await fetchAndPlayTts(text, npcId, playbackKey, handleManagedAudioStop, npcAudioUrl);
+      if (activeManagedAudio?.key !== playbackKey) {
         return;
       }
-
-      const audio = new Audio(audioUrl);
-      currentAudio = audio;
-      npcAudioRef.current = audio;
-      activeManagedAudio = {
-        audio,
-        cleanup,
-        onStop: () => {
-          if (npcAudioRef.current === audio) {
-            setIsNpcAudioPlaying(false);
-            setIsNpcAudioLoading(false);
-            npcAudioRef.current = null;
-          }
-        },
-      };
-
-      audio.onended = () => {
-        if (npcAudioRef.current === audio) {
-          setIsNpcAudioPlaying(false);
-          setIsNpcAudioLoading(false);
-          npcAudioRef.current = null;
-        }
-        if (activeManagedAudio?.audio === audio) {
-          stopActiveManagedAudio();
-        }
-      };
-
-      audio.onerror = () => {
-        if (npcAudioRef.current === audio) {
-          setIsNpcAudioPlaying(false);
-          setIsNpcAudioLoading(false);
-          npcAudioRef.current = null;
-        }
-        if (activeManagedAudio?.audio === audio) {
-          stopActiveManagedAudio();
-        }
-        // keep non-blocking error signal in console, avoid disruptive UI alerts.
-        console.warn("NPC audio playback error.");
-      };
-
+      npcAudioRef.current = activeManagedAudio.audio;
       setIsNpcAudioLoading(false);
       setIsNpcAudioPlaying(true);
-      await audio.play();
     } catch (error) {
       setIsNpcAudioLoading(false);
       setIsNpcAudioPlaying(false);
-      if (npcAudioRef.current === currentAudio) {
+      if (npcAudioRef.current) {
+        try {
+          npcAudioRef.current.pause();
+          npcAudioRef.current.currentTime = 0;
+          npcAudioRef.current.onended = null;
+          npcAudioRef.current.onerror = null;
+          npcAudioRef.current.src = "";
+          npcAudioRef.current.load();
+        } catch {
+          // no-op
+        }
         npcAudioRef.current = null;
-      }
-      if (currentAudio && activeManagedAudio?.audio === currentAudio) {
-        stopActiveManagedAudio();
-      }
-      if (npcObjectUrlRef.current && !npcAudioUrl) {
-        URL.revokeObjectURL(npcObjectUrlRef.current);
-        npcObjectUrlRef.current = null;
       }
       // Browser autoplay/promise rejection should not lock the UI state.
       console.warn("NPC audio play() rejected or TTS fetch failed.", error);
