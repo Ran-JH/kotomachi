@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createChatCompletion } from "@/lib/llm";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { getTimeOfDay } from "@/lib/npc";
@@ -49,23 +49,6 @@ function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): stri
   if (npcId === "taisho") return "おっ、また来たな。今日はどんな調子だ？";
   if (npcId === "kimura") return "お、また来たね。今日は何があった？";
   return "また来てくれてうれしいです。今日はどんな一日でしたか？";
-}
-
-function sanitizeWelcomeMessage(message: string, npcId: string, isInitialVisit: boolean): string {
-  const ownName = NPC_DISPLAY_NAMES[npcId] ?? "";
-  const revisitTonePattern =
-    /(久しぶり|また来(?:た|てくれた)|今日も来(?:た|てくれた)|よく来てくれた|しばらくぶり|前回|この前|さっきの話)/g;
-  const cleaned = message
-    .replace(/[0-9０-９]+[ 　]*(時間|分|日|週間|ヶ月|か月|年)ぶり/g, "久しぶり")
-    .replace(/[一二三四五六七八九十百千万]+[ 　]*(時間|分|日|週間|ヶ月|か月|年)ぶり/g, "久しぶり")
-    .replace(ownName ? new RegExp(`^\\s*${ownName}[、，]\\s*`) : /$^/, "")
-    .trim();
-
-  if (!cleaned) return getFallbackWelcomeMessage(npcId, isInitialVisit);
-  if (isInitialVisit && revisitTonePattern.test(cleaned)) {
-    return getFallbackWelcomeMessage(npcId, true);
-  }
-  return cleaned;
 }
 
 function sanitizeWelcomeMessageSafe(message: string, npcId: string, isInitialVisit: boolean): string {

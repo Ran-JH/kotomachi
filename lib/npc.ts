@@ -1,4 +1,4 @@
-export type NpcId = "kimura" | "misaki" | "taisho";
+﻿export type NpcId = "kimura" | "misaki" | "taisho";
 
 export const NPC_NAMES: Record<NpcId, string> = {
   misaki: "美咲 ☕",
@@ -212,17 +212,6 @@ interface ArcRecord {
   startDate: string; // YYYY-MM-DD
 }
 
-function getTodayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function daysBetween(dateStr1: string, dateStr2: string): number {
-  const d1 = new Date(dateStr1);
-  const d2 = new Date(dateStr2);
-  return Math.floor((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-}
-
 /** 获取弧线记录（仅客户端） */
 function getArcRecord(npcId: NpcId): ArcRecord | null {
   if (typeof window === "undefined") return null;
@@ -233,37 +222,6 @@ function getArcRecord(npcId: NpcId): ArcRecord | null {
   } catch {
     return null;
   }
-}
-
-/** 保存弧线记录（仅客户端） */
-function safeSetLocalStorageItem(key: string, value: string): boolean {
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch (error) {
-    console.warn("[npc] localStorage write failed", {
-      key,
-      reason: error instanceof Error ? error.name : "unknown",
-    });
-    return false;
-  }
-}
-
-function saveArcRecord(npcId: NpcId, record: ArcRecord): void {
-  if (typeof window === "undefined") return;
-  safeSetLocalStorageItem(`kotomachi_arc_${npcId}`, JSON.stringify(record));
-}
-
-/** 找到下一条弧线（循环） */
-function getNextArc(npcId: NpcId, currentArcId: string): LifeArc {
-  const arcs = NPC_ARCS[npcId];
-  const idx = arcs.findIndex((a) => a.id === currentArcId);
-  return arcs[(idx + 1) % arcs.length];
-}
-
-/** 找到指定弧线 */
-function findArc(npcId: NpcId, arcId: string): LifeArc | undefined {
-  return NPC_ARCS[npcId].find((a) => a.id === arcId);
 }
 
 /** 用日期计算稳定的弧线索引 */
