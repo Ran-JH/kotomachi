@@ -1,468 +1,145 @@
-# Kotomachi 首页新架构 Spec v1.0 (✅ Implemented)
+# Kotomachi 首页架构规范
 
-## 1. 背景
+## 1. 当前状态
 
-### 1.1 当前实现方式
+Kotomachi 首页已经从早期“热区地图 + 点击建筑”方案，切换到 **hybrid homepage v1**。  
+现在首页的目标不是做一张大图卡片，也不是恢复老热区交互，而是把街区氛围、入口和继续会话整合成一个清楚的 landing canvas。
 
-Kotomachi 当前首页使用：
-- AI 生成一张包含 3 个建筑的街景图
-- 手动抠图拆分为独立建筑 PNG
-- SVG 热区覆盖 + 图片叠加实现 hover 效果
-- 点击热区进入对应 NPC 聊天
+当前首页由以下几个部分组成：
 
-### 1.2 当前方案问题
-
-- 只适合 3 NPC 原型
-- 扩展新建筑和新 NPC 成本高
-- AI 扩图难以保持一致风格
-- 手机端 hover 不稳定
-- 入口依赖图片结构，而不是数据结构
-- 未来生活/留学/工作等场景难以承载
+- **Hero atmosphere layer**：雨后街区风格的横向 hero 图，只承担氛围，不承担热区交互；
+- **SceneEntrySection**：当前聊天入口，按场景 / NPC 结构化展示；
+- **ContinueSection**：继续最近一次聊天；
+- **InspirationSection**：Today Inspiration / starter prefill；
+- **Legacy heat-zone interaction**：已退役，不应再作为主入口出现。
 
 ---
 
-## 2. 新架构目标
+## 2. 设计目标
 
-采用**方案 C**：
-- 街景图保留为氛围层
-- 真实入口改成场景/NPC 结构化卡片
-- 不再把街景热区作为唯一主导航
-- 后续新增 NPC 是加数据和卡片，不是重做大图
+首页应该让人感觉像进入一个安静的街区场景，而不是进入 dashboard、poster gallery，或者 mobile mockup。
 
-**核心句：**  
-Kotomachi 首页不应继续依赖“AI 街景图 + 手动热区”作为长期入口。新的首页应该保留街区氛围，但把真正导航交给结构化场景和 NPC 模块。
+核心目标：
 
----
-
-## 3. 产品原则
-
-### 3.1 保留街区感，但不被街区图绑死
-
-首页仍要有“言街”的小街区氛围，但街景图不再承担复杂点击热区。
-
-### 3.2 真实入口结构化
-
-入口应该是：
-- 日常生活
-- 留学生活
-- 工作场景
-
-每个场景下挂 NPC。
-
-### 3.3 Mobile-first
-
-Mobile 不依赖 hover，卡片是主要入口。
-
-### 3.4 低压力入口
-
-首页文案不要像任务面板，而应像：  
-“今天想去哪儿坐坐、和谁聊两句？”
+1. 保留街区气氛；
+2. 让真正的入口清楚可见；
+3. 让用户能立刻知道“去哪里聊”；
+4. 给后续新增 NPC 留出扩展空间；
+5. 在 desktop 和 mobile 上都保持自然。
 
 ---
 
-## 4. 信息架构
+## 3. 页面结构
 
-清晰层级：
+### 3.1 Desktop
 
-1. **氛围层**：街区封面 / 世界观入口
-2. **入口层**：场景卡片 / NPC 卡片
-3. **延续层**：最近聊天 / 回顾入口
-4. **轻引导层**：今日灵感 / 低压力开口提示
+推荐结构：
 
----
+```txt
+Page root: full width
 
-## 5. 页面结构
+Top landing area:
+  hero image as atmosphere background
+  brand “言街 Kotomachi” in the same visual canvas
+  language toggle on the right
+  optional subtitle / atmosphere line
+  SceneEntrySection attached to the hero bottom
 
-### 5.1 Desktop Layout
-
-建议结构：
-
+Below:
+  ContinueSection
+  InspirationSection
 ```
-Header
-  左侧：言街 Kotomachi + subtitle
-  右侧：语言切换 + Help
-
-Hero / 街区氛围图
-  当前街景插画
-  不再作为主要点击热区
-  可保留轻量 hover / 氛围说明，但不是核心入口
-
-Main Entry
-  标题：今天想去哪儿聊？
-  场景卡片组：
-    日常生活
-      木村｜便利店
-      美咲｜咖啡店
-      大将｜居酒屋
-    留学生活
-      室友
-      同学
-      老师 / TA
-    工作场景
-      前辈
-      同事
-      上司
-
-Continue
-  继续上次聊天
-  最近 1–3 条会话入口
-
-Inspiration
-  今日灵感
-  2–3 条低压力话题 chip
-```
-
-### 5.2 Mobile Layout
-
-建议结构：
-
-```
-Top Bar
-  menu / optional
-  言街 Kotomachi
-  语言切换
-
-Hero Banner
-  横向街景缩略图
-  高度控制，不占满首屏
-
-Scene Cards
-  日常生活 card
-  留学生活 card
-  工作场景 card
-
-Continue
-  最近聊天列表
-
-Inspiration
-  今日灵感 chips
-```
-
-说明：mobile 不依赖建筑 hover，场景卡片才是主入口。
-
----
-
-## 6. MVP 范围
-
-### Phase 1：只重构当前 3 NPC 入口
-
-不要马上新增留学/工作 NPC。  
-先只显示：
-- 街区氛围图
-- 今天想去哪儿聊？
-- 日常生活
-  - 木村｜便利店
-  - 美咲｜咖啡店
-  - 大将｜居酒屋
-- 继续上次聊天
-- 今日灵感
-
-留学生活和工作场景可以先不展示，避免用户误点空场景。
-
-### Phase 2：加入场景分组
-
-未来再展示：
-- 日常生活
-- 留学生活
-- 工作场景
-
-### Phase 3：场景详情页，可选
-
-当 NPC 数量很多时，再考虑：
-- /scenes/daily
-- /scenes/study-abroad
-- /scenes/work
-
-当前 MVP 不需要。
-
----
-
-## 7. 数据模型
-
-建议新增：`lib/home-scenes.ts`
-
-示例结构：
-
-```typescript
-import type { NpcId } from "./npc";
-
-export type SceneId = "daily" | "study_abroad" | "work";
-
-export type HomeScene = {
-  id: SceneId;
-  title: {
-    zh: string;
-    en: string;
-  };
-  subtitle: {
-    zh: string;
-    en: string;
-  };
-  icon?: string;
-  npcIds: NpcId[];
-  status?: "active" | "coming_soon";
-};
-
-export const HOME_SCENES: HomeScene[] = [
-  {
-    id: "daily",
-    title: {
-      zh: "日常生活",
-      en: "Daily Life",
-    },
-    subtitle: {
-      zh: "在熟悉的小店里练习自然表达。",
-      en: "Practice natural expressions in everyday places.",
-    },
-    npcIds: ["kimura", "misaki", "taisho"],
-    status: "active",
-  },
-];
-```
-
-说明：
-- NPC 信息仍从现有 NPC 配置读取
-- home-scenes 不重复定义 NPC name/kana/avatar
-- 新增 NPC 时，只需要在 NPC 配置中新增角色，再加入 HOME_SCENES
-
----
-
-## 8. 组件设计
-
-建议拆分：
-
-### HomeHeader
-- 职责：品牌展示 + 语言切换 + Help
-
-### HomeHero
-- 职责：氛围图展示
-- 重点：只负责氛围图，不再承担主导航
-
-### SceneEntrySection
-- 职责：主入口场景卡片组
-- 重点：是新首页的核心导航区
-
-### SceneCard
-- 职责：单个场景卡片展示
-
-### NpcMiniCard
-- 职责：NPC 入口小卡片
-- 重点：点击进入 /chat/[npcId]
-
-### ContinueSection
-- 职责：最近聊天入口
-- 重点：读取最近聊天
-
-### InspirationSection
-- 职责：今日灵感轻引导
-- 重点：只做轻引导，不做打卡任务
-
----
-
-## 9. 视觉设计原则
-
-### 9.1 街景图
-
-从“交互地图”降级为“氛围封面”。
 
 要求：
-- 不再需要精确手动热区
-- 不要求所有建筑都能 hover
-- 可以继续使用当前街景图
-- 未来可以替换成更泛化 banner
-- 不再因为新增 NPC 而扩建原图
 
-### 9.2 场景卡片
+- 不要把整个页面包进窄的 mobile shell；
+- hero 不要像单独的图片卡片；
+- SceneEntrySection 要和 hero 视觉连在一起；
+- Continue / Inspiration 使用同一套内容宽度系统。
 
-延续：
-- 米白背景
-- 深绿标题
-- 柔和边框
-- 圆角
-- 温和阴影
-- 不像任务卡，不像游戏关卡
+### 3.2 Mobile
 
-### 9.3 NPC Mini Card
+Mobile 要更简洁：
 
-建议显示：
-- 头像
-- 姓名
-- 地点 / 身份
-- 当前一句轻量状态，可选
-
-不要展示太多信息。
+- 标题和 language toggle 不重叠；
+- hero 不占满整个首屏；
+- SceneEntry 仍然清楚；
+- Continue / Inspiration 仍然可读；
+- 不允许页面横向溢出；
+- 只有 NPC rail 在需要时才允许横向滚动。
 
 ---
 
-## 10. 交互规则
+## 4. 组件职责
 
-### 10.1 进入聊天
+### HomeHeader
 
-点击 NPC mini card：
-- router.push(`/chat/${npcId}`)
+- brand
+- subtitle
+- language toggle
+- help / install guidance 的入口（如果有）
 
-### 10.2 场景卡点击
+### HomeHero
 
-Phase 1 可以不做场景详情页。  
-如果有“进入场景”按钮，可以先展开 NPC 列表或进入第一个 NPC，但推荐先不复杂化。
+- 只负责氛围图
+- 不承担点击热区
+- 不恢复旧 hover card
 
-### 10.3 最近聊天
+### SceneEntrySection
 
-点击最近聊天卡：
-- router.push(`/chat/${npcId}`)
+- 当前主入口
+- NPC card / 场景卡
+- 用于进入聊天
 
-### 10.4 今日灵感
+### ContinueSection
 
-Phase 1 可以只展示，不强制绑定 NPC。  
-后续再考虑点击后选择 NPC 或带 prompt 进入聊天。
+- 最近聊天入口
+- 只负责继续会话
 
----
+### InspirationSection
 
-## 11. 响应式规则
-
-### Desktop
-- Header 固定在顶部视觉区域
-- Hero 用 clamp / max-width
-- 场景卡片最多 3 列
-- 页面不横向溢出
-
-### Mobile
-- Header 不重叠
-- Hero banner 不占满首屏
-- Scene cards 单列
-- NPC mini cards 可网格或横向小排列
-- 不依赖 hover
-- 无横向滚动
+- 今日灵感 / starter prefill
+- 只负责低压力开口，不自动发送
 
 ---
 
-## 12. 迁移策略
+## 5. 交互原则
 
-步骤：
-
-**Step 1：新增首页 scene 配置**
-新建 `lib/home-scenes.ts`，只包含 daily 场景和当前三个 NPC。
-
-**Step 2：保留现有街景图，但移除对热区导航的依赖**
-街景继续显示，真实入口改为 scene/NPC cards。
-
-**Step 3：实现 SceneEntrySection**
-
-**Step 4：实现 ContinueSection**
-
-**Step 5：实现 InspirationSection**
-
-**Step 6：清理旧 hover 热区逻辑**
-新入口稳定后，再弱化或删除 SVG heat zone 主导航依赖。
+- hero 不可点击；
+- 不恢复旧热区；
+- 不恢复 hover card；
+- SceneEntry 卡片点击进入对应聊天；
+- Continue 卡片点击进入最近聊天；
+- Inspiration 点击只填入 starter，不自动发送；
+- 视觉层级要明确：hero 是氛围，SceneEntry 才是入口。
 
 ---
 
-## 13. 非目标
+## 6. 移动端注意事项
 
-本次首页重构不做：
-- 新增 NPC
-- 新增场景详情页
-- 账号系统
-- 云同步
-- 数据库
-- AI prompt
-- 复杂地图编辑系统
-- 街景扩图
-- APK / 原生 app
-- chat / explain / feedback / summary API 修改
+- hero 高度要适中；
+- brand 和 toggle 要能正常阅读；
+- SceneEntry 的卡片不要逼成过窄 3 列；
+- 如需横向 rail，只让 NPC 区域滚动；
+- 不要让整页横向溢出；
+- 不要用粗暴的固定偏移去“硬推”手机端布局。
 
 ---
 
-## 14. 验收标准
+## 7. 不应该出现的东西
 
-### Desktop
-- 首页仍保留街区氛围图
-- 街景图不再是唯一聊天入口
-- 页面下方有结构化场景/NPC 入口
-- 点击木村/美咲/大将可进入对应聊天
-- 标题、语言切换、Help 不重叠
-- 页面不横向溢出
-
-### Mobile
-- 品牌和语言切换不重叠
-- 街景图缩放自然
-- 场景卡片单列
-- NPC 入口清楚可点
-- 不依赖 hover
-- PWA 内正常
-
-### 功能回归
-- Chat 正常
-- STT/TTS 正常
-- Expression Hints 正常
-- Word Explanation 正常
-- Review Cards 正常
-- Saved Items 正常
-- Topic Ideas 正常
-- 不修改 API / prompt / package / env
+- old heat-zone interaction；
+- 可点击的 hero；
+- 头图变成单独图片卡；
+- 局部大阴影造成 dashboard 感；
+- 把首页做成 mobile shell 的 desktop 版本；
+- 用过多空白把入口推得太远。
 
 ---
 
-## 15. 推荐实施包
+## 8. 迭代约束
 
-**Pack H0：Homepage architecture doc**  
-只新增本文档，不改代码。  
-Commit: `docs: add homepage architecture spec`
+- 新增 NPC 时，优先补数据和入口，不要重做大图；
+- 新增场景时，优先作为结构化入口，不要恢复复杂热区；
+- 首页变化优先服务“低压力开口”与“继续聊天”。
 
-**Pack H1：Home scene data model**  
-新增 lib/home-scenes.ts。  
-Commit: `feat: add home scene model`
-
-**Pack H2：Hybrid homepage layout**  
-实现 header / hero / scene entry section。  
-Commit: `feat: add hybrid homepage layout`
-
-**Pack H3：Recent chats and inspiration**  
-增加继续上次聊天和今日灵感。  
-Commit: `feat: add home continue and inspiration sections`
-
-**Pack H4：Retire heat-zone dependency**  
-稳定后弱化或删除旧 SVG heat zone 主导航依赖。  
-Commit: `refactor: retire home heat zone navigation`
-
----
-
-## 16. 一句话设计结论
-
-Kotomachi 首页不应继续依赖“AI 街景图 + 手动热区”作为长期入口。新的首页应该保留街区氛围，但把真正的导航交给结构化场景和 NPC 模块。这样既保留“言街”的世界感，也让未来扩展生活、留学、工作场景变得可控。
-
----
-
-## 17. 已完成 v1 总结 (2026-05-30)
-
-### 17.1 实现范围
-
-✅ **已完成**：
-
-- 首页场景数据模型 (`lib/home-scenes.ts`)
-- Hybrid 首页布局：Hero banner + 场景入口 + 继续聊天 + 今日灵感
-- 新版单一 Hero banner (`/home/home-hero-rainy-street.png`)
-- SceneEntrySection：结构化场景/NPC 入口卡片
-- ContinueSection：最近聊天历史入口
-- InspirationSection：今日灵感与 starter prefill（不自动发送）
-- 旧 heat-zone 交互完全退役
-- 首页来源统一：NPC 都从 `HOME_SCENES` 派生，避免硬编码
-- 响应式布局：Mobile-first，hero 不占满首屏
-
-### 17.2 关键架构决策
-
-- **Hero = 氛围层**：只负责视觉氛围，不承担点击导航
-- **SceneEntry = 真实入口层**：结构化场景/NPC 卡片，来自 `HOME_SCENES` 数据模型
-- **Continue = 延续层**：降低打开 friction
-- **Inspiration = 轻引导层**：降低“不知道说什么”的压力
-- **旧 heat-zone 完全退役**：不再依赖 SVG 透明热区交互
-- **未来场景**：study_abroad / work 先不展示，等有真实内容再上线
-
-### 17.3 产品与工程叙事要点（用于作品集/面试）
-
-- 从 clickable heat-zone MVP 迁移到 data-driven scene architecture
-- 分离了氛围层和导航层，避免被图片结构绑死
-- 通过 Continue 和 Inspiration 解决了“持续打开”和“不知道说什么”的两个核心问题
-- 用 `HOME_SCENES` 作为单一事实源，新增 NPC 只需要加数据，不需要重做大图
-- Starter prefill 但不 auto-send，保留用户控制感和低压力体验
-- 体现了产品判断：先稳定当前，不提前展示空场景
