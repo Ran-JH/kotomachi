@@ -4,59 +4,68 @@ import { createChatCompletion } from "@/lib/llm";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT: ChatCompletionMessageParam = {
-  role: "system",
-  content: `你是 Kotomachi 的划词解释助手。语气要轻松，但信息必须准确、有学习价值。
-用户会给你一个被划选的日语词/短语/句子（selectedText）和它所在的完整句子（fullSentence）。
-
-先判断 selectedText 是单词、短语，还是较长句子：
-- 如果是单词或短语，只解释 selectedText 本身，不要把整句翻译塞进 translation。
-- 如果是较长句子，translation 要明确写“这句话的意思：...”。
-- 汉字词尽量给出假名读音。
-- 口语表达、语气词、短语要说明它在当前句子里的功能。
-- nuance_explanation 要补充语感、使用场景、可复用例句或相关表达，不能只是重复 translation 或 sentence_meaning。
-- 不要写长篇语法论文，不要用考试批改口吻。
-
-请用 JSON 返回以下字段，不要输出任何多余文本：
-{
-  "pronunciation": "selectedText 的读音假名；不确定可为空",
-  "translation": "selectedText 本身的简短中文释义；如果 selectedText 是整句，要写明这是句意",
-  "sentence_meaning": "selectedText 在 fullSentence 这句话里的意思，或整句自然中文意思",
-  "nuance_explanation": "语感/使用场景/可复用例句或相关表达，2-4句，简短但有信息量"
-}`,
-};
-
 interface ExplainResponse {
   pronunciation: string;
   translation: string;
   sentence_meaning: string;
   nuance_explanation: string;
+  word?: string;
+  originalSelection?: string;
+  wasCorrected?: boolean;
 }
+
+const SYSTEM_PROMPT: ChatCompletionMessageParam = {
+  role: "system",
+  content: `你是 Kotomachi 的划词查词助手。语气要轻松，但信息必须准确、有学习价值。
+
+用户会给你一个被划选的日语词/短语/句子（selectedText）和它所在的完整句子（fullSentence）。
+你要先判断 selectedText 是单词、短语，还是较长句子。
+
+输出严格 JSON，不要输出多余解释。字段如下：
+{
+  "word": "适合展示和收藏的自然查词单位；如果 selectedText 只是一部分，请根据 fullSentence 修正为更完整自然的词或短语；不确定时保留 selectedText",
+  "originalSelection": "用户原始选区 selectedText",
+  "wasCorrected": true/false,
+  "pronunciation": "selectedText 或 word 的读音；不确定可为空",
+  "translation": "word 本身的简短释义；如果是整句，要写明这是句意",
+  "sentence_meaning": "word 在 fullSentence 里的意思，或整句自然意思",
+  "nuance_explanation": "语感 / 使用场景 / 可复用例句，3-4 句，简短但有信息量"
+}
+
+规则：
+1) 如果 selectedText 是完整词，word 保持原词。
+2) 如果 selectedText 是词的一部分，应根据 fullSentence 修正成更完整自然的查词单位。
+3) 不确定时不要过度扩展，保留 selectedText。
+4) 日语原词、读音、日语例句保持日语，不要替换成英文词本体。
+5) 不要翻译 NPC 原句引用。
+6) translation / sentence_meaning / nuance_explanation 的语言跟随 uiLanguage。
+`,
+};
 
 const KNOWN_EXPLAINS: Record<string, ExplainResponse> = {
   夜勤: {
     pronunciation: "やきん",
     translation: "夜班 / 夜间工作",
-    sentence_meaning: "在这句话里，是说“夜班那边的诱惑/吸引力更强吧”。",
-    nuance_explanation: "「夜勤」指晚上工作的班次，不是“夜晚很勤快”。像「夜勤がある」「夜勤明け」都很常见。",
+    sentence_meaning: "在这句话里，是说夜班那边的吸引力更强一些。",
+    nuance_explanation: "‘夜勤’指晚上工作的班次，不是‘夜晚很勤快’。像‘夜勤明け’、‘夜勤がある’都很常见。",
   },
   誘惑: {
     pronunciation: "ゆうわく",
     translation: "诱惑 / 吸引力",
     sentence_meaning: "在这句话里，是说夜班带来的吸引力更强。",
-    nuance_explanation: "「誘惑」可以指让人忍不住想选的东西或条件。这里不是严肃的“诱惑犯罪”，而是轻松地说“那边更有吸引力”。",
+    nuance_explanation: "‘誘惑’可以指让人忍不住想选的东西或条件。这里不是严肃的‘诱惑犯罪’，而是轻松地说‘那边更有吸引力’。",
   },
   寝たい: {
     pronunciation: "ねたい",
     translation: "想睡觉",
-    sentence_meaning: "在这句话里，是说“我现在马上想睡了”。",
-    nuance_explanation: "「たい」接在动词ます形词干后，表示“想做某事”。「寝たい」很日常，直接表达自己现在想睡。",
+    sentence_meaning: "在这句话里，是说我现在马上想睡了。",
+    nuance_explanation: "‘〜たい’接在动词后面，表示想做某事。‘寝たい’是很日常、直接地表达‘想睡’。",
   },
   間違え: {
     pronunciation: "まちがえ",
-    translation: "弄错 / 错误",
-    sentence_meaning: "在这句话里，是在说自己刚才把同一件事说了两遍。",
-    nuance_explanation: "「間違え」常用来轻轻承认一个小失误。口语里可以说「間違えちゃった」，语气比较放松。",
+    translation: "弄错 / 出错",
+    sentence_meaning: "在这句话里，是说刚才把同一件事说了两遍。",
+    nuance_explanation: "‘間違え’常用来轻松承认一个小错误。口语里可以说‘間違えちゃった’。",
   },
 };
 
@@ -66,15 +75,66 @@ function cleanText(value: unknown): string {
 
 function isLikelySentence(value: string): boolean {
   const text = value.trim();
-  return /[。！？!?、]/.test(text) || text.length >= 14;
+  return /[。！？?!、]/.test(text) || text.length >= 14;
+}
+
+function isKatakanaLike(value: string): boolean {
+  return /^[ァ-ヶー・]+$/.test(value.trim());
+}
+
+function inferLookupWord(selectedText: string, fullSentence: string): {
+  word: string;
+  originalSelection: string;
+  wasCorrected: boolean;
+} {
+  const originalSelection = selectedText.trim();
+  const sentence = fullSentence.trim();
+  if (!originalSelection) {
+    return { word: "", originalSelection: "", wasCorrected: false };
+  }
+
+  if (!sentence || !isKatakanaLike(originalSelection)) {
+    return { word: originalSelection, originalSelection, wasCorrected: false };
+  }
+
+  const matchIndex = sentence.indexOf(originalSelection);
+  if (matchIndex < 0) {
+    return { word: originalSelection, originalSelection, wasCorrected: false };
+  }
+
+  const isWordChar = (char: string): boolean => /^[ァ-ヶー・A-Za-z0-9]+$/.test(char);
+  let start = matchIndex;
+  while (start > 0 && isWordChar(sentence[start - 1])) {
+    start -= 1;
+  }
+
+  let end = matchIndex + originalSelection.length;
+  while (end < sentence.length && isWordChar(sentence[end])) {
+    end += 1;
+  }
+
+  const candidate = sentence.slice(start, end).trim();
+  if (candidate && candidate !== originalSelection) {
+    return { word: candidate, originalSelection, wasCorrected: true };
+  }
+
+  return { word: originalSelection, originalSelection, wasCorrected: false };
 }
 
 function fallbackExplain(selectedText: string, fullSentence: string): ExplainResponse {
   const selected = selectedText.trim();
   const sentence = fullSentence.trim();
   const sentenceSelected = isLikelySentence(selected);
+  const lookup = inferLookupWord(selectedText, fullSentence);
 
-  if (KNOWN_EXPLAINS[selected]) return KNOWN_EXPLAINS[selected];
+  if (KNOWN_EXPLAINS[selected]) {
+    return {
+      ...KNOWN_EXPLAINS[selected],
+      word: lookup.word,
+      originalSelection: lookup.originalSelection,
+      wasCorrected: lookup.wasCorrected,
+    };
+  }
 
   if (sentenceSelected) {
     return {
@@ -82,6 +142,9 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
       translation: `这句话的意思：${selected}`,
       sentence_meaning: sentence || selected,
       nuance_explanation: "",
+      word: lookup.word,
+      originalSelection: lookup.originalSelection,
+      wasCorrected: lookup.wasCorrected,
     };
   }
 
@@ -90,6 +153,9 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
     translation: selected,
     sentence_meaning: sentence,
     nuance_explanation: "",
+    word: lookup.word,
+    originalSelection: lookup.originalSelection,
+    wasCorrected: lookup.wasCorrected,
   };
 }
 
@@ -100,6 +166,7 @@ function normalizeExplainResponse(
 ): ExplainResponse {
   const known = KNOWN_EXPLAINS[selectedText.trim()];
   const fallback = fallbackExplain(selectedText, fullSentence);
+  const lookup = inferLookupWord(selectedText, fullSentence);
   const pronunciation =
     cleanText(parsed.pronunciation) ||
     cleanText(parsed.reading) ||
@@ -108,8 +175,8 @@ function normalizeExplainResponse(
   const translation =
     cleanText(parsed.translation) ||
     cleanText(parsed.meaning) ||
-    cleanText(parsed["简义"]) ||
-    cleanText(parsed["词义"]) ||
+    cleanText(parsed["简释"]) ||
+    cleanText(parsed["释义"]) ||
     fallback.translation;
   const sentenceMeaning =
     cleanText(parsed.sentence_meaning) ||
@@ -124,6 +191,12 @@ function normalizeExplainResponse(
     cleanText(parsed.usage) ||
     cleanText(parsed["语感"]) ||
     cleanText(parsed["使用场景"]);
+  const parsedWord = cleanText(parsed.word) || cleanText(parsed.lookupWord) || cleanText(parsed.term);
+  const parsedOriginalSelection = cleanText(parsed.originalSelection);
+  const parsedWasCorrected = typeof parsed.wasCorrected === "boolean" ? parsed.wasCorrected : undefined;
+  const word = lookup.wasCorrected ? lookup.word : (parsedWord || fallback.word || selectedText.trim());
+  const originalSelection = parsedOriginalSelection || lookup.originalSelection || selectedText.trim();
+  const wasCorrected = parsedWasCorrected ?? lookup.wasCorrected;
 
   if (known) {
     return {
@@ -131,6 +204,9 @@ function normalizeExplainResponse(
       translation: known.translation,
       sentence_meaning: sentenceMeaning || known.sentence_meaning,
       nuance_explanation: nuance || known.nuance_explanation,
+      word,
+      originalSelection,
+      wasCorrected,
     };
   }
 
@@ -139,6 +215,9 @@ function normalizeExplainResponse(
     translation,
     sentence_meaning: sentenceMeaning,
     nuance_explanation: nuance,
+    word,
+    originalSelection,
+    wasCorrected,
   };
 }
 
@@ -164,7 +243,8 @@ uiLanguage: ${targetLanguage}
 1) uiLanguage 为 en 时，translation / sentence_meaning / nuance_explanation 必须用英文。
 2) uiLanguage 为 zh 时，translation / sentence_meaning / nuance_explanation 必须用中文。
 3) 日语原词、读音、日语例句保持日语，不要替换成英文词本体。
-4) 不要翻译 NPC 原句引用。`,
+4) 不要翻译 NPC 原句引用。
+5) 如果 selectedText 只是一个词的一部分，请返回更完整、更自然的 word，并同时保留 originalSelection 和 wasCorrected。`,
     };
 
     const raw = await createChatCompletion([SYSTEM_PROMPT, userMsg], {
@@ -179,7 +259,6 @@ uiLanguage: ${targetLanguage}
         normalizeExplainResponse(parsed, selectedText, fullSentence)
       );
     } catch {
-      // JSON 解析失败时保留可用的基础解释，不把原始模型文本塞进详情区。
       return NextResponse.json(fallbackExplain(selectedText, fullSentence));
     }
   } catch (error: unknown) {

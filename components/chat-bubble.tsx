@@ -200,6 +200,9 @@ interface ExplainResult {
   translation: string;
   sentence_meaning: string;
   nuance_explanation: string;
+  word?: string;
+  originalSelection?: string;
+  wasCorrected?: boolean;
 }
 
 interface WordPopoverProps {
@@ -235,6 +238,9 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
   const [isSaved, setIsSaved] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const copy = getUiCopy(uiLanguage);
+  const displayWord = data?.word?.trim() || selectedText;
+  const originalSelection = data?.originalSelection?.trim() || selectedText;
+  const wasCorrected = Boolean(data?.wasCorrected && displayWord && displayWord !== originalSelection);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,15 +263,18 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         if (!cancelled) {
           setData(json);
           setExplainError(false);
-          setIsSaved(isWordSaved(selectedText, json.pronunciation));
+          const nextWord = (json.word ?? selectedText).trim() || selectedText;
+          setIsSaved(isWordSaved(nextWord, json.pronunciation));
           saveLookupHistory({
             schemaVersion: 1,
             id: createSummaryId("lookup"),
             npcId,
-            word: selectedText,
+            word: nextWord,
             reading: json.pronunciation,
             meaning: json.translation,
             sourceSentence: fullSentence,
+            originalSelection: (json.originalSelection ?? selectedText).trim() || selectedText,
+            wasCorrected: Boolean(json.wasCorrected && nextWord !== selectedText),
             messageId,
             createdAt: new Date().toISOString(),
           });
@@ -278,6 +287,9 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             translation: selectedText,
             sentence_meaning: fullSentence,
             nuance_explanation: "",
+            word: selectedText,
+            originalSelection: selectedText,
+            wasCorrected: false,
           });
         }
       } finally {
@@ -359,11 +371,12 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
 
   const handleToggleSave = () => {
     if (!data) return;
+    const nextWord = (data.word ?? selectedText).trim() || selectedText;
     const item: SavedWord = {
       id: createSummaryId("saved-word"),
       type: "word",
       npcId,
-      word: selectedText,
+      word: nextWord,
       reading: data.pronunciation ?? "",
       meaning: data.translation ?? "",
       meaningLanguage: uiLanguage === "en" ? "en" : "zh",
@@ -398,14 +411,21 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             <div className="flex items-start justify-between gap-2 mb-2.5">
               <div className="min-w-0">
                 <p className="text-[8px] font-medium text-[#7A7060] tracking-wide">查词</p>
-                <span className="font-ja mt-0.5 block text-[14px] font-medium text-[#28231A] leading-snug break-words">{selectedText}</span>
+                <span className="font-ja mt-0.5 block text-[14px] font-medium text-[#28231A] leading-snug break-words">{displayWord}</span>
+                {wasCorrected && (
+                  <p className="mt-0.5 text-[8px] text-[#7A7060] break-words">
+                    {uiLanguage === "en"
+                      ? `Corrected from “${originalSelection}”`
+                      : `已从「${originalSelection}」自动修正`}
+                  </p>
+                )}
                 {data.pronunciation && (
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-[8px] font-medium text-[#7A7060]">读音</span>
                     <span className="font-ja text-[10px] text-[#4A4438]">{data.pronunciation}</span>
                       <button
                         type="button"
-                        onClick={() => { void fetchAndPlayTts(selectedText, npcId, `lookup:${messageId}:${selectedText}`).catch(() => undefined); }}
+                        onClick={() => { void fetchAndPlayTts(displayWord, npcId, `lookup:${messageId}:${displayWord}`).catch(() => undefined); }}
                         className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] transition-colors"
                         aria-label={copy.explain.listen}
                         title={copy.explain.listen}

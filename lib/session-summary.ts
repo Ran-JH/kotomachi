@@ -12,6 +12,8 @@ export interface RecentLookup {
   id: string;
   npcId: NpcId;
   word: string;
+  originalSelection?: string;
+  wasCorrected?: boolean;
   reading?: string;
   meaning?: string;
   sourceSentence?: string;
@@ -250,6 +252,8 @@ export function saveLookupHistory(lookup: RecentLookup): void {
     id: lookup.id,
     npcId: lookup.npcId,
     word: trimText(lookup.word, 80) ?? lookup.word,
+    originalSelection: trimText(lookup.originalSelection, 80),
+    wasCorrected: lookup.wasCorrected,
     reading: trimText(lookup.reading, 80),
     meaning: trimText(lookup.meaning, 120),
     sourceSentence: trimText(lookup.sourceSentence, 220),

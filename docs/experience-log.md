@@ -90,3 +90,16 @@
 - Prefer one concrete eval case over a long paragraph.
 - If a problem is intentionally left unresolved, say so directly.
 
+## 2026-06-02 - Word lookup partial selection correction
+- Source: real use / internal review
+- NPC: Misaki
+- Input mode: text
+- Feature area: Word Explanation / Saved Items / Review Cards
+- Problem type: selected text normalization
+- Observation: When selecting only part of a Japanese word, e.g. アテマラ inside グアテマラの狭, the explanation could infer the right meaning from context, but the saved word remained incomplete.
+- Diagnosis: API explanation and saved lookup data used different notions of the lookup term; saving still relied on raw selectedText.
+- Fix: Let /api/explain return a corrected lookup term based on sourceSentence, and use that term for display, Saved Items, and recent lookup history.
+- Eval case: Selecting アテマラ in 書晩はグアテマラの狭がおすすめですよ should display and save グアテマラ, not アテマラ.
+- Public note: Word lookup now better handles imperfect text selection, which is common on mobile and in real reading flow.
+- Severity: Medium
+- Status: Fixed / Needs eval
