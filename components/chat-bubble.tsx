@@ -554,10 +554,11 @@ function FeedbackDrawer({
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
   const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
+  const [ttsPlayingKey, setTtsPlayingKey] = useState<FeedbackLevelKey | null>(null);
+  const [isUserRecordingPlaying, setIsUserRecordingPlaying] = useState(false);
   const [expandedAnalysisKey, setExpandedAnalysisKey] = useState<FeedbackLevelKey | null>(null);
   const [overflowingAnalysisKeys, setOverflowingAnalysisKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
   const [savedKeys, setSavedKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
-  const userAudioRef = useRef<HTMLAudioElement | null>(null);
   const userTempAudioUrlRef = useRef<string | null>(null);
   const analysisRefs = useRef<Partial<Record<FeedbackLevelKey, HTMLParagraphElement | null>>>({});
   const hasUserRecording = Boolean(userAudioUrl || userAudioBlob);
@@ -569,27 +570,50 @@ function FeedbackDrawer({
     userTempAudioUrlRef.current = null;
   }, []);
 
-  const playUserRecording = useCallback(() => {
+  const stopFeedbackAudio = useCallback(() => {
+    stopActiveManagedAudio();
+    setTtsLoadingKey(null);
+    setTtsErrorKey(null);
+    setTtsPlayingKey(null);
+    setIsUserRecordingPlaying(false);
     revokeUserTempAudioUrl();
-    if (userAudioUrl) {
-      const audio = new Audio(userAudioUrl);
-      userAudioRef.current = audio;
-      void audio.play().catch(() => undefined);
+  }, [revokeUserTempAudioUrl]);
+
+  const playUserRecording = useCallback(async () => {
+    const playbackKey = `feedback-recording:${messageId}`;
+    if (activeManagedAudio && activeManagedAudio.key === playbackKey && !activeManagedAudio.controller.signal.aborted) {
+      stopFeedbackAudio();
       return;
     }
-    if (userAudioBlob) {
-      const url = URL.createObjectURL(userAudioBlob);
-      userTempAudioUrlRef.current = url;
-      const audio = new Audio(url);
-      userAudioRef.current = audio;
-      audio.onended = revokeUserTempAudioUrl;
-      audio.onerror = revokeUserTempAudioUrl;
-      void audio.play().catch(revokeUserTempAudioUrl);
+
+    let audioUrl = userAudioUrl?.trim() || null;
+    if (!audioUrl && userAudioBlob) {
+      revokeUserTempAudioUrl();
+      audioUrl = URL.createObjectURL(userAudioBlob);
+      userTempAudioUrlRef.current = audioUrl;
     }
-  }, [revokeUserTempAudioUrl, userAudioBlob, userAudioUrl]);
+    if (!audioUrl) return;
+
+    setIsUserRecordingPlaying(true);
+    try {
+      await fetchAndPlayTts("", npcId, playbackKey, () => {
+        setIsUserRecordingPlaying(false);
+        revokeUserTempAudioUrl();
+      }, audioUrl);
+    } catch (error) {
+      setIsUserRecordingPlaying(false);
+      revokeUserTempAudioUrl();
+      console.warn("Feedback recording play() rejected or failed.", error);
+    }
+  }, [messageId, npcId, revokeUserTempAudioUrl, userAudioBlob, userAudioUrl, stopFeedbackAudio]);
 
   const playLevelSample = async (key: FeedbackLevelKey, nativeSay: string) => {
-    if (ttsLoadingKey) return;
+    const playbackKey = `feedback:${messageId}:${key}`;
+    if (activeManagedAudio && activeManagedAudio.key === playbackKey && !activeManagedAudio.controller.signal.aborted) {
+      stopFeedbackAudio();
+      return;
+    }
+
     onSuggestionPlayed?.(key);
     const sampleText = nativeSay.trim();
     if (!sampleText) {
@@ -598,9 +622,24 @@ function FeedbackDrawer({
     }
     setTtsErrorKey(null);
     setTtsLoadingKey(key);
-    try { await fetchAndPlayTts(sampleText, npcId, `feedback:${messageId}:${key}`); }
-    catch { setTtsErrorKey(key); }
-    finally { setTtsLoadingKey(null); }
+    setTtsPlayingKey(null);
+    const clearFeedbackPlaybackForKey = () => {
+      setTtsLoadingKey((current) => (current === key ? null : current));
+      setTtsPlayingKey((current) => (current === key ? null : current));
+      setTtsErrorKey((current) => (current === key ? null : current));
+    };
+    try {
+      await fetchAndPlayTts(sampleText, npcId, playbackKey, clearFeedbackPlaybackForKey);
+      if (activeManagedAudio?.key === playbackKey && !activeManagedAudio.controller.signal.aborted) {
+        setTtsLoadingKey((current) => (current === key ? null : current));
+        setTtsPlayingKey(key);
+      }
+    } catch {
+      setTtsErrorKey(key);
+      clearFeedbackPlaybackForKey();
+    } finally {
+      setTtsLoadingKey((current) => (current === key ? null : current));
+    }
   };
 
   const setAnalysisRef = useCallback((key: FeedbackLevelKey) => (node: HTMLParagraphElement | null) => {
@@ -625,16 +664,12 @@ function FeedbackDrawer({
 
   useEffect(() => {
     if (!open) {
-      userAudioRef.current?.pause();
-      userAudioRef.current = null;
-      revokeUserTempAudioUrl();
-      setTtsLoadingKey(null);
-      setTtsErrorKey(null);
+      stopFeedbackAudio();
       setExpandedAnalysisKey(null);
       setOverflowingAnalysisKeys({});
       setSavedKeys({});
     }
-  }, [open, revokeUserTempAudioUrl]);
+  }, [open, stopFeedbackAudio]);
 
   useEffect(() => {
     if (!feedback || !open) return;
@@ -721,13 +756,19 @@ function FeedbackDrawer({
           {hasUserRecording && (
             <button
               type="button"
-              onClick={playUserRecording}
+              onClick={() => {
+                if (isUserRecordingPlaying) {
+                  stopFeedbackAudio();
+                  return;
+                }
+                void playUserRecording();
+              }}
               aria-label={copy.feedback.userRecording}
-              title={copy.feedback.userRecording}
+              title={isUserRecordingPlaying ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.userRecording}
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2D4A1F] text-[#F3EDE0] py-2 text-[10px] font-medium hover:bg-[#2D4A1F]/90 transition-colors"
             >
               <VolumeIcon size={13} />
-              <span>{copy.feedback.userRecording}</span>
+              <span>{isUserRecordingPlaying ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.userRecording}</span>
             </button>
           )}
         </div>
@@ -743,6 +784,8 @@ function FeedbackDrawer({
             FEEDBACK_LEVEL_META.map((meta) => {
               const level = feedback[meta.key];
               const isTtsLoading = ttsLoadingKey === meta.key;
+              const isTtsPlaying = ttsPlayingKey === meta.key;
+              const isTtsActive = isTtsLoading || isTtsPlaying;
               const isExpanded = expandedAnalysisKey === meta.key;
               const levelLabels = copy.feedback.levels;
               const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
@@ -778,12 +821,26 @@ function FeedbackDrawer({
                     </button>
                     <button
                       type="button"
-                      disabled={!!ttsLoadingKey}
-                      onClick={() => playLevelSample(meta.key, level.nativeSay)}
-                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] disabled:opacity-40 transition-colors whitespace-nowrap"
-                      title={copy.feedback.listen}
+                      onClick={() => {
+                        if (isTtsActive) {
+                          stopFeedbackAudio();
+                          return;
+                        }
+                        void playLevelSample(meta.key, level.nativeSay);
+                      }}
+                      aria-pressed={isTtsActive}
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] transition-colors whitespace-nowrap"
+                      title={isTtsActive ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.listen}
                     >
-                      {isTtsLoading ? <span className="animate-pulse">…</span> : <><VolumeIcon size={11} /> {copy.feedback.listen}</>}
+                      {isTtsLoading ? (
+                        <span className="animate-pulse">{uiLanguage === "zh" ? "播放中…" : "Playing…"}</span>
+                      ) : isTtsPlaying ? (
+                        <span>{uiLanguage === "zh" ? "停止" : "Stop"}</span>
+                      ) : (
+                        <>
+                          <VolumeIcon size={11} /> {copy.feedback.listen}
+                        </>
+                      )}
                     </button>
                   </header>
                   <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/55 px-3 py-2.5">
