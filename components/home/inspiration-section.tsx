@@ -8,8 +8,9 @@ import { getNpcDisplayName, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { type UiLanguage } from "@/lib/ui-language";
 
 const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
-  kimura: { name: "木村", kana: "きむら", place: "便利店" },
-  misaki: { name: "美咲", kana: "みさき", place: "咖啡店" },
+  haruka: { name: "\u9065", kana: "\u306f\u308b\u304b", place: "\u7814\u7a76\u5ba4" },
+  kimura: { name: "木村", kana: "きむら", place: "コンビニ" },
+  misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
 };
 
@@ -49,7 +50,7 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
   const isZh = uiLanguage === "zh";
   const heading = isZh ? "今日灵感" : "Today’s inspiration";
   const subtitle = isZh
-    ? "不知道说什么时，可以从一句轻松的话题开始。"
+    ? "不知道说什么时，可以从这里的话题开始。"
     : "When you’re not sure what to say, start with a small prompt.";
 
   return (

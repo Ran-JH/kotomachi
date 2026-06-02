@@ -114,3 +114,14 @@
 - Public note: Topic ideas now better support low-pressure continuation when a chat reaches a cold moment.
 - Severity: Medium
 - Status: Fixed / Needs eval
+
+## 2026-06-02 - Haruka NPC for study-abroad and campus talk
+- Source: friend beta feedback / internal product planning
+- Feature area: NPC expansion / homepage / chat
+- Observation: A tester preparing for study abroad wanted a low-pressure NPC for graduate-school, lab, and campus conversation, not another shopkeeper and not a teacher-like character.
+- Diagnosis: The current three NPCs cover daily-life, convenience-store, and izakaya talk well, but do not cover campus / seminar / lab Japanese or asking a senior for help.
+- Fix: Add `haruka` as a grad-school senpai NPC with a dedicated campus scene, starter prompts, welcome tone, life arcs, and homepage entry.
+- Eval case: On the homepage, `Study Abroad & Campus` should appear as a separate scene, and opening Haruka chat should feel like talking to a reliable senpai rather than a professor or language teacher.
+- Public note: This NPC is meant to support study-abroad and academic-life Japanese while keeping the chat short, natural, and low-pressure.
+- Severity: Medium
+- Status: Fixed / Needs eval

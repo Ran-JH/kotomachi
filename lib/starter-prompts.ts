@@ -29,6 +29,16 @@ const GLOBAL_STARTER_PROMPTS: StarterPrompt[] = [
 ];
 
 const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
+  haruka: [
+    { text: "日本の大学院って、最初はどんな感じですか。", category: "npc_flavor" },
+    { text: "研究室に初めて行くとき、どんなあいさつをすれば自然ですか。", category: "npc_flavor" },
+    { text: "ゼミの先輩には、最初どう話しかければいいですか。", category: "npc_flavor" },
+    { text: "授業の日本語が速くて、あまり聞き取れません。", category: "npc_flavor" },
+    { text: "この論文、ちょっと難しくて、どこから読めばいいかわかりません。", category: "npc_flavor" },
+    { text: "発表が近くて、少し緊張しています。", category: "npc_flavor" },
+    { text: "先輩に相談したいんですけど、重くならない言い方をしたいです。", category: "npc_flavor" },
+    { text: "大学の近くで、ひと息つける場所ってありますか。", category: "npc_flavor" },
+  ],
   kimura: [
     { text: "コンビニでつい買ってしまうものがあります。", category: "npc_flavor" },
     { text: "夜、何か食べたくなりませんか？", category: "npc_flavor" },
@@ -150,6 +160,13 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
     ], seed);
   }
 
+  if (npcId === "haruka") {
+    return pickBySeed([
+      "研究室って、最初はどんなふうに話しかけると自然ですか。",
+      "最近、授業とか研究室のことで少し気になってることがあります。",
+      "発表とか文献のこと、ちょっと先輩に聞いてみたい気分です。",
+    ], seed);
+  }
   if (npcId === "misaki") {
     return pickBySeed([
       "今日は少しゆっくり話したい気分ですか？",

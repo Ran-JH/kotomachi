@@ -1,12 +1,14 @@
-﻿export type NpcId = "kimura" | "misaki" | "taisho";
+export type NpcId = "haruka" | "kimura" | "misaki" | "taisho";
 
 export const NPC_NAMES: Record<NpcId, string> = {
+  haruka: "遥 🎓",
   misaki: "美咲 ☕",
   kimura: "木村 🏪",
   taisho: "大将 🍺",
 };
 
 export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
+  haruka: "遥",
   kimura: "木村",
   misaki: "美咲",
   taisho: "大将",
@@ -17,9 +19,10 @@ export function getNpcDisplayName(npcId: NpcId): string {
 }
 
 export const NPC_AVATARS: Record<NpcId, string> = {
-  misaki: "/avatars/misaki_avatar2.png",
-  kimura: "/avatars/kimura_avatar2.png",
-  taisho: "/avatars/taisho_avatar2.png",
+  haruka: "/avatars/haruka_avatar.png",
+  misaki: "/avatars/misaki_avatar.png",
+  kimura: "/avatars/kimura_avatar.png",
+  taisho: "/avatars/taisho_avatar.png",
 };
 
 /* ============================================================
@@ -46,6 +49,53 @@ interface LifeArc {
 }
 
 const NPC_ARCS: Record<NpcId, LifeArc[]> = {
+  haruka: [
+    {
+      id: "presentation_prep_week",
+      description: "发表准备周",
+      states: [
+        { label: "准备中", thoughts: ["スライド、もう少し整えたいな", "発表前って少し落ち着かない"] },
+        { label: "忙碌", thoughts: ["今日は発表のことばかり考えてる", "図の見せ方、まだ迷うな"] },
+        { label: "紧张", thoughts: ["本番前は毎回ちょっと緊張する", "短く話せば大丈夫かな"] },
+        { label: "缓下来", thoughts: ["終わって少しほっとした", "今日は甘いものでも買おうかな"] },
+      ],
+      crossMentions: [
+        "美咲さんの店、発表前に少し落ち着けるんだよね",
+        "木村くんの店で夜に飲み物を買うことが多い",
+        "発表のあとで大将のところに寄りたくなる日もある",
+      ],
+    },
+    {
+      id: "paper_reading_week",
+      description: "文献阅读周",
+      states: [
+        { label: "沉浸", thoughts: ["今日は文献を読む日って決めてた", "静かな席のほうが集中できそう"] },
+        { label: "卡住", thoughts: ["言いたいことは面白いのに難しいな", "何本か読むと流れが見えてくるかも"] },
+        { label: "整理中", thoughts: ["少しずつつながってきた気がする", "メモをまとめたいな"] },
+        { label: "脑袋满了", thoughts: ["今日はもう頭がいっぱい", "少し休んでからまた読むか"] },
+      ],
+      crossMentions: [
+        "図書館のあと、美咲さんのコーヒーに助けられることある",
+        "木村くんの店でお菓子を買って戻ると少し元気になる",
+        "大将の店の話を聞くと、研究室の外の空気を思い出す",
+      ],
+    },
+    {
+      id: "new_semester_week",
+      description: "新学期与新人欢迎周",
+      states: [
+        { label: "忙起来", thoughts: ["新しい人が増えると少し空気が変わるね", "説明することが多い週かも"] },
+        { label: "照应后辈", thoughts: ["最初ってやっぱり緊張するよね", "声をかけるタイミングを見てる"] },
+        { label: "并行疲惫", thoughts: ["研究と別の予定が重なると少し疲れる", "でも今週を越えれば落ち着きそう"] },
+        { label: "安定下来", thoughts: ["やっと少し落ち着いてきた", "研究室もいつもの空気に戻ってきた"] },
+      ],
+      crossMentions: [
+        "美咲さんの店、静かで新学期の合間にちょうどいい",
+        "木村くんもこの時期は忙しそうだったな",
+        "大将はこういう時期でも変わらず元気だよね",
+      ],
+    },
+  ],
   kimura: [
     {
       id: "busy_night_shift_week",
@@ -319,6 +369,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "雨の降る町",
     ambientTexts: ["小雨の夜。", "雨音だけが聞こえる。", "傘のない人を見かけた。"],
     reactions: {
+      haruka: "雨の日は研究室も少し静かで、話しやすい気がする",
       misaki: "雨天的咖啡馆格外安静舒适，享受这份宁静",
       kimura: "下雨天通勤太烦了，湿漉漉的很不舒服",
       taisho: "雨天客人少，正好慢慢准备食材",
@@ -330,6 +381,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "蒸し暑い町",
     ambientTexts: ["まだ少し蒸し暑い。", "蝉の声が遠くから聞こえる。", "冷房の音が街に溶ける。"],
     reactions: {
+      haruka: "暑い日は図書館と研究室の往復だけで疲れる",
       misaki: "冰咖啡今天特别受欢迎",
       kimura: "热死了，便利店冷气是救命稻草",
       taisho: "冰啤卖得飞快，这种天就是为啤酒而生的",
@@ -341,6 +393,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "静かな平日",
     ambientTexts: ["駅前はいつもより静か。", "どこかでラジオが流れている。", "猫が道路を横切った。"],
     reactions: {
+      haruka: "こういう静かな日は、文献を読むのにちょうどいい",
       misaki: "今天客人不多，可以慢慢磨豆子",
       kimura: "闲得发慌，站在柜台后面发呆",
       taisho: "没什么客人，但也不坏，悠闲的一天",
@@ -352,6 +405,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "賑やかな週末",
     ambientTexts: ["遠くで電車の音がする。", "どこかで笑い声が聞こえる。", "夜風に匂う焼き鳥の香り。"],
     reactions: {
+      haruka: "週末の夜でも、少しだけ研究室に残る日がある",
       misaki: "周末晚上客人比平时多，有些热闹",
       kimura: "周末便利店反而更忙，大家都出来玩了",
       taisho: "周末满座！忙得不可开交但很开心",
@@ -363,6 +417,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "秋の気配",
     ambientTexts: ["少し冷たい風が吹いた。", "落ち葉が足元で音を立てる。", "空が少しだけ高くなった。"],
     reactions: {
+      haruka: "少し涼しいと、研究室に入りやすくなる気がする",
       misaki: "秋天适合喝热拿铁，换了新豆子",
       kimura: "终于不热了，舒服多了",
       taisho: "秋天就该喝热酒，新出了芋焼酎",
@@ -374,6 +429,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "じめじめした町",
     ambientTexts: ["湿気が肌にまとわりつく。", "洗濯物が乾かない日が続く。", "空が白く滲んでいる。"],
     reactions: {
+      haruka: "じめじめすると集中しにくいけど、今日は静かで助かる",
       misaki: "梅雨季让人有点消沉，但雨声很治愈",
       kimura: "衣服干不了，真的很烦",
       taisho: "这种天气客人少，但常客还是会来",
@@ -389,10 +445,20 @@ export function getWorldContext(): WorldState {
 }
 
 export function isNpcId(id: string): id is NpcId {
-  return id === "kimura" || id === "misaki" || id === "taisho";
+  return id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho";
 }
 
 const HOME_CARD_LINES: Record<NpcId, string[]> = {
+  haruka: [
+    "研究室、今日は少し静かで話しやすいですよ。",
+    "発表の前って、少しそわそわしますよね。",
+    "文献を読んでると、急に頭がいっぱいになる日もあります。",
+    "新学期は少し忙しいけど、話せる時間はありますよ。",
+    "わからないことって、最初は聞き方から迷いますよね。",
+    "図書館の帰りに、少しだけ休みたくなる日があります。",
+    "研究の話じゃなくても、キャンパスのことなら気軽にどうぞ。",
+    "今日は少し落ち着いてるので、ゆっくり話せそうです。",
+  ],
   kimura: [
     "新商品、ちょっとだけ気になってるんだ。",
     "雨の日って、コンビニの明かりが少し落ち着くんですよ。",

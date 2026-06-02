@@ -58,6 +58,8 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 - **Voice interaction**: TTS playback for NPC messages and expression samples, plus STT input with punctuation / casing post-processing.
 - **Onboarding / help hints**：轻量引导，覆盖低压力开口、功能发现和 PWA 安装说明。
 - **Onboarding / help hints**: Lightweight guidance for low-pressure entry, feature discovery, and PWA install help.
+- **Recent polish**：Word lookup partial selection correction、Audio playback hardening、Mobile beta usability fixes。
+- **Recent polish**: Word lookup partial selection correction, audio playback hardening, and mobile beta usability fixes.
 - **NPC life arc system**：每个 NPC 都有持续变化的生活状态，让对话在不同日期之间保持连续感。
 - **NPC life arc system**: Each NPC has ongoing life situations that change daily, making conversations feel connected across sessions.
 - **Shared world state**：天气和氛围按天变化；所有 NPC 共享同一天，但反应不同。

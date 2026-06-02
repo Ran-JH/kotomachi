@@ -225,6 +225,7 @@ function saveRevisitWelcomeMarker(
 }
 
 const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[] = [
+  { id: "haruka", name: "遥", subname: "はるか", location: "研究室" },
   { id: "kimura", name: "木村", subname: "きむら", location: "コンビニ" },
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },

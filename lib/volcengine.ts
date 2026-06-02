@@ -62,10 +62,15 @@ function getNpcVoiceConfig(npcId: NpcId): {
     NpcId,
     { voiceType: string; speedRatio: number; pitchRatio: number }
   > = {
+    haruka: {
+      voiceType: process.env.VOLCENGINE_TTS_VOICE_HARUKA ?? "BV421_streaming",
+      speedRatio: 0.9,
+      pitchRatio: 0.92,
+    },
     misaki: {
       voiceType: process.env.VOLCENGINE_TTS_VOICE_MISAKI ?? "BV421_streaming",
-      speedRatio: 0.95,
-      pitchRatio: 1.05,
+      speedRatio: 0.98,
+      pitchRatio: 1.08,
     },
     kimura: {
       voiceType: process.env.VOLCENGINE_TTS_VOICE_KIMURA ?? "BV524_streaming",

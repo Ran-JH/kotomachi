@@ -31,6 +31,19 @@ export const HOME_SCENES: HomeScene[] = [
     npcIds: ["kimura", "misaki", "taisho"],
     status: "active",
   },
+  {
+    id: "study_abroad",
+    title: {
+      zh: "留学与校园",
+      en: "Study Abroad & Campus",
+    },
+    subtitle: {
+      zh: "在研究室、图书馆和校园角落里，练习留学生活里的日语。",
+      en: "Practice campus and graduate-school Japanese in a low-pressure way.",
+    },
+    npcIds: ["haruka"],
+    status: "active",
+  },
 ];
 
 export function getActiveHomeScenes(): HomeScene[] {

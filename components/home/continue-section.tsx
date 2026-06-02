@@ -7,8 +7,9 @@ import { type UiLanguage } from "@/lib/ui-language";
 import type { NpcId } from "@/lib/npc";
 
 const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
-  kimura: { name: "木村", kana: "きむら", place: "便利店" },
-  misaki: { name: "美咲", kana: "みさき", place: "咖啡店" },
+  haruka: { name: "\u9065", kana: "\u306f\u308b\u304b", place: "\u7814\u7a76\u5ba4" },
+  kimura: { name: "木村", kana: "きむら", place: "コンビニ" },
+  misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
 };
 
