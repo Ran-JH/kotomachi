@@ -96,10 +96,21 @@
 - Input mode: text
 - Feature area: Word Explanation / Saved Items / Review Cards
 - Problem type: selected text normalization
-- Observation: When selecting only part of a Japanese word, e.g. ¥¢¥Æ¥Ş¥é inside ¥°¥¢¥Æ¥Ş¥é¤Î¶¹, the explanation could infer the right meaning from context, but the saved word remained incomplete.
+- Observation: When selecting only part of a Japanese word, e.g. ï¿½ï¿½ï¿½Æ¥Ş¥ï¿½ inside ï¿½ï¿½ï¿½ï¿½ï¿½Æ¥Ş¥ï¿½Î¶ï¿½, the explanation could infer the right meaning from context, but the saved word remained incomplete.
 - Diagnosis: API explanation and saved lookup data used different notions of the lookup term; saving still relied on raw selectedText.
 - Fix: Let /api/explain return a corrected lookup term based on sourceSentence, and use that term for display, Saved Items, and recent lookup history.
-- Eval case: Selecting ¥¢¥Æ¥Ş¥é in ½ñÈÕ¤Ï¥°¥¢¥Æ¥Ş¥é¤Î¶¹¤¬¤ª¤¹¤¹¤á¤Ç¤¹¤è should display and save ¥°¥¢¥Æ¥Ş¥é, not ¥¢¥Æ¥Ş¥é.
+- Eval case: Selecting ï¿½ï¿½ï¿½Æ¥Ş¥ï¿½ in ï¿½ï¿½ï¿½Õ¤Ï¥ï¿½ï¿½ï¿½ï¿½Æ¥Ş¥ï¿½Î¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¤ï¿½ï¿½ï¿½ should display and save ï¿½ï¿½ï¿½ï¿½ï¿½Æ¥Ş¥ï¿½, not ï¿½ï¿½ï¿½Æ¥Ş¥ï¿½.
 - Public note: Word lookup now better handles imperfect text selection, which is common on mobile and in real reading flow.
+- Severity: Medium
+- Status: Fixed / Needs eval
+
+## 2026-06-02 - Context-aware topic ideas for cold moments
+- Source: external beta feedback
+- Feature area: Chat / Topic Ideas
+- Observation: A beta tester reported that NPC chats can reach a cold moment where they do not know what to say next. Existing topic ideas were visible, but many prompts still behaved like fixed opening starters.
+- Diagnosis: Fixed starter pools cannot reliably adapt to the current conversation context, especially after the user and NPC have already discussed a concrete topic.
+- Fix: Add context-aware topic ideas that generate short user-side continuation lines from recent chat messages, while keeping fixed starters as fallback.
+- Eval case: In an ongoing Misaki chat about rain, coffee, and ã‚°ã‚¢ãƒ†ãƒãƒ©ã®è±†, opening topic ideas should suggest lines about taste, recommendations, ordering, or the cafe atmosphere, not only generic opening prompts.
+- Public note: Topic ideas now better support low-pressure continuation when a chat reaches a cold moment.
 - Severity: Medium
 - Status: Fixed / Needs eval
