@@ -25,7 +25,7 @@ export const HOME_SCENES: HomeScene[] = [
       en: "Daily Life",
     },
     subtitle: {
-      zh: "在熟悉的小店里，和街上的住人聊两句。",
+      zh: "在熟悉的小店里，和街上的人聊两句。",
       en: "Chat with neighbors in familiar everyday places.",
     },
     npcIds: ["kimura", "misaki", "taisho"],

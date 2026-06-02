@@ -78,27 +78,6 @@ interface ChatMessage {
   npcAudioUrl?: string | null;
 }
 
-type TopicIdeaItem = {
-  text: string;
-};
-
-function normalizeTopicIdeaText(text: string, maxLength = 300): string {
-  const compact = text.replace(/\s+/g, " ").trim();
-  if (compact.length <= maxLength) return compact;
-  return `${compact.slice(0, maxLength).trimEnd()}…`;
-}
-
-function buildTopicIdeasCacheKey(npcId: NpcId, uiLanguage: UiLanguage, messages: SessionSummaryMessage[]): string {
-  const source = messages
-    .map((message) => `${message.role}:${normalizeTopicIdeaText(message.content, 300)}`)
-    .join("|");
-  let hash = 0;
-  for (let i = 0; i < source.length; i += 1) {
-    hash = (hash * 31 + source.charCodeAt(i)) >>> 0;
-  }
-  return `${npcId}:${uiLanguage}:${messages.length}:${hash.toString(36)}`;
-}
-
 interface WelcomeResponse {
   extractedFacts?: string[];
   welcomeMessage?: string;
@@ -225,7 +204,6 @@ function saveRevisitWelcomeMarker(
 }
 
 const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[] = [
-  { id: "haruka", name: "遥", subname: "はるか", location: "研究室" },
   { id: "kimura", name: "木村", subname: "きむら", location: "コンビニ" },
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
@@ -258,8 +236,6 @@ export default function ChatPage() {
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
-  const [topicIdeas, setTopicIdeas] = useState<string[] | null>(null);
-  const [isTopicIdeasLoading, setIsTopicIdeasLoading] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
@@ -300,8 +276,6 @@ export default function ChatPage() {
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const starterAppliedRef = useRef(false);
-  const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
-  const topicIdeasRequestIdRef = useRef(0);
   const searchParams = useSearchParams();
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
@@ -433,7 +407,7 @@ export default function ChatPage() {
     summaryToastTimerRef.current = setTimeout(() => setSummaryToast(null), 3200);
   };
 
-  const getWelcomeRequest = useCallback((
+  const getWelcomeRequest = (
     requestKey: string,
     targetNpcId: NpcId,
     existingFacts: string[],
@@ -476,9 +450,9 @@ export default function ChatPage() {
 
     welcomeRequests.set(requestKey, request);
     return request;
-  }, []);
+  };
 
-  const triggerInitialWelcome = useCallback(async (
+  const triggerInitialWelcome = async (
     targetNpcId: NpcId,
     existingFacts: string[],
   ) => {
@@ -523,9 +497,9 @@ export default function ChatPage() {
     } finally {
       if (activeNpcRef.current === targetNpcId) setIsTyping(false);
     }
-  }, [getWelcomeRequest]);
+  };
 
-  const triggerRevisitWelcome = useCallback(async (
+  const triggerRevisitWelcome = async (
     targetNpcId: NpcId,
     existingFacts: string[],
     restoredHistory: StoredMessage[],
@@ -600,12 +574,7 @@ export default function ChatPage() {
     } finally {
       if (activeNpcRef.current === targetNpcId) setIsTyping(false);
     }
-  }, [getWelcomeRequest]);
-
-  useEffect(() => {
-    setTopicIdeas(null);
-    setIsTopicIdeasLoading(false);
-  }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
+  };
 
   useEffect(() => {
     activeNpcRef.current = npcId;
@@ -637,7 +606,7 @@ export default function ChatPage() {
 
     setMessages([]);
     void triggerInitialWelcome(npcId, storedMemories);
-  }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
+  }, [npcId]);
 
   const fetchTtsUrl = useCallback(async (text: string): Promise<string | null> => {
     const cacheKey = `${npcId}:${text}`;
@@ -789,11 +758,8 @@ export default function ChatPage() {
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
   const topicIdeasTitle = uiLanguage === "zh" ? "找话题" : "Topic ideas";
   const topicIdeasSubtitle = uiLanguage === "zh"
-    ? "不知道怎么接时，可以从这里继续"
-    : "Pick a line to keep the conversation going";
-  const topicIdeasLoadingLabel = uiLanguage === "zh"
-    ? "正在想一句能接上的话…"
-    : "Finding a line that fits…";
+    ? "不知道说什么时，可以从这里开始"
+    : "Pick a low-pressure prompt to keep talking";
   const helpTitle = uiLanguage === "zh" ? "帮助" : "Help";
   const helpSubtitle = uiLanguage === "zh" ? "使用提示与安装说明" : "Guide & install help";
   const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
@@ -827,10 +793,7 @@ export default function ChatPage() {
         "Some browsers may behave differently. If Edge does not create an icon, try Chrome.",
       ];
   const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
-  const visibleStarterPrompts = useMemo(
-    () => pickStarterPrompts(npcId, userMessageCount),
-    [npcId, userMessageCount],
-  );
+  const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
   const statusAwarePrompt = getStatusAwareTopicIdea(npcId);
   const recentSummaryMessages = useMemo<SessionSummaryMessage[]>(() => {
     return messages
@@ -843,97 +806,6 @@ export default function ChatPage() {
         createdAt: message.createdAt,
       }));
   }, [messages]);
-  const topicIdeasRecentMessages = useMemo(
-    () =>
-      recentSummaryMessages.slice(-8).map((message) => ({
-        role: message.role,
-        content: normalizeTopicIdeaText(message.content, 300),
-      })),
-    [recentSummaryMessages],
-  );
-  const topicIdeasCacheKey = useMemo(() => {
-    if (userMessageCount === 0) return `starter:${npcId}:${uiLanguage}`;
-    return buildTopicIdeasCacheKey(npcId, uiLanguage, topicIdeasRecentMessages);
-  }, [npcId, topicIdeasRecentMessages, uiLanguage, userMessageCount]);
-  const fallbackTopicIdeas = useMemo(() => {
-    const fallback = [statusAwarePrompt, ...visibleStarterPrompts];
-    return fallback.filter(Boolean).slice(0, 3);
-  }, [statusAwarePrompt, visibleStarterPrompts]);
-  const topicIdeasToDisplay =
-    userMessageCount === 0 ? fallbackTopicIdeas : topicIdeas ?? fallbackTopicIdeas;
-  useEffect(() => {
-    if (!isTopicIdeasOpen) return;
-    if (userMessageCount === 0) {
-      setIsTopicIdeasLoading(false);
-      setTopicIdeas(null);
-      return;
-    }
-
-    const cachedIdeas = topicIdeasCacheRef.current.get(topicIdeasCacheKey);
-    if (cachedIdeas) {
-      setTopicIdeas(cachedIdeas);
-      setIsTopicIdeasLoading(false);
-      return;
-    }
-
-    const requestId = ++topicIdeasRequestIdRef.current;
-    const controller = new AbortController();
-    setIsTopicIdeasLoading(true);
-    setTopicIdeas(null);
-
-    void (async () => {
-      try {
-        const res = await fetch(buildClientApiUrl("/api/topic-ideas"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            npcId,
-            uiLanguage: uiLanguage === "en" ? "en" : "zh",
-            recentMessages: topicIdeasRecentMessages,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
-        const ideas = Array.isArray(data?.ideas)
-          ? data.ideas
-              .map((item: TopicIdeaItem | string) =>
-                typeof item === "string" ? item : item?.text ?? ""
-              )
-              .map((text: string) => text.trim())
-              .filter((text: string) => Boolean(text))
-              .slice(0, 3)
-          : [];
-        const finalIdeas = ideas.length > 0 ? ideas : fallbackTopicIdeas;
-        if (topicIdeasRequestIdRef.current !== requestId || controller.signal.aborted) return;
-        topicIdeasCacheRef.current.set(topicIdeasCacheKey, finalIdeas);
-        setTopicIdeas(finalIdeas);
-      } catch (error) {
-        if (topicIdeasRequestIdRef.current !== requestId || controller.signal.aborted) return;
-        console.warn("[topic-ideas] generation failed", error);
-        topicIdeasCacheRef.current.set(topicIdeasCacheKey, fallbackTopicIdeas);
-        setTopicIdeas(fallbackTopicIdeas);
-      } finally {
-        if (topicIdeasRequestIdRef.current === requestId && !controller.signal.aborted) {
-          setIsTopicIdeasLoading(false);
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [
-    copy.common.genericError,
-    fallbackTopicIdeas,
-    isTopicIdeasOpen,
-    npcId,
-    topicIdeasCacheKey,
-    topicIdeasRecentMessages,
-    uiLanguage,
-    userMessageCount,
-  ]);
-  useEffect(() => {
-    if (!isTopicIdeasOpen) setIsTopicIdeasLoading(false);
-  }, [isTopicIdeasOpen]);
   const currentSummarySource = useMemo(
     () => createSummarySourceInfo(npcId, recentSummaryMessages),
     [npcId, recentSummaryMessages],
@@ -1353,52 +1225,26 @@ export default function ChatPage() {
                   </button>
                   {isTopicIdeasOpen && (
                     <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
-                      {userMessageCount === 0 ? (
-                        <>
+                      <button
+                        type="button"
+                        onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
+                        className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                      >
+                        <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
+                        <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
+                      </button>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {visibleStarterPrompts.map((prompt) => (
                           <button
+                            key={`menu-${prompt}`}
                             type="button"
-                            onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
-                            className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                            onClick={() => handleUseStarterPrompt(prompt)}
+                            className="max-w-full rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-left text-[11px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
                           >
-                            <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
-                            <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
+                            <span className="block break-words">{prompt}</span>
                           </button>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {visibleStarterPrompts.map((prompt) => (
-                              <button
-                                key={`menu-${prompt}`}
-                                type="button"
-                                onClick={() => handleUseStarterPrompt(prompt)}
-                                className="max-w-full rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-left text-[11px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
-                              >
-                                <span className="block break-words">{prompt}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {isTopicIdeasLoading && (
-                            <p className="px-1.5 py-1 text-[11px] text-[#7A7060]">
-                              {topicIdeasLoadingLabel}
-                            </p>
-                          )}
-                          {!isTopicIdeasLoading && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {topicIdeasToDisplay.map((idea) => (
-                                <button
-                                  key={`idea-${idea}`}
-                                  type="button"
-                                  onClick={() => handleUseStarterPrompt(idea)}
-                                  className="max-w-full rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-left text-[11px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
-                                >
-                                  <span className="block break-words">{idea}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
+                        ))}
+                      </div>
                     </div>
                   )}
                   <button

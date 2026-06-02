@@ -15,7 +15,6 @@ const TIME_LABELS: Record<string, string> = {
   夜: "夜の街",
 };
 
-/** 时段对应的页面底色：保留原先低压力暖色基调。 */
 const TIME_BG: Record<string, string> = {
   朝: "linear-gradient(180deg, #F5E4CE 0%, #F3EDE0 50%)",
   昼: "#F3EDE0",
@@ -47,9 +46,6 @@ export default function Home() {
       className="min-h-[100dvh] relative overflow-x-hidden pb-[max(1.25rem,env(safe-area-inset-bottom))] transition-colors duration-1000"
       style={{ background }}
     >
-      {/* Top landing canvas:
-          hero is a scene background layer.
-          Brand + language toggle + atmosphere + scene entry stay in one visual block. */}
       <section className="w-full px-0 md:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-6">
         <div className="w-full max-w-[1320px] mx-auto">
           <div className="relative overflow-hidden md:rounded-[24px]">
