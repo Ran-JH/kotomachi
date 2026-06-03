@@ -34,8 +34,8 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 
 - **Hybrid homepage v1**：雨后街区 hero 氛围层 + 结构化 scene/NPC 入口 + continue last chat + daily inspiration。
 - **Hybrid homepage v1**: Rainy-street hero atmosphere layer with structured scene/NPC entry, continue last chat, and daily inspiration sections.
-- **NPC chat**：三位街区角色——美咲（咖啡馆）、木村（便利店）、大将（居酒屋）——各自有不同性格、life arc 和说话风格。
-- **NPC chat**: Three street people — Misaki (cafe), Kimura (convenience store), Taisho (izakaya) — each with their own personality, life arc, and speaking style.
+- **NPC chat**：四位街区角色——美咲（咖啡馆）、木村（便利店）、大将（居酒屋）、遥（研究室）——各自有不同性格、life arc 和说话风格。Haruka/遥 覆盖留学与校园场景。
+- **NPC chat**: Four street people — Misaki (cafe), Kimura (convenience store), Taisho (izakaya), Haruka (lab/campus) — each with their own personality, life arc, and speaking style. Haruka covers study-abroad and campus scenarios.
 - **Expression hints**：每条用户消息都能看到三档语气建议（casual / neutral / formal），并支持播放和分析。
 - **Expression hints**: Three register levels (casual / neutral / formal) for each user message, with audio playback and analysis.
 - **Word explanation**：可选中或双击词语查看读音、释义、句子上下文和语感说明。

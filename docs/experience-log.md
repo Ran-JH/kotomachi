@@ -73,6 +73,26 @@
 - Severity: Medium
 - Status: Open / Watchlist
 
+### 2026-06-03 - Haruka NPC for study-abroad and campus scenes
+- Source: beta feedback / content expansion
+- Feature area: NPC / Scene / Study-abroad
+- Observation: Users needed a low-pressure campus/lab conversation partner for study-abroad situations.
+- Diagnosis: The existing three NPCs (cafe, convenience store, izakaya) covered daily life but not academic/campus scenarios.
+- Fix: Added Haruka/遥 as the 4th NPC — a grad-school senpai who speaks light polite Japanese, focused on lab, seminar, and campus daily life.
+- Public note: Haruka fills the gap for study-abroad conversation practice without being a professor or consultant.
+- Severity: Low
+- Status: Fixed
+
+### 2026-06-03 - Homepage horizontal cards for scalable NPC expansion
+- Source: product design / maintainability
+- Feature area: Homepage / Layout / Mobile
+- Observation: Adding more NPCs would break the previous vertical layout.
+- Diagnosis: A grid or list layout wouldn't scale well for scene-based NPC grouping.
+- Fix: Implemented horizontal scroll cards within scene sections — SceneEntrySection, InspirationSection, and ContinueSection now use overflow-x-auto for better scalability.
+- Public note: The homepage now supports adding more scenes and NPCs without major layout rewrites.
+- Severity: Low
+- Status: Fixed
+
 ### 2026-06-02 - PWA / mobile beta usability
 - Source: mobile self-use and small beta feedback
 - Feature area: Homepage / Mobile / PWA
