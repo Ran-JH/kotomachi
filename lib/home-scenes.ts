@@ -25,8 +25,8 @@ export const HOME_SCENES: HomeScene[] = [
       en: "Daily Life",
     },
     subtitle: {
-      zh: "在熟悉的小店里，和街上的人聊两句。",
-      en: "Chat with neighbors in familiar everyday places.",
+      zh: "在熟悉的小店和街角，和街区里的人聊两句。",
+      en: "Drop into familiar shops and corners for a short chat.",
     },
     npcIds: ["kimura", "misaki", "taisho"],
     status: "active",
@@ -38,8 +38,8 @@ export const HOME_SCENES: HomeScene[] = [
       en: "Study Abroad & Campus",
     },
     subtitle: {
-      zh: "在研究室、图书馆和校园角落里，练习留学生活里的日语。",
-      en: "Practice campus and graduate-school Japanese in a low-pressure way.",
+      zh: "沿着言街走到校园边，在研究室、图书馆和校园角落里练习日语。",
+      en: "Follow Kotomachi toward campus and practice Japanese in labs, libraries, and quiet corners.",
     },
     npcIds: ["haruka"],
     status: "active",

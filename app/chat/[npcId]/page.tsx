@@ -204,6 +204,7 @@ function saveRevisitWelcomeMarker(
 }
 
 const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[] = [
+  { id: "haruka", name: "遥", subname: "はるか", location: "研究室" },
   { id: "kimura", name: "木村", subname: "きむら", location: "コンビニ" },
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
@@ -407,7 +408,7 @@ export default function ChatPage() {
     summaryToastTimerRef.current = setTimeout(() => setSummaryToast(null), 3200);
   };
 
-  const getWelcomeRequest = (
+  const getWelcomeRequest = useCallback((
     requestKey: string,
     targetNpcId: NpcId,
     existingFacts: string[],
@@ -450,9 +451,9 @@ export default function ChatPage() {
 
     welcomeRequests.set(requestKey, request);
     return request;
-  };
+  }, []);
 
-  const triggerInitialWelcome = async (
+  const triggerInitialWelcome = useCallback(async (
     targetNpcId: NpcId,
     existingFacts: string[],
   ) => {
@@ -497,9 +498,9 @@ export default function ChatPage() {
     } finally {
       if (activeNpcRef.current === targetNpcId) setIsTyping(false);
     }
-  };
+  }, [getWelcomeRequest]);
 
-  const triggerRevisitWelcome = async (
+  const triggerRevisitWelcome = useCallback(async (
     targetNpcId: NpcId,
     existingFacts: string[],
     restoredHistory: StoredMessage[],
@@ -574,7 +575,7 @@ export default function ChatPage() {
     } finally {
       if (activeNpcRef.current === targetNpcId) setIsTyping(false);
     }
-  };
+  }, [getWelcomeRequest]);
 
   useEffect(() => {
     activeNpcRef.current = npcId;
@@ -606,7 +607,7 @@ export default function ChatPage() {
 
     setMessages([]);
     void triggerInitialWelcome(npcId, storedMemories);
-  }, [npcId]);
+  }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
 
   const fetchTtsUrl = useCallback(async (text: string): Promise<string | null> => {
     const cacheKey = `${npcId}:${text}`;
@@ -738,8 +739,14 @@ export default function ChatPage() {
     uiLanguage === "zh"
       ? "返回街区"
       : uiLanguage === "en"
-        ? "Back to street"
+        ? "Back to Kotomachi"
         : copy.sidebar.backToMap;
+  const residentsLabel =
+    uiLanguage === "zh"
+      ? "街区里的人"
+      : uiLanguage === "en"
+        ? "Around Kotomachi"
+        : copy.sidebar.residents;
   const userMessageCount = messages.filter((message) => message.sender === "user").length;
   const showStarterPrompts = userMessageCount === 0;
   const showOnboardingHint = userMessageCount === 0 && !isOnboardingHintDismissed;
@@ -973,7 +980,7 @@ export default function ChatPage() {
 
           <section className="space-y-1.5 pt-2.5">
             <h2 className="px-3 text-[11px] font-semibold tracking-[0.14em] uppercase text-[#D4C8A8]/58">
-              {copy.sidebar.residents}
+              {residentsLabel}
             </h2>
             <nav className="space-y-0.5">
               {NPC_LIST.map((npc) => {
