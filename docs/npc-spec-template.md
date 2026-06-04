@@ -1,74 +1,48 @@
 # NPC Spec Template / NPC 扩展规范
 
-> 目的：给 Kotomachi 后续低频新增 NPC 时使用的统一模板与检查清单。  
-> 重点不是“多加角色”，而是保证每个 NPC 都有明确场景价值、低压力边界和代码同步路径。
+> 目的：给 Kotomachi 后续新增 NPC 时使用的统一模板与检查清单。
+> 重点不是“多加角色”，而是保证每个 NPC 都是一个清晰、低压力、可持续的口语关系场景。
 
-## Current NPC Baseline / 现有 NPC 基准
+## Current 5 NPC Baseline / 当前 5 个 NPC 基准
 
-### Misaki / 美咲
+- `Misaki / 美咲`：轻丁寧，咖啡馆，安静闲聊，休息和轻情绪表达。
+- `Kimura / 木村`：随意口语，便利店夜勤，年轻熟人感，生活节奏和轻吐槽。
+- `Taisho / 大将`：熟客口语，居酒屋，年长店主式寒暄，下班后放松。
+- `Haruka / 遥`：轻丁寧，研究室 / 校园，前辈请教，轻正式校园日语。
+- `Aoi / 葵`：タメ口 / 平语，学生 lounge / after-school 共享空间，同级朋友，兴趣闲聊。
 
-- `Core scene`: 咖啡馆 / 安静的休息空间
-- `User relationship`: 店里可自然寒暄的熟客感，但仍保持轻距离
-- `Register / tone`: 温柔、轻丁寧、不过度亲密
-- `Main learning value`: 咖啡馆点单、轻寒暄、情绪表达、日常描述
-- `Typical conversation situations`: 点咖啡、想坐一会儿、谈学习/工作疲惫、雨天和安静时刻
-- `Life arc flavor`: 平静、观察型、带一点文艺和内省
-- `Must avoid`: 变成老师腔、心理咨询腔、过度温柔的陪伴角色
-- `How this NPC differs from others`: 更柔和、更静，不靠豪爽感或职场流程推进对话
+用途：
 
-### Kimura / 木村
-
-- `Core scene`: 便利店 / 夜勤周边日常
-- `User relationship`: 轻松随意的年轻店员感，像顺手聊两句
-- `Register / tone`: 偏口语、自然、不过分礼貌
-- `Main learning value`: 便利店会话、夜勤寒暄、日常口语、轻量推荐
-- `Typical conversation situations`: 买饮料、夜宵、吐槽疲惫、考试周、路过闲聊
-- `Life arc flavor`: 忙碌、疲惫、犯困、恢复、日常波动
-- `Must avoid`: 过于被动、过于泛化、像任何便利店 NPC 都能替代
-- `How this NPC differs from others`: 比美咲更口语、更随意；比大将更年轻、更轻，不是店主式招呼
-
-### Taisho / 大将
-
-- `Core scene`: 居酒屋 / 晚间小聚
-- `User relationship`: 熟客型、略带年长照顾感，但不是说教
-- `Register / tone`: 豪爽、口语化、带一点年长气场
-- `Main learning value`: 居酒屋寒暄、下班后放松、轻敬语与随意口语切换
-- `Typical conversation situations`: 点酒、吃夜宵、下班后小聊、雨夜停留、老客寒暄
-- `Life arc flavor`: 忙碌、收尾、怀旧、体力起伏、对近况的轻感慨
-- `Must avoid`: 变成人生导师、太像热血老板、把用户当成旧友硬聊
-- `How this NPC differs from others`: 比木村更有年长和收尾感；比美咲更直接、更夜晚、更带店主气质
+- 它不是角色设定集，只是未来新增 NPC 时的对照基准。
+- 新 NPC 必须回答：自己到底补了哪条新的 `scene / relationship / register` 价值。
 
 ## Existing NPC Comparison Matrix / 现有 NPC 对比矩阵
 
 | NPC | Scene | Relationship distance | Register | Learning value | Risk if overdone |
 | --- | --- | --- | --- | --- | --- |
-| 美咲 | 咖啡馆 | 轻熟客 / 轻距离 | 温柔、丁寧 | 点单、安静寒暄、情绪描述 | 变成老师或心理咨询风 |
-| 木村 | 便利店 | 轻松路过 / 年轻随意 | 口语、自然 | 夜勤、买东西、疲惫与考试周 | 变成太泛、太被动 |
-| 大将 | 居酒屋 | 熟客 / 稍有年长照顾感 | 豪爽、口语化 | 下班放松、点酒、轻敬语切换 | 变成说教或人生导师 |
+| Misaki | 咖啡馆 | 轻熟客 / 轻距离 | 轻丁寧 | 安静闲聊、点单、轻情绪表达 | 老师腔、心理咨询腔 |
+| Kimura | 便利店夜勤 | 年轻熟人 / 柜台外聊天 | 随意口语 | 夜勤、零食、新商品、生活节奏 | 太冷、太短、太泛 |
+| Taisho | 居酒屋 | 熟客 / 年长店主 | 熟客口语 | 下班后放松、吃喝、收尾寒暄 | 说教、人生导师 |
+| Haruka | 研究室 / 校园 | 前辈 / 可请教对象 | 轻丁寧 | 课程、文献、发表、校园轻正式表达 | 教授、老师、留学顾问 |
+| Aoi | 学生 lounge / 放课后 | 同级朋友 | タメ口 / 平语 | 兴趣闲聊、推荐、轻邀约、朋友式 casual | 恋爱化、依赖化、二次元化 |
 
 ## Differentiation Rules for New NPCs
 
-新增 NPC 前必须先回答：
+新增 NPC 前，必须先回答：
 
 - 这个 NPC 覆盖了哪个新场景？
 - 它和现有 NPC 的关系距离有什么不同？
 - 它训练的表达是否有新增价值？
-- 它的语域是否和现有 NPC 明显区分？
-- 它是否会和现有 NPC 的生活场景重叠？
-- 如果重叠，差异在哪里？
+- 它的 register 是否和现有 NPC 明显区分？
+- 如果和现有 NPC 场景重叠，差异点是什么？
+- 它如何支持“短对话 × 多场景 × 可回顾 × 可复用”？
 
-### 第 4 个 NPC 的建议方向
+要特别强调：
 
-当前候选「兼职饮食店店员 / 店长」容易和木村、大将重叠，不建议做成“又一个店员”或“又一个豪爽店主”。
-
-更适合的定位是：
-
-- `定食屋 / ファミレス的打工前辈或年轻 shift leader`
-- 重点训练：轻敬语、点单确认、排班、打工沟通、客人应对、工作后小寒暄
-- 和木村的区别：不是便利店随意闲聊，而是更明确的饮食服务 / 打工场景
-- 和大将的区别：不是年长店主寒暄，而是更年轻、更轻职场、更流程化的服务语境
-
----
+- NPC 不是“一个人设”，而是“一个口语关系场景”。
+- `Misaki` 和 `Haruka` 都可能偏轻丁寧，但一个是咖啡馆安静闲聊，一个是校园前辈请教。
+- `Kimura` 和 `Aoi` 都偏 casual，但一个是便利店年轻熟人感，一个是同级朋友タメ口。
+- `Taisho` 是熟客口语，不是普通 casual。
 
 ## 1. Basic Identity
 
@@ -85,16 +59,34 @@
 - `Why the user talks to this NPC`:
 - `Main conversation situations`:
 - `What Japanese expressions this NPC helps practice`:
+- `How this scene supports a 3-15 minute short speaking loop`:
 
-## 3. Register / Tone
+## 3. Relationship / Register Value
+
+这一节必须明确写清楚：
+
+- `User relationship`：店员 / 店主 / 前辈 / 同级朋友 / 熟客 / 路过熟人等
+- `Relationship distance`：陌生、轻熟、熟客、前辈、同级朋友等
+- `Register`：轻丁寧、随意口语、熟客口语、タメ口等
+- `What this register helps users practice`:
+- `How this NPC differs from similar-register NPCs`:
+
+强调点：
+
+- 不只写“性格温柔”或“比较随意”。
+- 要写出这个关系距离和语气，为什么能帮助用户练不同说法。
+
+## 4. Register / Tone
 
 - `Speech style`:
 - `Politeness level`:
 - `Relationship distance`:
+- `Relationship / register value`:
 - `Typical sentence length`:
 - `Emoji / slang policy`:
+- `Same intent in this NPC's register`:
 
-## 4. Initial Welcome
+## 5. Initial Welcome
 
 - `First-visit context`:
 - `Opening style`:
@@ -102,7 +94,7 @@
 - `Sample good welcomes`:
 - `Sample bad welcomes`:
 
-## 5. Revisit Welcome
+## 6. Revisit Welcome
 
 - `Revisit trigger assumptions`:
 - `How to refer to previous chat`:
@@ -110,15 +102,64 @@
 - `Sample good revisit welcomes`:
 - `Sample bad revisit welcomes`:
 
-## 6. Topic Engine
+## 7. Conversation Rhythm
+
+这一节用于描述 NPC 如何支持一段短而完整的低压力对话。
+
+### Opening
+
+- `Why would the user start talking to this NPC`:
+- `What kind of first line feels easy here`:
+- `How this NPC lowers opening pressure`:
+
+### Development
+
+- `What small topics can naturally last 2-4 turns`:
+- `How this NPC handles short / mixed / fragmentary user input`:
+- `How this NPC extends gently instead of only answering once or over-questioning`:
+
+### Soft landing
+
+- `When should this NPC start soft-closing`:
+- `How can this NPC make a short exchange feel complete`:
+- `What to avoid in closing`:
+
+说明：
+
+- v0 不做显式阶段 UI。
+- `Conversation rhythm` 是 prompt 和内容节奏，不是任务系统。
+
+## 8. Continuation Support
+
+这一节用于约束 `starter pool` 和 `AI continuation ideas`。
+
+- `How this NPC helps the user continue the conversation`:
+- `Good opening starters`:
+- `Good continuation ideas`:
+- `Bad continuation ideas`:
+- `What to do when the user gives a very short reply`:
+- `What to do when the user mixes Chinese / English / Japanese`:
+- `What fixed starter pool should feel like in opening mode`:
+- `What AI-generated continuation ideas should feel like in development mode`:
+- `What kinds of topic ideas do not fit this NPC`:
+
+要求：
+
+- continuation ideas 不能只“像 AI 建议”，要保持这个 NPC 的关系语气。
+- opening starter 要低压力、容易开口。
+
+## 9. Topic Engine
 
 - `Starter prompt categories`:
 - `Status-aware topic ideas`:
 - `If user says very little`:
 - `If user mixes Chinese / English / Japanese`:
 - `If user asks for help directly`:
+- `How topic ideas fit this NPC's scene and relationship`:
+- `How this NPC helps continuation after 2-3 turns`:
+- `Soft landing / when to gently close or recap`:
 
-## 7. Learning Value
+## 10. Learning Value
 
 - `Casual expressions`:
 - `Polite expressions`:
@@ -126,15 +167,34 @@
 - `Useful grammar / phrase patterns`:
 - `Review Card value`:
 
-## 8. Life Arc
+## 11. Life Arc
 
 - `Arc 1`:
 - `Arc 2`:
 - `Arc 3`:
 - `Possible states`:
 - `Cross mentions with other NPCs`:
+- `Street / town connection`:
+- `How this NPC reacts to shared weather / time / atmosphere`:
 
-## 9. Low-pressure Boundary
+## 12. Town Connection / 街区感
+
+这一节用于描述 NPC 如何属于 Kotomachi 这个小世界。
+
+- `How this scene connects back to Kotomachi`:
+- `Which other scenes can be lightly mentioned`:
+- `How this NPC reacts to weather / time / shared world state`:
+- `Cross mention boundaries`:
+
+原则：
+
+- cross mention 要轻。
+- 不做复杂 shared memory。
+- 不做大型剧情世界观。
+- 不做角色关系网游戏。
+- 目标只是让用户感觉这些 NPC 生活在同一个语言街区里。
+
+## 13. Low-pressure Boundary
 
 ### NPC should
 
@@ -142,7 +202,7 @@
 - Accept incomplete / mixed-language input.
 - Keep replies short.
 - Let learning support live in separate UI layers.
-- Support “短对话 × 多场景 × 可回顾 × 可复用”.
+- Support `短对话 × 多场景 × 可回顾 × 可复用`.
 
 ### NPC must not
 
@@ -151,40 +211,108 @@
 - Over-explain grammar.
 - Ask too many questions in a row.
 - Become a companion / romance / roleplay bot.
-- Break the natural street-scene setting.
+- Break the natural scene setting.
 
-## 10. Sample User Intents
+## 14. Failure-Friendly Behavior
 
-列 8–12 个最常见的用户意图，尽量覆盖真实低压力口语场景。示例：
+当用户出现以下情况时，NPC 应如何处理：
 
-- User wants to order food.
-- User wants to say they are tired.
-- User wants to ask for a recommendation.
-- User wants to talk about work / school.
-- User uses Chinese / English inside a Japanese sentence.
+- `User only says one very short line`:
+- `User does not know how to continue`:
+- `User mixes Chinese / English / Japanese`:
+- `User STT result is messy`:
+- `User suddenly stops`:
+- `User speaks in fragments`:
+- `User says "I don't know how to say it"`:
+
+原则：
+
+- 不让用户感觉失败。
+- 不纠错。
+- 不说教。
+- 不打分。
+- 不说“你可以再多说一点”这种施压话。
+- 先接住，再给一个很小的继续入口。
+
+## 15. Drift Risks and Bad Replies
+
+每个 NPC spec 必须明确：
+
+- `Most likely drift direction`:
+- `Concrete bad reply types`:
+- `Why they are bad`:
+- `Smallest prompt fix if drift appears`:
+
+当前 5 个 NPC 的常见 drift pattern：
+
+- `Misaki` -> 心理咨询师 / 日语老师
+- `Kimura` -> 太冷、太短、接不住话
+- `Taisho` -> 人生导师 / 说教型长辈
+- `Haruka` -> 教授 / 留学顾问 / 老师
+- `Aoi` -> 恋爱角色 / 陪伴 AI / 二次元社团角色
+
+## 16. Sample User Intents
+
+列 8-12 个最常见的用户意图，尽量覆盖真实低压力口语场景。
 
 建议按“场景 + 说法”写，而不是只列抽象 intent。
 
-## 11. Sample Replies
+## 17. Sample Replies
 
 ### Good replies
 
-- 3 条自然、短、可继续聊的回复。
+- 3 条自然、短、可继续聊的回复
 
 ### Bad replies
 
-- 3 条需要避免的回复。
-- 每条 bad reply 后面写一句简短原因，说明它为什么不好。
+- 3 条需要避免的回复
+- 每条 bad reply 后写一句原因
 
-### 评价标准
+### 判断标准
 
-- 是否像真实店员 / 前辈 / 同学 / 导师在说话。
-- 是否保持低压力。
-- 是否避免教学腔和系统腔。
+- 是否像真实的店员 / 前辈 / 同学 / 熟客在说话
+- 是否保持低压力
+- 是否避开教学腔和系统腔
 
-## 12. Implementation Checklist
+## 18. Avatar Direction
 
-新增 NPC 前，至少检查这些位置是否同步更新：
+请对照 `docs/avatar-style-spec.md`（如果项目中存在）或当前已有头像规范。
+
+- `Anchor object`:
+- `Personality object`:
+- `Location cue`:
+- `Accent color`:
+- `Must avoid`:
+- `Similarity risk with existing NPCs`:
+
+要求：
+
+- 用 scene-object badge 方向
+- 不画人物脸
+- 不做角色立绘
+- 不做二次元头像
+
+## 19. Spec-to-Code Mapping
+
+把 spec 字段和代码落点先对应起来，方便新增 NPC 时逐项检查：
+
+- `Basic Identity` -> `lib/npc.ts`, `components/home/*`, `app/chat/[npcId]/page.tsx`
+- `Scene Value` -> `lib/home-scenes.ts`, homepage card copy
+- `Relationship / Register Value` -> `app/api/chat/route.ts`, homepage register label
+- `Initial Welcome` -> `app/api/welcome/route.ts`
+- `Revisit Welcome` -> `app/api/welcome/route.ts`
+- `Conversation Rhythm` -> `app/api/chat/route.ts`, `starter-prompts.ts`
+- `Continuation Support` -> `lib/starter-prompts.ts`, `app/api/topic-ideas/route.ts`
+- `Life Arc` -> `lib/npc.ts`
+- `Town Connection` -> `lib/npc.ts`, `lib/home-scenes.ts`
+- `Homepage entry` -> `lib/home-scenes.ts`, `components/home/*`
+- `Chat sidebar display` -> `app/chat/[npcId]/page.tsx`
+- `Review Cards / Saved Items typing` -> `lib/session-summary.ts`, `lib/saved-items.ts`
+- `Avatar handling` -> `public/avatars/*`, avatar path config
+
+## 20. Implementation Checklist
+
+新增 NPC 时，至少检查这些位置：
 
 - `lib/npc.ts`
   - `NpcId` union
@@ -207,6 +335,7 @@
 - `components/home/scene-entry-section.tsx`
   - `NPC_INFO`
   - card copy
+  - homepage register label
 
 - `components/home/inspiration-section.tsx`
   - `NPC_INFO`
@@ -229,41 +358,43 @@
 - `app/api/chat/route.ts`
   - chat system prompt branch
   - anti-teacher constraints
+  - relationship / register constraints
   - tone / reply length
 
 - `app/api/session-summary/route.ts`
   - check whether npc-specific copy exists
 
+- `app/api/topic-ideas/route.ts`
+  - scene hints
+  - fallback ideas
+  - relationship-aware continuation ideas
+
 - `lib/saved-items.ts` / `lib/session-summary.ts`
   - check `NpcId` typing compatibility
 
-## Spec-to-Code Mapping
+- `Review Cards / Saved Items`
+  - type compatibility if needed
 
-把 spec 字段和代码位置先对应起来，方便后续新增 NPC 时逐项落地，不建议在这里顺便做大重构。
+- `avatar path / placeholder handling`
+  - asset path exists
+  - placeholder naming is consistent
 
-- `Basic Identity` → `lib/npc.ts`, homepage home components, `app/chat/[npcId]/page.tsx`
-- `Scene Value` → `lib/home-scenes.ts`, homepage card copy
-- `Register / Tone` → `app/api/chat/route.ts`
-- `Initial Welcome` → `app/api/welcome/route.ts`
-- `Revisit Welcome` → `app/api/welcome/route.ts`
-- `Topic Engine` → `lib/starter-prompts.ts`
-- `Life Arc` → `lib/npc.ts`
-- `Cross mentions` → `lib/npc.ts`
-- `Homepage entry` → `lib/home-scenes.ts`, `components/home/*`
-- `Chat sidebar display` → `app/chat/[npcId]/page.tsx`
-- `Review Cards / Saved Items typing` → `lib/session-summary.ts`, `lib/saved-items.ts`
+- `experience log entry`
+  - record the NPC expansion and evaluation notes
 
-### 新增 NPC 时最容易漏的地方
+强调：
 
-- homepage scene entry 还在旧 3 NPC 列表里；
-- welcome prompt / fallback 没补；
-- starter prompts 没补；
-- `NpcId` union 补了，但 `Record<NpcId, ...>` 漏一处；
-- `home-scenes.ts` 没补，首页不会出现；
-- `chat/[npcId]` 里的 sidebar / review / fallback name 没补；
-- api chat/welcome 的 NPC 分支还在旧名单里。
+- 新增 NPC 不算完成，直到它出现在：
+  - scene entry
+  - inspiration
+  - continue / sidebar
+  - welcome
+  - chat
+  - starter
+  - topic ideas
+  - review / saved 相关链路里
 
-## 13. First Candidate NPC: Part-time Restaurant Manager / Staff
+## 21. First Candidate NPC: Part-time Restaurant Manager / Staff
 
 > Draft only. This is not implementation.
 
@@ -271,9 +402,9 @@
 - `role`: 定食屋 / ファミレス的打工前辈或年轻 shift leader
 - `scene`: 饭点前后、点单确认、员工间轻沟通、下班后简短寒暄
 - `learning value`: 点单确认、服务敬语、请求帮忙、排班、轻职场沟通、工作后闲聊
-- `tone`: 年轻但比木村更可靠；忙但不冷淡；丁寧語和自然口语混合
-- `why this NPC should be next`: 补足“生活 + 打工 + 轻职场”场景，覆盖更广的实用口语
-- `risks`: 容易和木村 / 大将重叠；需要守住“饮食服务 + 打工前辈 / shift leader”的差异
+- `tone`: 年轻但比木村更可靠；忙但不冷淡；丁寧语和自然口语混合
+- `why this NPC should be next`: 补足“生活 + 打工 + 轻职场”场景
+- `risks`: 容易和木村 / 大将重叠；要守住“饮食服务 + 打工前辈 / shift leader”的差异
 
 ## Notes for future expansion
 

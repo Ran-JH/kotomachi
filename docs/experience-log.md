@@ -133,3 +133,14 @@
 - Public note: Aoi expands Kotomachi's campus layer without turning it into romance, club recruitment, or teacher-style chat.
 - Severity: Low
 - Status: Fixed
+
+### 2026-06-04 - Roadmap recalibration after 5-NPC beta
+- Source: internal product review / design plugin discussion
+- Feature area: Product direction / Roadmap / Portfolio
+- Problem type: scope control and learning-loop clarity
+- Observation: After adding Haruka and Aoi, Kotomachi now covers five distinct relationship/register contexts. The next risk is not missing features, but losing focus by adding more systems or more NPCs too quickly.
+- Diagnosis: The product should focus on making short conversations feel complete: easier opening, better continuation, and a light sense of having expressed something, rather than becoming a task-based learning app.
+- Decision: Prioritize beta stabilization, NPC scene spec consolidation, light conversation rhythm, stronger town feeling, relationship-aware expression design, failure-friendly experience, and a golden demo path. Keep One Takeaway, learning preferences, feedback button, and voice advice deferred.
+- Public note: Kotomachi's next phase focuses on polishing short, low-pressure speaking loops across different relationship contexts inside a more coherent language town.
+- Severity: Low
+- Status: Planned

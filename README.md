@@ -1,14 +1,14 @@
 # Kotomachi / 言街
 
-Kotomachi 是一个低压力的 AI-native 日语口语练习产品。用户可以用中文、英文、日语或混合输入开始对话，听 NPC 用自然日语回复，并在不把体验变成课堂或考试的前提下，逐步过渡到语音输入。
+Kotomachi 是一个低压力的 AI-native 日语口语练习 prototype。用户可以用中文、英文、日语或混合输入开始对话，听 NPC 用自然日语回复，并在不把体验变成课堂或考试的前提下，逐步过渡到语音输入。
 
-Kotomachi is a low-pressure, AI-native Japanese speaking practice app. Users can start with Chinese, English, Japanese, or mixed-language input, listen to natural Japanese NPC replies, and gradually move toward voice input without turning the experience into a classroom or exam.
+Kotomachi is a low-pressure, AI-native Japanese speaking practice prototype. Users can start with Chinese, English, Japanese, or mixed-language input, listen to natural Japanese NPC replies, and gradually move toward voice input without turning the experience into a classroom or exam.
 
 ## 当前投放状态 / Current Deployment Target
 
-Kotomachi 当前以 **PWA-style mobile web app** 的方式用于自用和少量朋友测试（alpha）。
+Kotomachi 当前以 **PWA-style mobile web app** 的方式用于自用和少量朋友测试（beta / polish）。
 
-Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use and small friend testing (alpha).
+Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use and small friend testing (beta / polish).
 
 - 手机上打开链接后可添加到主屏幕，获得接近 app 的使用体验。
 - Open the link on mobile and add it to the home screen for app-like usage.
@@ -16,8 +16,8 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 - This is **not** an App Store / Play Store native release.
 - 可以通过 alpha access code gate 做小范围测试。
 - An alpha access code gate can be enabled for limited testing.
-- 当前状态：MVP v1 已可用，手机自用已可用，小范围外测已经开始。
-- Current state: MVP v1 is usable, mobile self-use is ready, and a small external beta has started.
+- 当前状态：MVP v1.x 已可用，5 NPC 已接入，小范围 beta / polish 正在进行。
+- Current state: MVP v1.x is usable, five NPCs are available, and small beta / polish work is ongoing.
 
 ## 核心理念 / Core Ideas
 
@@ -32,10 +32,10 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 
 ## 当前功能 / Current Features
 
-- **Hybrid homepage v1**：雨后街区 hero 氛围层 + 结构化 scene/NPC 入口 + continue last chat + daily inspiration。
-- **Hybrid homepage v1**: Rainy-street hero atmosphere layer with structured scene/NPC entry, continue last chat, and daily inspiration sections.
-- **NPC chat**：四位街区角色——美咲（咖啡馆）、木村（便利店）、大将（居酒屋）、遥（研究室）——各自有不同性格、life arc 和说话风格。Haruka/遥 覆盖留学与校园场景。
-- **NPC chat**: Four street people — Misaki (cafe), Kimura (convenience store), Taisho (izakaya), Haruka (lab/campus) — each with their own personality, life arc, and speaking style. Haruka covers study-abroad and campus scenarios.
+- **Hybrid homepage v1**：雨后街区 hero 氛围层 + scene grouping + horizontal NPC cards + continue last chat + daily inspiration。
+- **Hybrid homepage v1**: Rainy-street hero atmosphere layer with scene grouping, horizontal NPC cards, continue last chat, and daily inspiration sections.
+- **NPC chat**：五位街区角色——美咲（咖啡馆）、木村（便利店）、大将（居酒屋）、遥（研究室）、葵（学生ラウンジ）——覆盖不同关系语境和说话 register。
+- **NPC chat**: Five street people — Misaki (cafe), Kimura (convenience store), Taisho (izakaya), Haruka (lab/campus), and Aoi (student lounge) — covering different relationship contexts and speaking registers.
 - **Expression hints**：每条用户消息都能看到三档语气建议（casual / neutral / formal），并支持播放和分析。
 - **Expression hints**: Three register levels (casual / neutral / formal) for each user message, with audio playback and analysis.
 - **Word explanation**：可选中或双击词语查看读音、释义、句子上下文和语感说明。
@@ -46,22 +46,32 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 - **Review cards**: Generate a session summary card from the conversation — what was talked about, reusable expressions, suggestions, and new words.
 - **Saved words and expressions**：收藏来自查词和表达提示的学习内容，支持筛选、回顾和删除。
 - **Saved words and expressions**: Save items from word explanations and expression hints to a personal collection. Filter, review, and delete them later.
-- **Topic ideas**：`找话题` 现在分成 opening / continuation 两种 mode。首聊或还没回复 latest welcome 时使用固定 starter；已经进入对话后，AI 会按上下文生成接话建议，并支持“换一批”。
-- **Topic ideas**: `Topic ideas` now has opening and continuation modes. It uses fixed starters before the user replies to the latest welcome, then switches to context-aware AI follow-up lines with a refresh action.
+- **Context-aware topic ideas**：`找话题` 分成 opening / continuation 两种 mode。首聊或还没回复 latest welcome 时使用固定 starter；已经进入对话后，AI 会按上下文生成接话建议，失败时 fallback 到 fixed topic pool。
+- **Context-aware topic ideas**: `Topic ideas` has opening and continuation modes. It uses fixed starters before the user replies to the latest welcome, then switches to context-aware AI follow-up lines, with fallback to the fixed topic pool.
 - **Continue last chat**：快速回到最近聊过的 NPC。
 - **Continue last chat**: Quick entry to resume conversations with NPCs you spoke with recently.
 - **UI language toggle**：中文 / English 界面切换，日语学习内容保持日语。
 - **UI language toggle**: Chinese / English interface. Japanese learning content stays in Japanese.
 - **Responsive chat / sidebar**：桌面侧栏和手机抽屉统一管理街区人物、学习资产和回顾卡。
 - **Responsive chat / sidebar**: Desktop sidebar and mobile drawer with unified navigation for people in town, learning assets, and review cards.
-- **Voice interaction**：NPC 播放 TTS，用户可用 STT 输入；标点和大小写会做基础后处理。
-- **Voice interaction**: TTS playback for NPC messages and expression samples, plus STT input with punctuation / casing post-processing.
+- **Voice interaction**：NPC 播放 TTS，用户可用 STT 输入，也可以回听自己的语音；标点和大小写会做基础后处理。
+- **Voice interaction**: TTS playback for NPC messages and expression samples, plus STT input, user voice replay, and punctuation / casing post-processing.
 - **Onboarding / help hints**：轻量引导，覆盖低压力开口、功能发现和 PWA 安装说明。
 - **Onboarding / help hints**: Lightweight guidance for low-pressure entry, feature discovery, and PWA install help.
 - **NPC life arc system**：每个 NPC 都有持续变化的生活状态，让对话在不同日期之间保持连续感。
 - **NPC life arc system**: Each NPC has ongoing life situations that change daily, making conversations feel connected across sessions.
 - **Shared world state**：天气和氛围按天变化；所有 NPC 共享同一天，但反应不同。
 - **Shared world state**: Weather and atmosphere change daily; all NPCs experience the same day but react differently.
+
+## 后续方向 / Next Direction
+
+当前重点是 beta 稳定和小步 polish，而不是继续堆功能或快速增加大量 NPC。后续会优先打磨短对话练习闭环：更容易开口、更容易接着聊、聊完有一点“我带走了什么”的感觉。
+
+Current focus is beta stabilization and small polish, not adding many features or rapidly expanding the NPC count. The next phase focuses on short speaking loops: easier opening, better continuation, and a light sense of taking something useful from a short conversation.
+
+后续重点包括：完善 NPC scene specs、改善 conversation continuation、强化 Kotomachi 作为一个小型 language town 的一致感。主题阶段感、关系语感和语音建议仍是未来方向，不是当前已完成功能。
+
+Future work includes improving NPC scene specs, conversation continuation, and Kotomachi's coherence as a small language town. Conversation rhythm, relationship-aware suggestions, and voice advice are future directions, not completed features.
 
 ## 产品原则 / Product Principles
 
