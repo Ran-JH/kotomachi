@@ -7,6 +7,7 @@ import { type UiLanguage } from "@/lib/ui-language";
 import type { NpcId } from "@/lib/npc";
 
 const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
+  aoi: { name: "葵", kana: "あおい", place: "学生ラウンジ" },
   haruka: { name: "遥", kana: "はるか", place: "研究室" },
   kimura: { name: "木村", kana: "きむら", place: "コンビニ" },
   misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
@@ -24,9 +25,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
     setRecentChats(getRecentChats(2));
   }, []);
 
-  if (!recentChats || recentChats.length === 0) {
-    return null;
-  }
+  if (!recentChats || recentChats.length === 0) return null;
 
   const isZh = uiLanguage === "zh";
   const heading = isZh ? "继续上次聊天" : "Continue where you left off";
@@ -48,10 +47,10 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
   };
 
   return (
-    <section className="w-full max-w-[1120px] mx-auto px-4 md:px-5 py-4">
-      <div className="flex items-center justify-between mb-4">
+    <section className="mx-auto w-full max-w-[1120px] px-4 py-4 md:px-5">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-sm md:text-base font-medium text-[#2D4A1F]">{heading}</h3>
+          <h3 className="text-sm font-medium text-[#2D4A1F] md:text-base">{heading}</h3>
         </div>
       </div>
 
@@ -62,24 +61,24 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
             <Link
               key={chat.npcId}
               href={`/chat/${chat.npcId}`}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-[rgba(40,35,26,0.06)] bg-white/40 hover:bg-white/60 hover:border-[rgba(45,74,31,0.18)] hover:shadow-[0_4px_14px_rgba(40,35,26,0.06)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.995] transition-all duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 text-left"
+              className="flex w-full items-center gap-3 rounded-xl border border-[rgba(40,35,26,0.06)] bg-white/40 p-3 text-left transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.18)] hover:bg-white/60 hover:shadow-[0_4px_14px_rgba(40,35,26,0.06)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.995]"
             >
               <img
                 src={chat.avatar}
                 alt={info.name}
-                className="w-10 h-10 rounded-full object-cover border border-[rgba(40,35,26,0.08)]"
+                className="h-10 w-10 rounded-full border border-[rgba(40,35,26,0.08)] object-cover"
               />
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center gap-2">
                   <span className="text-sm font-medium text-[#28231A]">{info.name}</span>
                   <span className="text-[10px] text-[#7A7060]">{info.place}</span>
                 </div>
 
-                <p className="text-xs text-[#7A7060] truncate">{chat.lastMessagePreview}</p>
+                <p className="truncate text-xs text-[#7A7060]">{chat.lastMessagePreview}</p>
               </div>
 
-              <span className="text-[10px] text-[#9A9080] shrink-0">
+              <span className="shrink-0 text-[10px] text-[#9A9080]">
                 {formatRelativeTime(chat.lastChatTime, uiLanguage)}
               </span>
             </Link>

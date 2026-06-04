@@ -62,6 +62,11 @@ function getNpcVoiceConfig(npcId: NpcId): {
     NpcId,
     { voiceType: string; speedRatio: number; pitchRatio: number }
   > = {
+    aoi: {
+      voiceType: process.env.VOLCENGINE_TTS_VOICE_AOI ?? "BV421_streaming",
+      speedRatio: 1.02,
+      pitchRatio: 1.04,
+    },
     haruka: {
       voiceType: process.env.VOLCENGINE_TTS_VOICE_HARUKA ?? "BV421_streaming",
       speedRatio: 0.9,

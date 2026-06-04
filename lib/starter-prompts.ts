@@ -20,51 +20,61 @@ const GLOBAL_STARTER_PROMPTS: StarterPrompt[] = [
   { text: "今日は小さい出来事について話したいです。", category: "open" },
   { text: "最近、習慣にしたいことがあります。", category: "open" },
   { text: "最近、新しいことを始めました。", category: "open" },
-  { text: "今日、面白いものを見つけました。", category: "open" },
+  { text: "今日、面白いものを見かけました。", category: "open" },
   { text: "最近、よく考えることがあります。", category: "open" },
-  { text: "日本語でどう言えばいいか分からないことがあります。", category: "learning" },
+  { text: "日本語でどう言えばいいかわからないことがあります。", category: "learning" },
   { text: "今日は短い文から練習したいです。", category: "learning" },
   { text: "言いたいことはあるけど、日本語が出てきません。", category: "learning" },
   { text: "もっと自然な言い方を知りたいです。", category: "learning" },
 ];
 
 const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
+  aoi: [
+    { text: "最近ハマってるものってある？", category: "npc_flavor" },
+    { text: "放課後って、どこかでゆっくりすること多い？", category: "npc_flavor" },
+    { text: "知らないジャンルだけど、ちょっと気になってるものがあるんだ。", category: "npc_flavor" },
+    { text: "今度よかったら、一緒に何か見に行かない？", category: "npc_flavor" },
+    { text: "最近、軽く話せる相手がいると助かるなって思う。", category: "npc_flavor" },
+    { text: "友だちっぽい話し方で、自然に話せるようになりたい。", category: "npc_flavor" },
+    { text: "最近おすすめされたもの、試してみるか迷ってる。", category: "npc_flavor" },
+    { text: "興味はあるけど、まだよく知らないことってある？", category: "npc_flavor" },
+  ],
   haruka: [
     { text: "日本の大学院って、最初はどんな感じですか。", category: "npc_flavor" },
     { text: "研究室に初めて行くとき、どんなあいさつをすれば自然ですか。", category: "npc_flavor" },
-    { text: "ゼミの先輩には、最初どう話しかければいいですか。", category: "npc_flavor" },
+    { text: "ゼミの先輩に、最初どう話しかければいいですか。", category: "npc_flavor" },
     { text: "授業の日本語が速くて、あまり聞き取れません。", category: "npc_flavor" },
     { text: "この論文、ちょっと難しくて、どこから読めばいいかわかりません。", category: "npc_flavor" },
     { text: "発表が近くて、少し緊張しています。", category: "npc_flavor" },
-    { text: "先輩に相談したいんですけど、重くならない言い方をしたいです。", category: "npc_flavor" },
+    { text: "先輩に相談したいんですが、重くならない言い方をしたいです。", category: "npc_flavor" },
     { text: "大学の近くで、ひと息つける場所ってありますか。", category: "npc_flavor" },
   ],
   kimura: [
     { text: "コンビニでつい買ってしまうものがあります。", category: "npc_flavor" },
     { text: "夜、何か食べたくなりませんか？", category: "npc_flavor" },
-    { text: "最近、新しいお菓子を見つけました。", category: "npc_flavor" },
+    { text: "最近、新しいお菓子を見ました。", category: "npc_flavor" },
     { text: "深夜に起きていること、ありますか？", category: "npc_flavor" },
     { text: "最近、生活用品で買い足したいものがあります。", category: "npc_flavor" },
     { text: "朝と夜、どっちが好きですか？", category: "npc_flavor" },
-    { text: "最近、ちょっと節約したい気分です。", category: "npc_flavor" },
+    { text: "最近、ちょっと疲れた気分です。", category: "npc_flavor" },
     { text: "一人の時間、何して過ごしますか？", category: "npc_flavor" },
   ],
   misaki: [
     { text: "カフェでぼーっとする時間が好きです。", category: "npc_flavor" },
     { text: "勉強の合間に少し休みたいです。", category: "npc_flavor" },
     { text: "最近、好きな飲み物が変わりました。", category: "npc_flavor" },
-    { text: "静かな場所で過ごしたい気分です。", category: "npc_flavor" },
+    { text: "静かな場所で話したい気分です。", category: "npc_flavor" },
     { text: "最近、読んでいるものがあります。", category: "npc_flavor" },
     { text: "午後、少しだけ息抜きしたいです。", category: "npc_flavor" },
     { text: "最近、リラックスする方法を探しています。", category: "npc_flavor" },
-    { text: "天気がいいと、外に出たくなりますね。", category: "npc_flavor" },
+    { text: "天気がいいと、外に出たくなりますよね。", category: "npc_flavor" },
   ],
   taisho: [
     { text: "仕事や勉強のあとに食べたいものがあります。", category: "npc_flavor" },
     { text: "夜になると、少し話したくなります。", category: "npc_flavor" },
-    { text: "最近、夜更かしがちです。", category: "npc_flavor" },
+    { text: "最近、夜更かし気味です。", category: "npc_flavor" },
     { text: "今日、頑張ったことを話したいです。", category: "npc_flavor" },
-    { text: "最近、夕食が適当になりがちです。", category: "npc_flavor" },
+    { text: "最近、外食が適当になりがちです。", category: "npc_flavor" },
     { text: "仕事終わりに寄れる場所、ありますか？", category: "npc_flavor" },
     { text: "最近、お酒を飲む機会が減りました。", category: "npc_flavor" },
     { text: "一日の終わりに、どうやってリセットしますか？", category: "npc_flavor" },
@@ -92,33 +102,33 @@ export function pickStarterPrompts(npcId: NpcId, userMessageCount: number): stri
   const seenCategories = new Set(picked.map((p) => p.category));
   if (seenCategories.size < 3 && globalPool.length > 2) {
     const missingCategories = (["daily", "mood", "open", "learning"] as const).filter(
-      (c) => !seenCategories.has(c)
+      (category) => !seenCategories.has(category),
     );
     if (missingCategories.length > 0) {
-      const cat = missingCategories[baseSeed % missingCategories.length];
-      const catPool = globalPool.filter((p) => p.category === cat);
-      if (catPool.length > 0) {
-        picked[0] = catPool[deterministicIndex(baseSeed, catPool.length, 11)];
+      const category = missingCategories[baseSeed % missingCategories.length];
+      const categoryPool = globalPool.filter((prompt) => prompt.category === category);
+      if (categoryPool.length > 0) {
+        picked[0] = categoryPool[deterministicIndex(baseSeed, categoryPool.length, 11)];
       }
     }
   }
 
   const seen = new Set<string>();
   const result: string[] = [];
-  for (const p of picked) {
-    if (!seen.has(p.text)) {
-      seen.add(p.text);
-      result.push(p.text);
+  for (const prompt of picked) {
+    if (!seen.has(prompt.text)) {
+      seen.add(prompt.text);
+      result.push(prompt.text);
     }
   }
 
   if (result.length < 3) {
-    const allPool = [...globalPool, ...npcPool].filter((p) => !seen.has(p.text));
+    const allPool = [...globalPool, ...npcPool].filter((prompt) => !seen.has(prompt.text));
     let extra = deterministicIndex(baseSeed, allPool.length, 13);
     while (result.length < 3 && allPool.length > 0) {
       result.push(allPool[extra % allPool.length].text);
       seen.add(allPool[extra % allPool.length].text);
-      extra++;
+      extra += 1;
     }
   }
 
@@ -137,53 +147,88 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
   const seed = Math.floor(Date.now() / 86400000) + signal.length + npcId.charCodeAt(0);
 
   if (/(疲|眠|夜勤|しんど|だる|sleep|tired)/.test(signal)) {
-    return pickBySeed([
-      "今日はちょっと大変でしたか？",
-      "最近、ちゃんと休めていますか？",
-      "今いちばん疲れる時間っていつですか？",
-    ], seed);
+    return pickBySeed(
+      [
+        "今日って、ちょっと大変でしたか？",
+        "最近、ちゃんと休めていますか？",
+        "今いちばん気を抜ける時間っていつですか？",
+      ],
+      seed,
+    );
   }
 
-  if (/(焦|試験|テスト|レポート|締め切り|exam|report)/.test(signal)) {
-    return pickBySeed([
-      "最近、いちばん気になっていることは何ですか？",
-      "今いちばん優先していることって何ですか？",
-      "今日はどの作業がいちばん大変でしたか？",
-    ], seed);
+  if (/(締め切り|警戒|テスト|レポート|exam|report|発表)/.test(signal)) {
+    return pickBySeed(
+      [
+        "最近、いちばん気になっていることは何ですか？",
+        "今いちばん集中していることって何ですか？",
+        "今日の作業は、どのあたりが大変でしたか？",
+      ],
+      seed,
+    );
   }
 
-  if (/(雨|じめ|蒸|暑|秋|風|冷|coffee|カフェイン|ハーブティー)/.test(signal)) {
-    return pickBySeed([
-      "今日はどんな飲み物がいちばん合いそうですか？",
-      "最近、夜に飲むなら何が落ち着きますか？",
-      "この天気だと、どんな過ごし方をしたくなりますか？",
-    ], seed);
+  if (/(雨|じめ|蒸し暑|秋|冷|coffee|カフェ|ビール|夜更かし)/.test(signal)) {
+    return pickBySeed(
+      [
+        "今日って、どんな過ごし方が合いそうですか？",
+        "最近、夜に落ち着く時間はありますか？",
+        "この天気だと、どんな話をしたくなりますか？",
+      ],
+      seed,
+    );
+  }
+
+  if (npcId === "aoi") {
+    return pickBySeed(
+      [
+        "最近ハマってるものって、何かありますか？",
+        "ちょっと気になってるけど、まだ詳しくないことってありますか？",
+        "放課後って、何してることが多いですか？",
+      ],
+      seed,
+    );
   }
 
   if (npcId === "haruka") {
-    return pickBySeed([
-      "研究室って、最初はどんなふうに話しかけると自然ですか。",
-      "最近、授業とか研究室のことで少し気になってることがあります。",
-      "発表とか文献のこと、ちょっと先輩に聞いてみたい気分です。",
-    ], seed);
+    return pickBySeed(
+      [
+        "研究室って、最初はどんなふうに話しかけると自然ですか？",
+        "最近、授業とか研究室のことで少し気になってることがあります。",
+        "発表とか文献のこと、ちょっと先輩に聞いてみたい気分です。",
+      ],
+      seed,
+    );
   }
+
   if (npcId === "misaki") {
-    return pickBySeed([
-      "今日は少しゆっくり話したい気分ですか？",
-      "最近、落ち着く時間は取れていますか？",
-      "今の気分に合う一杯って、どんな感じですか？",
-    ], seed);
+    return pickBySeed(
+      [
+        "今日は少し、ゆっくり話したい気分ですか？",
+        "最近、落ち着く時間は取れていますか？",
+        "今の気分に合う一杯って、どんな感じですか？",
+      ],
+      seed,
+    );
   }
+
   if (npcId === "kimura") {
-    return pickBySeed([
-      "今日はどんな一日でしたか？",
-      "最近、生活リズムは安定していますか？",
-      "今いちばん気を抜ける時間っていつですか？",
-    ], seed);
+    return pickBySeed(
+      [
+        "今日って、どんな一日でしたか？",
+        "最近、生活リズムは安定していますか？",
+        "今いちばん気を抜ける時間っていつですか？",
+      ],
+      seed,
+    );
   }
-  return pickBySeed([
-    "今日はどんなことで一息つきたい気分ですか？",
-    "最近、夜の過ごし方で変わったことはありますか？",
-    "今の気分をひとことで言うと、どんな感じですか？",
-  ], seed);
+
+  return pickBySeed(
+    [
+      "今日って、どんなことをひと息つきたい気分ですか？",
+      "最近、夜の過ごし方で変わったことはありますか？",
+      "今の気分をひとことで言うと、どんな感じですか？",
+    ],
+    seed,
+  );
 }

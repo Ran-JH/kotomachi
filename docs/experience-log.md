@@ -123,3 +123,13 @@
 - Public note: Word lookup now better handles imperfect text selection, which is common on mobile and in real reading flow.
 - Severity: Medium
 - Status: Fixed / Needs eval
+
+### 2026-06-04 - Aoi NPC spec and implementation
+- Source: beta feedback / NPC expansion
+- Feature area: NPC / Homepage / Campus daily life
+- Observation: The product needed a same-age friend NPC for casual hobby talk and low-pressure タメ口, distinct from Haruka's senpai tone.
+- Diagnosis: The existing four NPCs covered cafe, convenience store, izakaya, and grad-school senpai scenes, but not same-age campus friendship.
+- Fix: Added Aoi / 葵 as the 5th NPC, focused on after-class shared spaces, hobby small talk, soft invitations, and natural casual Japanese.
+- Public note: Aoi expands Kotomachi's campus layer without turning it into romance, club recruitment, or teacher-style chat.
+- Severity: Low
+- Status: Fixed

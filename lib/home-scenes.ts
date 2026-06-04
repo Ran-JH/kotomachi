@@ -34,14 +34,14 @@ export const HOME_SCENES: HomeScene[] = [
   {
     id: "study_abroad",
     title: {
-      zh: "留学与校园",
-      en: "Study Abroad & Campus",
+      zh: "校园生活",
+      en: "Campus Life",
     },
     subtitle: {
-      zh: "沿着言街走到校园边，在研究室、图书馆和校园角落里练习日语。",
-      en: "Follow Kotomachi toward campus and practice Japanese in labs, libraries, and quiet corners.",
+      zh: "沿着言街走到校园边，在研究室、学生休息区和放课后空间里练习日语。",
+      en: "Follow Kotomachi toward campus and practice Japanese in labs, student lounges, and after-school spaces.",
     },
-    npcIds: ["haruka"],
+    npcIds: ["haruka", "aoi"],
     status: "active",
   },
 ];

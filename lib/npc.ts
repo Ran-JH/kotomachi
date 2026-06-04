@@ -1,17 +1,19 @@
-export type NpcId = "haruka" | "kimura" | "misaki" | "taisho";
+export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho";
 
 export const NPC_NAMES: Record<NpcId, string> = {
-  haruka: "\u9065 \ud83c\udf93",
-  misaki: "\u7f8e\u54b2 \u2615",
-  kimura: "\u6728\u6751 \ud83c\udfea",
-  taisho: "\u5927\u5c06 \ud83c\udf7a",
+  aoi: "葵 🎧",
+  haruka: "遥 🎓",
+  kimura: "木村 🏪",
+  misaki: "美咲 ☕",
+  taisho: "大将 🍺",
 };
 
 export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
-  haruka: "\u9065",
-  kimura: "\u6728\u6751",
-  misaki: "\u7f8e\u54b2",
-  taisho: "\u5927\u5c06",
+  aoi: "葵",
+  haruka: "遥",
+  kimura: "木村",
+  misaki: "美咲",
+  taisho: "大将",
 };
 
 export function getNpcDisplayName(npcId: NpcId): string {
@@ -19,340 +21,378 @@ export function getNpcDisplayName(npcId: NpcId): string {
 }
 
 export const NPC_AVATARS: Record<NpcId, string> = {
+  aoi: "/avatars/aoi_avatar.png",
   haruka: "/avatars/haruka_avatar.png",
-  misaki: "/avatars/misaki_avatar.png",
   kimura: "/avatars/kimura_avatar.png",
+  misaki: "/avatars/misaki_avatar.png",
   taisho: "/avatars/taisho_avatar.png",
 };
 
-/* ============================================================
-   生活弧线系统 — NPC 状态连续性
-   每条弧线包含若干天的状态，状态按天推进，走完换下一条弧线
-   ============================================================ */
-
 interface ArcState {
-  /** 状态标签（可用于喂给 AI prompt） */
   label: string;
-  /** 首页心里话（随机取一句） */
   thoughts: string[];
 }
 
 interface LifeArc {
-  /** 弧线标识 */
   id: string;
-  /** 弧线描述（可用于喂给 AI prompt） */
   description: string;
-  /** 按天推进的状态序列 */
   states: ArcState[];
-  /** 提到其他NPC的日常话，偶尔自然地融入对话 */
   crossMentions?: string[];
 }
 
+interface ArcRecord {
+  arcId: string;
+  dayIndex: number;
+  startDate: string;
+}
+
 const NPC_ARCS: Record<NpcId, LifeArc[]> = {
+  aoi: [
+    {
+      id: "new_faces_week",
+      description: "新学期で顔見知りが少し増えている週",
+      states: [
+        {
+          label: "そわそわ",
+          thoughts: ["新しい人が多いと、ちょっと空気が変わるよね。", "今週は話しかける回数が少し多いかも。"],
+        },
+        {
+          label: "にぎやか",
+          thoughts: ["人が多いと、それだけでちょっと元気出る。", "放課後のスペース、今日はいつもより賑やか。"],
+        },
+        {
+          label: "ちょい疲れ",
+          thoughts: ["楽しいけど、ちょっと人酔いしたかも。", "今日はひとりで落ち着く時間もほしいな。"],
+        },
+        {
+          label: "いい感じ",
+          thoughts: ["今週の空気、なんだかちょうどいいかも。", "ちょっとした雑談が増えると、気分も軽い。"],
+        },
+      ],
+      crossMentions: [
+        "遥さん、研究室のほうも新学期で少し忙しそうだった。",
+        "美咲さんの店、授業終わりの学生が増えてた気がする。",
+        "木村くんのコンビニ、放課後に寄る人がいつもより多かったよ。",
+      ],
+    },
+    {
+      id: "hobby_binge_week",
+      description: "最近ハマっているものに気持ちが寄っている週",
+      states: [
+        {
+          label: "夢中",
+          thoughts: ["今ちょっと、好きなものの話ならいくらでもできそう。", "気になるものがあると、つい調べすぎちゃう。"],
+        },
+        {
+          label: "共有したい",
+          thoughts: ["これ、誰かにすすめたくなるんだよね。", "好きって言えるものがあると、気分いいな。"],
+        },
+        {
+          label: "軽く空回り",
+          thoughts: ["ちょっと一人で盛り上がりすぎたかも。", "相手が知らなくても、うまく話せたらいいんだけど。"],
+        },
+        {
+          label: "落ち着き",
+          thoughts: ["熱が少し落ち着いて、今はゆっくり話せそう。", "好きなものの話って、気軽にできるのがいいよね。"],
+        },
+      ],
+      crossMentions: [
+        "美咲さんも最近、店で流す音楽を少し変えたって言ってた。",
+        "大将のところ、夜にふらっと寄ると妙に落ち着くんだよね。",
+        "木村くん、また新しいお菓子見つけたらしいよ。",
+      ],
+    },
+    {
+      id: "low_energy_week",
+      description: "ちょっとだけ気力が落ちている週",
+      states: [
+        {
+          label: "だるめ",
+          thoughts: ["なんか今日は、無理してテンション上げたくないな。", "軽く話せるくらいがちょうどいい日ってあるよね。"],
+        },
+        {
+          label: "共感モード",
+          thoughts: ["今日は、頑張りすぎてない人と話したいかも。", "大したことなくても、聞いてもらえると助かる。"],
+        },
+        {
+          label: "ちょい回復",
+          thoughts: ["少し話すだけでも、気分って変わるね。", "やっと頭がほどけてきた感じ。"],
+        },
+        {
+          label: "ふつう",
+          thoughts: ["ようやく普通のリズムに戻ったかも。", "今日は軽い話なら普通にできそう。"],
+        },
+      ],
+      crossMentions: [
+        "遥さんも今週はちょっと忙しそうだったけど、落ち着いてたな。",
+        "美咲さんの店でぼーっとするの、たぶん今ちょうどよさそう。",
+        "大将のところでだらっと話すのも悪くないかも。",
+      ],
+    },
+  ],
   haruka: [
     {
       id: "presentation_prep_week",
-      description: "发表准备周",
+      description: "发表示前で少し気を張っている週",
       states: [
-        { label: "准备中", thoughts: ["発表の流れ、もう一回だけ確認しておこうかな。", "スライド、あと少しだけ直したいかも。"] },
-        { label: "有点紧张", thoughts: ["人前で話すの、やっぱり少し緊張しますね。", "質問されたらどう返すか、まだ少し不安です。"] },
-        { label: "收尾中", thoughts: ["とりあえず形にはなってきました。", "今日は早めに切り上げたい気分です。"] },
-        { label: "松一口气", thoughts: ["発表が終わったら、甘いものでも食べたいです。", "ひと区切りついたら、少しゆっくりしたいですね。"] },
+        {
+          label: "準備中",
+          thoughts: ["発表の流れ、もう一回だけ確認しておこうかな。", "スライド、あと少しだけ直したいかも。"],
+        },
+        {
+          label: "少し緊張",
+          thoughts: ["人前で話すの、やっぱり少し緊張しますね。", "質問されたらどう返すか、まだ少し不安です。"],
+        },
+        {
+          label: "収束中",
+          thoughts: ["とりあえず形になってきました。", "今日は早めに切り上げたい気分です。"],
+        },
+        {
+          label: "ひと息",
+          thoughts: ["発表が終わったら、甘いものでも食べたいですね。", "ちょっと区切りがつくと、少し安心します。"],
+        },
       ],
       crossMentions: [
-        "美咲さんの店、発表前に静かで落ち着くんですよね。",
-        "木村くん、夜にまだ働いてて大変そうでした。",
-        "大将のところで少し気分転換したくなる日もあります。",
+        "美咲さんの店、発表前に静かで落ち着くんですよ。",
+        "木村くん、夜まで働いてて大変そうでした。",
+        "大将のところで少しだけ気分転換したくなる日もあります。",
       ],
     },
     {
       id: "paper_reading_week",
-      description: "文献阅读周",
+      description: "文献を読んで頭を整理している週",
       states: [
-        { label: "读不完", thoughts: ["読みたい論文はあるのに、時間が足りないですね。", "今日は文献を開いたまま固まってました。"] },
-        { label: "慢慢懂了", thoughts: ["やっと言いたいことが少し見えてきました。", "難しいけど、分かるとちょっと面白いですね。"] },
-        { label: "脑子很满", thoughts: ["今日はもう頭がいっぱいです。", "一回コーヒーでも飲んで切り替えたいです。"] },
-        { label: "整理阶段", thoughts: ["読むだけじゃなくて、そろそろまとめないとですね。", "メモだけはちゃんと残しておきたいです。"] },
+        {
+          label: "読み中",
+          thoughts: ["読みたい論文はあるのに、時間が足りないですね。", "今日は文献を開いたまま固まっていました。"],
+        },
+        {
+          label: "少し理解",
+          thoughts: ["やっと言いたいことが少し見えてきました。", "難しいけど、分かるとちょっと面白いです。"],
+        },
+        {
+          label: "脳みそ満杯",
+          thoughts: ["今日はもう頭がいっぱいです。", "一回コーヒーでも飲んで切り替えたいです。"],
+        },
+        {
+          label: "整理段階",
+          thoughts: ["読むだけじゃなくて、ちゃんとまとめないとですね。", "メモだけはきちんと残しておきたいです。"],
+        },
       ],
       crossMentions: [
-        "美咲さんのコーヒー、文献読む日に助かります。",
+        "美咲さんのコーヒー、文献を読む日に助かります。",
         "木村くんが新しい飲み物すすめてくれました。",
-        "大将のところ、夜に少しだけ寄ると気が抜けるんですよね。",
+        "大将のところ、夜に少しだけ寄ると気が抜けるんですよ。",
       ],
     },
     {
       id: "new_semester_week",
-      description: "新学期与新人周",
+      description: "新学期で研究室まわりが少しにぎやかな週",
       states: [
-        { label: "有点忙", thoughts: ["新しい人が入ると、ちょっと空気が変わりますね。", "今週は説明することが多めです。"] },
-        { label: "前辈模式", thoughts: ["最初って、何を聞けばいいか分からないですよね。", "気になることがあれば、遠慮なく聞いてほしいです。"] },
-        { label: "校园节奏", thoughts: ["キャンパスが少しにぎやかですね。", "新学期の感じ、まだ少しそわそわします。"] },
-        { label: "稍微放松", thoughts: ["やっと今週の流れが見えてきました。", "今日は少し普通に話せそうです。"] },
+        {
+          label: "やや忙しい",
+          thoughts: ["新しい人が入ると、ちょっと空気が変わりますね。", "今週は説明することが多めです。"],
+        },
+        {
+          label: "先輩モード",
+          thoughts: ["最初って、何を聞けばいいか分からないですよね。", "気になることがあれば、遠慮なく聞いてほしいです。"],
+        },
+        {
+          label: "少しにぎやか",
+          thoughts: ["キャンパスが少しにぎやかですね。", "新学期の感じ、まだ少しそわそわします。"],
+        },
+        {
+          label: "落ち着き",
+          thoughts: ["やっと今週の流れが見えてきました。", "今日は少し普通に話せそうです。"],
+        },
       ],
       crossMentions: [
         "美咲さんの店、新学期になると学生さんが増えますよね。",
-        "木村くんのコンビニ、夜に寄る学生が多そうです。",
-        "大将のところも、金曜は少しにぎやかそうですね。",
+        "木村くんのコンビニ、放課後はかなり混んでました。",
+        "大将のところも、金曜は少しにぎやかそうでした。",
       ],
     },
   ],
   kimura: [
     {
       id: "busy_night_shift_week",
-      description: "连续夜勤的一周",
+      description: "夜勤続きで少し疲れがたまっている週",
       states: [
-        { label: "疲惫", thoughts: ["今日も夜勤…", "もう体が重い…"] },
-        { label: "犯困", thoughts: ["眠すぎる", "授業中も寝ちゃう"] },
-        { label: "烦躁", thoughts: ["客多くてしんどい", "マジで勘弁して"] },
-        { label: "期待周末", thoughts: ["サッカー見たいな", "あと2日で休み…"] },
-        { label: "恢复中", thoughts: ["やっと休みだ", "昼間起きてるの久しぶり"] },
+        { label: "疲れ気味", thoughts: ["今日も夜勤。", "もう体が重い…"] },
+        { label: "眠い", thoughts: ["眠すぎる。", "授業中も寝そうになった。"] },
+        { label: "ばたばた", thoughts: ["客多くてしんどい。", "レジがずっと忙しかった。"] },
+        { label: "週末待ち", thoughts: ["あと2日で休み。", "休みになったら寝たい。"] },
+        { label: "回復中", thoughts: ["やっと少し休めた。", "昼間起きてるの久しぶり。"] },
       ],
       crossMentions: [
-        "美咲さんのカフェ、夜もやってる時あるんだよな",
-        "大将の居酒屋、閉まってから帰ること多い",
-        "美咲さんにコーヒーおごってもらった",
+        "美咲さんのカフェ、夜もやってる時があるみたい。",
+        "大将の店、閉まってから寄ること多い。",
+        "美咲さんにコーヒーおごってもらった。",
       ],
     },
     {
       id: "exam_week",
-      description: "考试周",
+      description: "テストやレポートが気になる週",
       states: [
-        { label: "焦虑", thoughts: ["テストやばい…", "全然勉強してない"] },
-        { label: "突击", thoughts: ["徹夜でやるしかない", "カフェイン頼み"] },
-        { label: "考完一门", thoughts: ["一科目終わった！", "でもまだある…"] },
-        { label: "最后一门", thoughts: ["あと一つ！", "終わったら遊ぶ"] },
-        { label: "解放", thoughts: ["解放された！", "寝る、ひたすら寝る"] },
+        { label: "焦り", thoughts: ["テストやばい…", "全然勉強してない。"] },
+        { label: "徹夜気味", thoughts: ["また夜ふかしした。", "カフェイン頼り。"] },
+        { label: "ひと段落", thoughts: ["一科目終わった。", "でもまだある…"] },
+        { label: "最後のひと踏ん張り", thoughts: ["あと一個。", "終わったらだらっとしたい。"] },
+        { label: "解放感", thoughts: ["終わった…！", "寝る。ひたすら寝る。"] },
       ],
       crossMentions: [
-        "美咲さんのカフェで勉強してる",
-        "大将に「頑張れよ」って言われた",
-        "美咲さん、レポート大変そうだったな",
+        "美咲さんのカフェで勉強してる。",
+        "大将に『無理すんな』って言われた。",
+        "遥さんもレポート大変そうだった。",
       ],
     },
     {
       id: "chill_week",
-      description: "轻松的一周",
+      description: "比較的ゆるく過ごせる週",
       states: [
-        { label: "悠闲", thoughts: ["今日は暇だな", "天気いいし散歩したい"] },
-        { label: "找乐子", thoughts: ["動画見たい", "なんか面白いことないかな"] },
-        { label: "社交", thoughts: ["友達と遊ぶ約束した", "楽しみ！"] },
-        { label: "小确幸", thoughts: ["コンビニのお菓子新商品うまい", "いい一日だった"] },
-        { label: "平静", thoughts: ["平和だな", "また雨か…まあいっか"] },
+        { label: "のんびり", thoughts: ["今日は平和だな。", "天気いいし散歩したい。"] },
+        { label: "娯楽モード", thoughts: ["動画見たい。", "なんか面白いことないかな。"] },
+        { label: "人と話したい", thoughts: ["友だちと話す気分。", "軽く寄り道したい。"] },
+        { label: "小さな満足", thoughts: ["コンビニの新作、意外とうまい。", "今日は悪くない。"] },
+        { label: "静か", thoughts: ["静かな一日も悪くない。", "また雨か…まあいいか。"] },
       ],
       crossMentions: [
-        "大将のとこでビール飲みてぇ",
-        "美咲さんおすすめの映画観た",
-        "大将にバイト募集の張り紙もらった",
+        "大将のところでビール飲んでた。",
+        "美咲さん、おすすめの映画あるって。",
+        "葵の話、なんかテンポよくて助かる時ある。",
       ],
     },
   ],
-
   misaki: [
     {
       id: "thesis_struggle",
-      description: "论文周",
+      description: "論文やレポートで少し気が張っている週",
       states: [
-        { label: "焦虑", thoughts: ["レポート終わらない", "締め切り近い…"] },
-        { label: "埋头苦干", thoughts: ["今日は集中する", "カフェイン多めで"] },
-        { label: "卡壳", thoughts: ["書いては消して…", "全然進まない"] },
-        { label: "突破", thoughts: ["やっと書けた！", "あとは推敲だけ"] },
-        { label: "提交后", thoughts: ["提出した！✨", "コーヒー美味しい…"] },
+        { label: "焦り", thoughts: ["レポート終わるかな。", "締め切り近いですね。"] },
+        { label: "集中中", thoughts: ["今日は集中する日。", "カフェイン多めで。"] },
+        { label: "行き詰まり", thoughts: ["書いては消して、の繰り返しです。", "全然進まない…。"] },
+        { label: "突破口", thoughts: ["やっと少し見えてきました。", "あと少しで形になりそう。"] },
+        { label: "提出後", thoughts: ["提出した…！", "コーヒーがいつもよりおいしいです。"] },
       ],
       crossMentions: [
-        "木村くん、夜勤お疲れ様って言いたい",
-        "大将が「無理するな」って励ましてくれた",
-        "木村くんもテスト期間みたい",
+        "木村くん、夜勤お疲れ様って言いたくなります。",
+        "大将が『無理しすぎるな』って励ましてくれたんです。",
+        "遥さんもレポート大変そうでした。",
       ],
     },
     {
       id: "film_week",
-      description: "电影周",
+      description: "映画や本の余韻を引きずっている週",
       states: [
-        { label: "期待", thoughts: ["映画観たい", "新作気になる"] },
-        { label: "沉浸", thoughts: ["昨日の映画すごかった", "まだ余韻ある"] },
-        { label: "分享欲", thoughts: ["この映画みんなに教えたい", "感想書き留めよう"] },
-        { label: "回味", thoughts: ["また観たいな", "サントラ聴いてる"] },
-        { label: "平静", thoughts: ["今日静かだな", "コーヒーいい匂い"] },
+        { label: "期待", thoughts: ["新作映画、見たいんですよね。", "気になる本もいくつかあります。"] },
+        { label: "余韻", thoughts: ["昨日の映画、まだ頭に残ってます。", "こういう余韻って嫌いじゃないです。"] },
+        { label: "共有したい", thoughts: ["誰かに感想を話したくなります。", "好きなものの話ってつい長くなります。"] },
+        { label: "静かな回味", thoughts: ["また見返したいです。", "音楽だけでも思い出します。"] },
+        { label: "落ち着き", thoughts: ["今日は少し静かに過ごしたい気分です。", "コーヒーの香りだけで十分な日もあります。"] },
       ],
       crossMentions: [
-        "木村くんにおすすめの映画教えた",
-        "大将も映画好きなんだって",
-        "木村くん、あの映画観たかな",
+        "木村くんにおすすめの映画を聞きました。",
+        "大将も意外と映画好きなんですよ。",
+        "葵ならこういう話、けっこう拾ってくれそうです。",
       ],
     },
     {
       id: "quiet_week",
-      description: "安静的一周",
+      description: "少し静かな日々を楽しんでいる週",
       states: [
-        { label: "平静", thoughts: ["今日静かだな", "雨の音が心地いい"] },
-        { label: "沉思", thoughts: ["季節かわるの早い", "なんか考えちゃう"] },
-        { label: "小感悟", thoughts: ["日常って大事", "小さな幸せ"] },
-        { label: "温柔", thoughts: ["お客さんとちょっと話せた", "優しい気持ち"] },
-        { label: "日常", thoughts: ["最近ずっと雨", "でも嫌じゃない"] },
+        { label: "平静", thoughts: ["今日は静かだな。", "雨の音が心地いいです。"] },
+        { label: "考えごと", thoughts: ["季節が変わるのって、少し不思議です。", "なんとなく考え込む日もあります。"] },
+        { label: "小さな感謝", thoughts: ["日常って大事ですね。", "小さい幸せに気づける日でした。"] },
+        { label: "やわらかい気分", thoughts: ["お客さんと少し話せてよかったです。", "今日はやさしい気分です。"] },
+        { label: "ふつう", thoughts: ["最近ずっと雨ですね。", "でも、こういう静けさも嫌いじゃないです。"] },
       ],
       crossMentions: [
-        "大将の居酒屋、雨の日もお客さん来るんだって",
-        "木村くん、元気かな",
-        "大将が新しいメニュー考えたって",
+        "大将の居酒屋、雨の日でもお客さん来るみたいですね。",
+        "木村くん、元気かな。",
+        "遥さんが新しいコーヒー豆を気にしてくれていました。",
       ],
     },
   ],
-
   taisho: [
     {
       id: "busy_season",
-      description: "旺季",
+      description: "店がよく回っていて忙しい週",
       states: [
-        { label: "忙碌", thoughts: ["今日も満席だ", "腕が鳴るね"] },
-        { label: "充实", thoughts: ["忙しいけど悪くない", "ビール飛ぶね"] },
-        { label: "疲惫", thoughts: ["腰いてぇ…", "でもやりがいある"] },
-        { label: "欣慰", thoughts: ["常連が増えたな", "嬉しいね"] },
-        { label: "收尾", thoughts: ["今週も終わり", "自分に一杯"] },
+        { label: "忙しい", thoughts: ["今日も満席だ。", "腰が鳴るな。"] },
+        { label: "充実", thoughts: ["忙しいけど悪くない。", "ビールがうまそうな日だ。"] },
+        { label: "疲れ", thoughts: ["ちょっと肩が重いな。", "でも手は止まらん。"] },
+        { label: "嬉しい", thoughts: ["常連が来るとやっぱり安心するな。", "にぎやかな夜は嫌いじゃない。"] },
+        { label: "収束", thoughts: ["今夜も終わった。", "自分にも一杯やりたいな。"] },
       ],
       crossMentions: [
-        "美咲ちゃんのカフェからお客さんが流れてくる",
-        "木村のやつ、夜勤明けに寄ってく",
-        "美咲ちゃんにコーヒー豆わけてもらった",
+        "美咲の店から流れてくる客もいるんだよな。",
+        "木村のやつ、夜勤明けに寄ってくことあるぞ。",
+        "遥もたまに研究の帰りで顔出すんだ。",
       ],
     },
     {
       id: "slow_season",
-      description: "淡季",
+      description: "少し静かで様子見の週",
       states: [
-        { label: "清闲", thoughts: ["今日は暇だねぇ", "客こないな"] },
-        { label: "怀旧", thoughts: ["昔はもっと賑やかだったな", "あの頃が懐かしい"] },
-        { label: "操心", thoughts: ["値上げまたか…", "仕入れ値上がってる"] },
-        { label: "想办法", thoughts: ["近所に新しい店できた", "負けてられない"] },
-        { label: "调整", thoughts: ["新しいメニュー考えよう", "まあなんとかなる"] },
+        { label: "暇め", thoughts: ["今日は静かだな。", "客来ない日もある。"] },
+        { label: "懐かしい気分", thoughts: ["昔はもっと賑やかだったな。", "あの頃の話、たまに思い出す。"] },
+        { label: "やりくり", thoughts: ["仕入れ値も上がってるしな。", "無駄なく回さないと。"] },
+        { label: "工夫中", thoughts: ["新しい小皿でも考えるか。", "季節も少し変わってきたな。"] },
+        { label: "落ち着き", thoughts: ["こういう夜も悪くない。", "静かな時間にしかできないこともある。"] },
       ],
       crossMentions: [
-        "美咲ちゃんの店はいつも客入ってるな",
-        "木村、バイト頑張ってるみたいだな",
-        "美咲ちゃんとコラボメニュー考えようかな",
+        "美咲の店は相変わらず落ち着いてるみたいだ。",
+        "木村、また夜食探してるらしいな。",
+        "葵みたいな若いやつの話を聞くと店の空気も変わる。 ",
       ],
     },
     {
       id: "nostalgia_week",
-      description: "怀旧的一周",
+      description: "少し昔を思い出しやすい週",
       states: [
-        { label: "感慨", thoughts: ["もう夏だな", "早いもんだ"] },
-        { label: "回忆", thoughts: ["昔の写真出てきた", "若い頃の俺…"] },
-        { label: "想念老友", thoughts: ["あいつ元気かな", "久しぶりに連絡するか"] },
-        { label: "小聚", thoughts: ["ビール飲みたいね", "昔話に花が咲く"] },
-        { label: "释然", thoughts: ["まあ今の生活も悪くない", "ビールうめぇ"] },
+        { label: "感慨", thoughts: ["もう夏か。", "時間って早いもんだな。"] },
+        { label: "回想", thoughts: ["昔の写真でも出てきた。", "若い頃の話って急に思い出すんだよ。"] },
+        { label: "人恋しい", thoughts: ["誰かとだらっと話したい夜だ。", "こういう日は店がちょうどいい。"] },
+        { label: "小さな集まり気分", thoughts: ["ビール飲みながら昔話でもしたいな。", "静かに話せる客がいると助かる。"] },
+        { label: "釈然", thoughts: ["まあ今の生活も悪くない。", "結局、今夜も一日だ。"] },
       ],
       crossMentions: [
-        "木村に昔話したら興味なさそうだった",
-        "美咲ちゃん、いい聞き手だよな",
-        "この辺も変わったな、美咲ちゃんは知らないだろうけど",
+        "木村に昔話したら、案外ちゃんと聞いてたぞ。",
+        "美咲は聞き上手だからな。",
+        "遥や葵みたいな若い連中を見ると、街もまだ元気だと思う。",
       ],
     },
   ],
 };
 
-/* ============================================================
-   弧线状态持久化 & 推进
-   localStorage key: kotomachi_arc_{npcId}
-   value: { arcId: string, dayIndex: number, startDate: string(YYYY-MM-DD) }
-   ============================================================ */
-
-interface ArcRecord {
-  arcId: string;
-  dayIndex: number;
-  startDate: string; // YYYY-MM-DD
-}
-
-function getTodayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function daysBetween(dateStr1: string, dateStr2: string): number {
-  const d1 = new Date(dateStr1);
-  const d2 = new Date(dateStr2);
-  return Math.floor((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/** 获取弧线记录（仅客户端） */
-function getArcRecord(npcId: NpcId): ArcRecord | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(`kotomachi_arc_${npcId}`);
-  if (!raw) return null;
+function loadArcOffset(npcId: NpcId): number {
+  if (typeof window === "undefined") return 0;
   try {
-    return JSON.parse(raw) as ArcRecord;
+    const raw = localStorage.getItem(`kotomachi_arc_${npcId}`);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw) as Partial<ArcRecord>;
+    return typeof parsed.dayIndex === "number" ? parsed.dayIndex : 0;
   } catch {
-    return null;
+    return 0;
   }
 }
 
-/** 保存弧线记录（仅客户端） */
-function safeSetLocalStorageItem(key: string, value: string): boolean {
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch (error) {
-    console.warn("[npc] localStorage write failed", {
-      key,
-      reason: error instanceof Error ? error.name : "unknown",
-    });
-    return false;
-  }
-}
-
-function saveArcRecord(npcId: NpcId, record: ArcRecord): void {
-  if (typeof window === "undefined") return;
-  safeSetLocalStorageItem(`kotomachi_arc_${npcId}`, JSON.stringify(record));
-}
-
-/** 找到下一条弧线（循环） */
-function getNextArc(npcId: NpcId, currentArcId: string): LifeArc {
-  const arcs = NPC_ARCS[npcId];
-  const idx = arcs.findIndex((a) => a.id === currentArcId);
-  return arcs[(idx + 1) % arcs.length];
-}
-
-/** 找到指定弧线 */
-function findArc(npcId: NpcId, arcId: string): LifeArc | undefined {
-  return NPC_ARCS[npcId].find((a) => a.id === arcId);
-}
-
-/** 用日期计算稳定的弧线索引 */
-function getStableArcIndex(npcId: NpcId, daysSinceEpoch: number): number {
-  const arcs = NPC_ARCS[npcId];
-  const totalDaysPerCycle = arcs.reduce((sum, arc) => sum + arc.states.length, 0);
-  const cycleDay = daysSinceEpoch % totalDaysPerCycle;
-  
-  let accumulated = 0;
-  for (let i = 0; i < arcs.length; i++) {
-    accumulated += arcs[i].states.length;
-    if (cycleDay < accumulated) {
-      return i;
-    }
-  }
-  return 0;
-}
-
-/** 获取当前弧线状态（完全基于日期计算，SSR和客户端一致） */
-export function getNpcState(npcId: NpcId): { label: string; thought: string; arcDescription: string; crossMentions: string[] } {
-  // 固定纪元日期，确保服务端和客户端计算一致
-  const epoch = new Date("2024-01-01");
+export function getNpcState(
+  npcId: NpcId,
+): { label: string; thought: string; arcDescription: string; crossMentions: string[] } {
+  const epoch = new Date("2024-01-01T00:00:00");
   const today = new Date();
   const daysSinceEpoch = Math.floor((today.getTime() - epoch.getTime()) / (1000 * 60 * 60 * 24));
-  
-  // 获取偏移量（用于重置，默认为0）
-  const record = getArcRecord(npcId);
-  const offset = record?.dayIndex ?? 0;
+  const offset = loadArcOffset(npcId);
   const effectiveDays = daysSinceEpoch + offset;
-  
-  // 计算当前弧线索引
+
   const arcs = NPC_ARCS[npcId];
   const totalDaysPerCycle = arcs.reduce((sum, arc) => sum + arc.states.length, 0);
-  let cycleDay = effectiveDays % totalDaysPerCycle;
-  
-  // 找到当前弧线和状态
+  let cycleDay = ((effectiveDays % totalDaysPerCycle) + totalDaysPerCycle) % totalDaysPerCycle;
+
   let currentArc = arcs[0];
   let currentStateIndex = 0;
-  
+
   for (const arc of arcs) {
     if (cycleDay < arc.states.length) {
       currentArc = arc;
@@ -361,23 +401,19 @@ export function getNpcState(npcId: NpcId): { label: string; thought: string; arc
     }
     cycleDay -= arc.states.length;
   }
-  
+
   const state = currentArc.states[currentStateIndex];
-  
-  // 用日期做种子选心里话，保证SSR一致
   const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
   const thoughtIndex = dateSeed % state.thoughts.length;
-  const thought = state.thoughts[thoughtIndex];
-  
+
   return {
     label: state.label,
-    thought,
+    thought: state.thoughts[thoughtIndex],
     arcDescription: currentArc.description,
     crossMentions: currentArc.crossMentions ?? [],
   };
 }
 
-/** 根据当前时间段返回日文时段标签 */
 export function getTimeOfDay(): "朝" | "昼" | "夕" | "夜" {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 11) return "朝";
@@ -385,11 +421,6 @@ export function getTimeOfDay(): "朝" | "昼" | "夕" | "夜" {
   if (hour >= 17 && hour < 21) return "夕";
   return "夜";
 }
-
-/* ============================================================
-   共享世界状态 — 同一天所有NPC经历相同的天气/氛围
-   用日期做种子，保证同一天结果一致
-   ============================================================ */
 
 interface WorldState {
   id: string;
@@ -402,74 +433,80 @@ interface WorldState {
 const WORLD_STATES: WorldState[] = [
   {
     id: "rainy_day",
-    description: "今天下着雨",
-    atmosphere: "雨の降る町",
-    ambientTexts: ["小雨的夜晚。", "只听得见雨声。", "看见了一个没带伞的人。"],
+    description: "今日は雨が降っている。",
+    atmosphere: "雨の降る日",
+    ambientTexts: ["小雨の夜。", "遠くで傘を閉じる音がした。", "雨の匂いが少し濃い。"],
     reactions: {
+      aoi: "雨の日って、学生ラウンジでだらっと話したくなるんだよね。",
       haruka: "雨の日は研究室も少し静かで、集中しやすいですね。",
-      misaki: "雨天的咖啡馆格外安静舒适，享受这份宁静。",
-      kimura: "下雨天通勤太烦了，湿漉漉的很不舒服。",
-      taisho: "雨天客人少，正好慢慢准备食材。",
+      misaki: "雨の日は店の空気が少しやわらかくなる気がします。",
+      kimura: "雨の日の通勤、ほんとにちょっと面倒なんだよね。",
+      taisho: "雨の日は客足ゆっくりだけど、そのぶん話せる夜でもあるな。",
     },
   },
   {
     id: "hot_summer",
-    description: "闷热的夏日",
-    atmosphere: "蒸し暑い町",
-    ambientTexts: ["空气还是有点闷热。", "远远传来蝉鸣。", "冷气机的声音融进了街道里。"],
+    description: "蒸し暑い日が続いている。",
+    atmosphere: "蒸し暑い日",
+    ambientTexts: ["空気がむっとしている。", "遠くで蝉が鳴いている。", "冷たい飲み物がほしくなる。"],
     reactions: {
-      haruka: "この暑さだと、研究室まで行くだけで少し疲れますね。",
-      misaki: "冰咖啡今天特别受欢迎。",
-      kimura: "热死了，便利店冷气是救命稻草。",
-      taisho: "冰啤卖得飞快，这种天就是为啤酒而生的。",
+      aoi: "この暑さだと、外より中でだらっとしたくなるかも。",
+      haruka: "この暑さだと、研究室まで歩くだけで少し疲れますね。",
+      misaki: "今日は冷たい一杯のほうが合いそうですね。",
+      kimura: "暑すぎて、コンビニの冷ケースの前から動きたくない。",
+      taisho: "こういう日は、冷えたビールがいちばんだろ。",
     },
   },
   {
     id: "quiet_weekday",
-    description: "平静的工作日",
+    description: "少し静かな平日。",
     atmosphere: "静かな平日",
-    ambientTexts: ["车站前比平时安静。", "不知哪里传来电台声。", "有只猫从路边横穿过去。"],
+    ambientTexts: ["駅前がいつもより静か。", "遠くで電車の音だけがする。", "空気が少し平たい。"],
     reactions: {
-      haruka: "こういう静かな日は、文献を読むにはちょうどいいです。",
-      misaki: "今天客人不多，可以慢慢磨豆子。",
-      kimura: "闲得发慌，站在柜台后面发呆。",
-      taisho: "没什么客人，但也不坏，悠闲的一天。",
+      aoi: "こういう静かな日って、だらっと話すにはちょうどいいね。",
+      haruka: "こんな静かな日は、文献を読むにはちょうどいいです。",
+      misaki: "店も少し静かで、コーヒーの香りがよく残ります。",
+      kimura: "今日は変に暇で、逆にぼーっとする。",
+      taisho: "こういう日は仕込みを丁寧にやるに限るな。",
     },
   },
   {
     id: "weekend_night",
-    description: "热闹的周末夜晚",
-    atmosphere: "賑やかな週末",
-    ambientTexts: ["远处传来电车声。", "不知哪里传来笑声。", "晚风里有烤物的香味。"],
+    description: "週末の夜で少しにぎやか。",
+    atmosphere: "にぎやかな週末",
+    ambientTexts: ["遠くで笑い声がした。", "夜風に食べ物の匂いが混じっている。", "駅前がいつもより明るい。"],
     reactions: {
-      haruka: "週末でも、少しだけ研究室に寄ることがあるんです。",
-      misaki: "周末晚上客人比平时多，有些热闹。",
-      kimura: "周末便利店反而更忙，大家都出来玩了。",
-      taisho: "周末满座，忙得不可开交但也痛快。",
+      aoi: "週末の夜って、なんとなく誰かと話したくならない？",
+      haruka: "週末でも、少しだけ研究室に寄る日もあるんです。",
+      misaki: "週末の夜は、少しだけ人の流れが変わりますね。",
+      kimura: "週末の夜は、コンビニもなんだかんだ忙しい。",
+      taisho: "週末はやっぱり夜が本番だな。",
     },
   },
   {
     id: "chilly_autumn",
-    description: "微凉的秋日",
+    description: "少しひんやりした秋の日。",
     atmosphere: "秋の気配",
-    ambientTexts: ["吹来一阵微凉的风。", "落叶在脚边发出声音。", "天空似乎变得更高了。"],
+    ambientTexts: ["風が少し冷たい。", "落ち葉が端にたまっている。", "空が高く見える。"],
     reactions: {
-      haruka: "秋になると、キャンパスを歩くだけで少し気分が落ち着きます。",
-      misaki: "秋天适合喝热拿铁，换了新豆子。",
-      kimura: "终于不热了，舒服多了。",
-      taisho: "秋天就该喝热酒，新出了芋焼酎。",
+      aoi: "秋って、なんか話しやすい空気になる気がする。",
+      haruka: "秋になると、キャンパスを歩くだけでも少し落ち着きますね。",
+      misaki: "こういう日は、熱いコーヒーがしっくりきます。",
+      kimura: "やっと暑くなくなって助かる。",
+      taisho: "秋は熱燗の話をしたくなるな。",
     },
   },
   {
     id: "humid_rainy",
-    description: "潮湿的梅雨天",
-    atmosphere: "じめじめした町",
-    ambientTexts: ["湿气黏在皮肤上。", "晾着的衣服一直不干。", "天色白白地压下来。"],
+    description: "じめっとした梅雨の空気。",
+    atmosphere: "じめじめした日",
+    ambientTexts: ["空気が重い。", "髪が少しまとまりにくい。", "街全体がゆっくりしている。"],
     reactions: {
-      haruka: "梅雨の時期って、なんとなく頭も重くなりますよね。",
-      misaki: "梅雨季让人有点消沉，但雨声很治愈。",
-      kimura: "衣服干不了，真的很烦。",
-      taisho: "这种天气客人少，但老客还是会来。",
+      aoi: "このじめっとした感じ、妙にだるくならない？",
+      haruka: "梅雨の時期って、なんとなく肩も重くなりますよね。",
+      misaki: "こういう日は、静かに過ごしたくなります。",
+      kimura: "服が乾かないのが一番しんどい。",
+      taisho: "梅雨どきは、店の灯りがちょっとありがたいんだよな。",
     },
   },
 ];
@@ -481,55 +518,59 @@ export function getWorldContext(): WorldState {
 }
 
 export function isNpcId(id: string): id is NpcId {
-  return id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho";
+  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho";
 }
 
 const HOME_CARD_LINES: Record<NpcId, string[]> = {
+  aoi: [
+    "最近ハマってるものの話って、つい長くなるんだよね。",
+    "放課後って、ちょっとだらっと話せる時間があると助かる。",
+    "知らないジャンルでも、話を聞くのはけっこう好きかも。",
+    "おすすめって、軽く聞ける相手がいるとちょうどいいよね。",
+    "今日はちょっとゆるい話をしたい気分かも。",
+    "気になるけど詳しくない、みたいな話もわりと好き。",
+    "最近、友だちっぽく自然に話せる相手って大事だなって思う。",
+    "放課後の共有スペースって、なんとなく話しやすい空気があるよね。",
+  ],
   haruka: [
     "研究室の空気って、慣れるまで少し緊張しますよね。",
     "発表前って、ちょっとした雑談でも助かる気がします。",
     "文献を読んでいると、急に眠くなる日もあります。",
     "最初の相談って、何から話せばいいか迷いますよね。",
     "キャンパスのカフェ、考えごとを整理するのにちょうどいいです。",
-    "研究の話じゃなくても、気軽に話して大丈夫ですよ。",
-    "授業や研究室のこと、言い方を一緒に考えるのも好きです。",
-    "留学前って、細かいことほどちょっと不安になりますよね。",
+    "研究の話じゃなくても、気楽に話して大丈夫ですよ。",
+    "授業と研究室のこと、言い方を一緒に考えるのも好きです。",
+    "留学前って、細かいことでも不安になりやすいですよね。",
   ],
   kimura: [
-    "新商品、ちょっとだけ気になってるんだ。",
-    "雨の日って、コンビニの明かりが少し落ち着くんですよ。",
-    "今日は店が静かで、少しぼんやりしてます。",
-    "夜勤明けでちょっと眠い…でも元気だよ。",
     "最近新しいお菓子入ったんだけど、試してみる？",
-    "お客さんの話を聞くのが結構楽しいんだよね。",
-    "コンビニの定食、意外とおいしいんですよ。",
+    "雨の日って、コンビニの明かりが少し落ち着くんだよね。",
+    "今日は店が静かで、少しぼんやりしてます。",
+    "夜勤明けでちょっと眠い…でも元気はあるよ。",
+    "コンビニの定番って、意外と飽きないんだよね。",
+    "お客さんの話を聞くの、けっこう好きなんだよ。",
     "今日は特別忙しくないから、ゆっくり話せるよ。",
-    "天気悪い日は、温かいコーヒーが売れるんだよ。",
-    "あの商品、よくお客さんに選ばれてるんだよね。",
+    "天気悪い日は、温かいコーヒーが妙に合う。",
   ],
   misaki: [
-    "雨の日は、深煎りの香りがよく合いますね。",
-    "今日は少し静かに、コーヒーの話でもしたい気分です。",
-    "窓の外を見ながら、ゆっくり淹れていました。",
-    "新しい豆を仕入れたんです。香りが素敵ですよ。",
     "今日のエスプレッソ、抽出時間ちょうどいい感じです。",
-    "コーヒー豆の産地について、ちょっと話しませんか？",
-    "雨音とコーヒーの香り、最高の組み合わせです。",
-    "ゆっくりした時間が、一番好きです。",
-    "今日は、手作りのクッキーも出しましたよ。",
-    "季節のフレーバーを考えているんです。何かいいアイデアは？",
+    "雨の日は、深煎りの香りがよく似合いますね。",
+    "少し静かな時間に、ゆっくり話せるのが好きです。",
+    "新しい豆を入れたので、香りだけでも試してみますか。",
+    "窓の外を見ながら、ぼんやりするのも悪くないですね。",
+    "コーヒー豆の産地の話、ちょっとだけなら話せますよ。",
+    "今日は手作りのクッキーもあります。",
+    "ていねいな時間って、たまに必要ですよね。",
   ],
   taisho: [
-    "雨宿りがてら、ちょっと話していきや。",
-    "今日のこぼれ話に、ちょうどええ夜やな。",
-    "まかない飯、今日はしっかりうまいで。",
-    "新しいメニュー考えたんや。試してみるか？",
     "晩酌のお供に、何か軽くつまむか？",
-    "今日は常連が来てくれて、ええ空気やったわ。",
-    "たまにはビール飲みながら、だらっと話すのもええもんや。",
-    "天気の悪い日は、店のあったかさがよう分かるな。",
-    "昨日の話の続きでも、別の話でもかまへんで。",
-    "お前の話、ちゃんと聞くからな。どうぞ。",
+    "雨宿りがてら、ちょっと話していきゃいい。",
+    "今夜はしっかりうまいもん用意してるぞ。",
+    "新しい小鉢、試してみるか？",
+    "常連が来ると、やっぱり空気がやわらぐな。",
+    "だらっと飲みながら話す夜も悪くないだろ。",
+    "この天気だと、店のあったかさが分かるよな。",
+    "昨日の続きでも、今日の話でもかまわんよ。",
   ],
 };
 
