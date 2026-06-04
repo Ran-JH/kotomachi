@@ -79,6 +79,8 @@ export interface StoredMessage {
   content: string;
   /** ISO timestamp. Older LocalStorage records may not have this field. */
   createdAt?: string;
+  /** Optional marker for system-generated messages such as welcomes. */
+  source?: string;
 }
 
 export function loadChatHistory(npcId: string): StoredMessage[] {

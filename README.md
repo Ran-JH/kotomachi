@@ -46,8 +46,8 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 - **Review cards**: Generate a session summary card from the conversation — what was talked about, reusable expressions, suggestions, and new words.
 - **Saved words and expressions**：收藏来自查词和表达提示的学习内容，支持筛选、回顾和删除。
 - **Saved words and expressions**: Save items from word explanations and expression hints to a personal collection. Filter, review, and delete them later.
-- **Topic ideas**：首聊 starter prompts + action menu 话题灵感，降低“不知道说什么”的门槛。
-- **Topic ideas**: First-chat starter prompts plus action-menu topic ideas to reduce “I don’t know what to say” friction.
+- **Topic ideas**：`找话题` 现在分成 opening / continuation 两种 mode。首聊或还没回复 latest welcome 时使用固定 starter；已经进入对话后，AI 会按上下文生成接话建议，并支持“换一批”。
+- **Topic ideas**: `Topic ideas` now has opening and continuation modes. It uses fixed starters before the user replies to the latest welcome, then switches to context-aware AI follow-up lines with a refresh action.
 - **Continue last chat**：快速回到最近聊过的 NPC。
 - **Continue last chat**: Quick entry to resume conversations with NPCs you spoke with recently.
 - **UI language toggle**：中文 / English 界面切换，日语学习内容保持日语。

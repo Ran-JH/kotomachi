@@ -17,6 +17,7 @@ import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-langua
 import {
   getLocalNPCMemories,
   getConversationCount,
+  getLastChatTime,
   loadChatHistory,
   saveChatHistory,
   saveLastChatTime,
@@ -73,6 +74,7 @@ interface ChatMessage {
   text: string;
   type: "text" | "voice";
   createdAt?: string;
+  source?: "welcome";
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   npcAudioUrl?: string | null;
@@ -124,6 +126,7 @@ const REVIEW_BAD_NEXT_TOPIC_PATTERNS = [
   "talk about how you felt",
 ];
 const ONBOARDING_HINT_DISMISSED_KEY = "kotomachi_onboarding_hint_dismissed";
+const REVISIT_WELCOME_IDLE_MS = 2 * 60 * 60 * 1000;
 
 function isReviewFiller(value: string | undefined): boolean {
   const text = (value ?? "").trim().toLowerCase();
@@ -170,12 +173,18 @@ function markNpcSeenThisSession(npcId: NpcId): void {
   }
 }
 
-function loadRevisitWelcomeMarker(npcId: NpcId): { userMessageCount: number; sourceFingerprint: string } | null {
+function loadRevisitWelcomeMarker(
+  npcId: NpcId,
+): { userMessageCount: number; sourceFingerprint: string; triggeredAt?: number } | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(getRevisitWelcomeMarkerKey(npcId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<{ userMessageCount: number; sourceFingerprint: string }>;
+    const parsed = JSON.parse(raw) as Partial<{
+      userMessageCount: number;
+      sourceFingerprint: string;
+      triggeredAt: number;
+    }>;
     if (
       typeof parsed.userMessageCount === "number" &&
       typeof parsed.sourceFingerprint === "string"
@@ -183,6 +192,7 @@ function loadRevisitWelcomeMarker(npcId: NpcId): { userMessageCount: number; sou
       return {
         userMessageCount: parsed.userMessageCount,
         sourceFingerprint: parsed.sourceFingerprint,
+        triggeredAt: typeof parsed.triggeredAt === "number" ? parsed.triggeredAt : undefined,
       };
     }
   } catch {
@@ -193,7 +203,7 @@ function loadRevisitWelcomeMarker(npcId: NpcId): { userMessageCount: number; sou
 
 function saveRevisitWelcomeMarker(
   npcId: NpcId,
-  marker: { userMessageCount: number; sourceFingerprint: string },
+  marker: { userMessageCount: number; sourceFingerprint: string; triggeredAt?: number },
 ): void {
   if (typeof window === "undefined") return;
   try {
@@ -242,6 +252,9 @@ export default function ChatPage() {
   const [isOnboardingHintDismissed, setIsOnboardingHintDismissed] = useState(false);
   const [isInputComposing, setIsInputComposing] = useState(false);
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
+  const [topicIdeas, setTopicIdeas] = useState<string[] | null>(null);
+  const [isTopicIdeasLoading, setIsTopicIdeasLoading] = useState(false);
+  const [topicIdeasForceRefreshKey, setTopicIdeasForceRefreshKey] = useState<string | null>(null);
   const copy = getUiCopy(uiLanguage);
   const savedExpressionCount = savedItems.filter((item) => item.type === "expression").length;
   const savedWordCount = savedItems.filter((item) => item.type === "word").length;
@@ -277,6 +290,7 @@ export default function ChatPage() {
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const starterAppliedRef = useRef(false);
+  const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
   const searchParams = useSearchParams();
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
@@ -480,9 +494,10 @@ export default function ChatPage() {
         text: welcomeText,
         type: "text",
         createdAt: new Date().toISOString(),
+        source: "welcome",
       };
       saveChatHistory(targetNpcId, [
-        { role: "assistant", content: welcomeText, createdAt: welcomeMsg.createdAt },
+        { role: "assistant", content: welcomeText, createdAt: welcomeMsg.createdAt, source: "welcome" },
       ]);
       generatedInitialWelcomeForNpcRef.current.add(targetNpcId);
 
@@ -513,9 +528,10 @@ export default function ChatPage() {
 
     const lastMessageTime = lastMessage.createdAt ? new Date(lastMessage.createdAt).getTime() : 0;
     const now = Date.now();
-    const timeSinceLastMessage = now - lastMessageTime;
+    const lastActivityTime = getLastChatTime(targetNpcId) ?? lastMessageTime;
+    const timeSinceLastActivity = now - lastActivityTime;
 
-    if (timeSinceLastMessage < MESSAGE_TIME_DIVIDER_GAP_MS) return;
+    if (!lastActivityTime || timeSinceLastActivity < REVISIT_WELCOME_IDLE_MS) return;
 
     const userMessageCount = countUserMessages(restoredHistory);
 
@@ -523,8 +539,11 @@ export default function ChatPage() {
     if (generatedRevisitWelcomeSourcesRef.current.has(sourceFingerprint)) return;
 
     const marker = loadRevisitWelcomeMarker(targetNpcId);
+    const markerReferenceTime = marker?.triggeredAt ?? getLastChatTime(targetNpcId) ?? lastMessageTime;
+    const markerIsFresh = markerReferenceTime > 0 && now - markerReferenceTime < REVISIT_WELCOME_IDLE_MS;
     if (
       marker &&
+      markerIsFresh &&
       (marker.sourceFingerprint === sourceFingerprint ||
         (userMessageCount > 0 && userMessageCount <= marker.userMessageCount))
     ) {
@@ -555,13 +574,18 @@ export default function ChatPage() {
         text: welcomeText,
         type: "text",
         createdAt: new Date().toISOString(),
+        source: "welcome",
       };
 
       saveChatHistory(targetNpcId, [
         ...currentHistory,
-        { role: "assistant", content: welcomeText, createdAt: welcomeMsg.createdAt },
+        { role: "assistant", content: welcomeText, createdAt: welcomeMsg.createdAt, source: "welcome" },
       ]);
-      saveRevisitWelcomeMarker(targetNpcId, { userMessageCount, sourceFingerprint });
+      saveRevisitWelcomeMarker(targetNpcId, {
+        userMessageCount,
+        sourceFingerprint,
+        triggeredAt: Date.now(),
+      });
 
       if (data?.extractedFacts) {
         saveLocalNPCFacts(targetNpcId, data.extractedFacts);
@@ -589,20 +613,15 @@ export default function ChatPage() {
     setMemories(storedMemories);
     const history = loadChatHistory(npcId);
 
-    const hasUserMessage = history.some((m) => m.role === "user");
-
-    if (hasUserMessage) {
+    if (history.length > 0) {
       const restored: ChatMessage[] = history.map((m, i) => ({
         id: `stored-${i}`, sender: m.role === "user" ? "user" : "assistant",
         text: m.content, type: "text" as const, createdAt: m.createdAt,
+        source: m.source === "welcome" ? "welcome" : undefined,
       }));
       setMessages(restored);
       void triggerRevisitWelcome(npcId, storedMemories, history, wasSeenThisSession);
       return;
-    }
-
-    if (history.length > 0 && !hasUserMessage) {
-      saveChatHistory(npcId, []);
     }
 
     setMessages([]);
@@ -641,7 +660,12 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setInputText(""); setIsTyping(true);
     void extractMemory(userText); incrementConversationCount(npcId);
-    const historyForApi: StoredMessage[] = messages.filter((m) => m.sender === "user" || m.sender === "assistant").map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text, createdAt: m.createdAt }));
+    const historyForApi: StoredMessage[] = messages.filter((m) => m.sender === "user" || m.sender === "assistant").map((m) => ({
+      role: m.sender === "user" ? "user" : "assistant",
+      content: m.text,
+      createdAt: m.createdAt,
+      source: m.source,
+    }));
     historyForApi.push({ role: "user", content: userText, createdAt: userCreatedAt });
     const npcState = getNpcState(npcId);
     const worldContext = getWorldContext();
@@ -653,7 +677,16 @@ export default function ChatPage() {
       let npcAudioUrl: string | null = null;
       if (useVoice) npcAudioUrl = await fetchTtsUrl(data.text);
       const assistantMsg: ChatMessage = { id: `assistant-${Date.now()}`, sender: "assistant", text: data.text, type: useVoice ? "voice" : "text", createdAt: new Date().toISOString(), npcAudioUrl };
-      setMessages((prev) => { const next = [...prev, assistantMsg]; saveChatHistory(npcId, next.map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text, createdAt: m.createdAt }))); return next; });
+      setMessages((prev) => {
+        const next = [...prev, assistantMsg];
+        saveChatHistory(npcId, next.map((m) => ({
+          role: m.sender === "user" ? "user" : "assistant",
+          content: m.text,
+          createdAt: m.createdAt,
+          source: m.source,
+        })));
+        return next;
+      });
       saveLastChatTime(npcId);
     } catch (err) {
       const errorText = err instanceof Error ? err.message : "";
@@ -764,9 +797,6 @@ export default function ChatPage() {
     : "Kotomachi helps turn your rough thoughts into natural Japanese.";
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
   const topicIdeasTitle = uiLanguage === "zh" ? "找话题" : "Topic ideas";
-  const topicIdeasSubtitle = uiLanguage === "zh"
-    ? "不知道说什么时，可以从这里开始"
-    : "Pick a low-pressure prompt to keep talking";
   const helpTitle = uiLanguage === "zh" ? "帮助" : "Help";
   const helpSubtitle = uiLanguage === "zh" ? "使用提示与安装说明" : "Guide & install help";
   const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
@@ -802,6 +832,53 @@ export default function ChatPage() {
   const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
   const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
   const statusAwarePrompt = getStatusAwareTopicIdea(npcId);
+  const topicIdeasLoadingLabel = uiLanguage === "zh" ? "正在想几句能接上的话…" : "Finding lines that fit…";
+  const refreshTopicIdeasLabel = uiLanguage === "zh" ? "换一批" : "Another set";
+  const fixedTopicIdeas = useMemo(() => visibleStarterPrompts, [visibleStarterPrompts]);
+  const latestWelcomeIndex = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message.sender === "assistant" && message.source === "welcome") {
+        return i;
+      }
+    }
+    return -1;
+  }, [messages]);
+  const hasUserAfterLatestWelcome = useMemo(() => {
+    if (latestWelcomeIndex < 0) return userMessageCount > 0;
+    return messages.slice(latestWelcomeIndex + 1).some((message) => message.sender === "user");
+  }, [latestWelcomeIndex, messages, userMessageCount]);
+  const isTopicIdeasOpeningMode =
+    userMessageCount === 0 || (latestWelcomeIndex >= 0 && !hasUserAfterLatestWelcome);
+  const topicIdeasSubtitle = isTopicIdeasOpeningMode
+    ? (uiLanguage === "zh"
+      ? "还没开口时，可以先从这些起句开始"
+      : "Use these opening lines if you haven't replied yet.")
+    : (uiLanguage === "zh"
+      ? "根据你们刚才的对话，帮你续一句"
+      : "These lines are based on the current conversation.");
+  const topicIdeasModeLabel = isTopicIdeasOpeningMode
+    ? (uiLanguage === "zh" ? "开场起句" : "Opening lines")
+    : (uiLanguage === "zh" ? "按当前对话生成" : "Based on this chat");
+  const recentTopicMessages = useMemo(
+    () =>
+      messages
+        .filter((message) => message.sender === "user" || message.sender === "assistant")
+        .slice(-6)
+        .map((message) => ({
+          role: message.sender === "user" ? "user" as const : "assistant" as const,
+          content: message.text.trim(),
+        }))
+        .filter((message) => message.content),
+    [messages],
+  );
+  const topicIdeasCacheKey = useMemo(() => {
+    if (isTopicIdeasOpeningMode || recentTopicMessages.length === 0) return "";
+    const source = recentTopicMessages.map((message) => `${message.role}:${message.content}`).join("\n");
+    return `${npcId}:${uiLanguage}:${recentTopicMessages.length}:${hashText(source)}`;
+  }, [isTopicIdeasOpeningMode, npcId, uiLanguage, recentTopicMessages]);
+  const displayedTopicIdeas = isTopicIdeasOpeningMode ? fixedTopicIdeas : (topicIdeas ?? []);
+  const isRefreshingTopicIdeas = Boolean(topicIdeasCacheKey) && topicIdeasForceRefreshKey === topicIdeasCacheKey;
   const recentSummaryMessages = useMemo<SessionSummaryMessage[]>(() => {
     return messages
       .filter((message) => message.sender === "user" || message.sender === "assistant")
@@ -932,6 +1009,87 @@ export default function ChatPage() {
     } finally {
       setIsSummaryGenerating(false);
     }
+  };
+
+  useEffect(() => {
+    if (!isTopicIdeasOpen) return;
+    if (isTopicIdeasOpeningMode) {
+      setIsTopicIdeasLoading(false);
+      setTopicIdeas(null);
+      return;
+    }
+    if (!topicIdeasCacheKey) {
+      setIsTopicIdeasLoading(false);
+      setTopicIdeas(fixedTopicIdeas);
+      return;
+    }
+
+    const shouldForceRefresh = topicIdeasForceRefreshKey === topicIdeasCacheKey;
+    if (!shouldForceRefresh) {
+      const cachedIdeas = topicIdeasCacheRef.current.get(topicIdeasCacheKey);
+      if (cachedIdeas && cachedIdeas.length > 0) {
+        setTopicIdeas(cachedIdeas);
+        setIsTopicIdeasLoading(false);
+        return;
+      }
+    }
+
+    const controller = new AbortController();
+    setTopicIdeas(null);
+    setIsTopicIdeasLoading(true);
+
+    void fetch(buildClientApiUrl("/api/topic-ideas"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        npcId,
+        uiLanguage: uiLanguage === "en" ? "en" : "zh",
+        recentMessages: recentTopicMessages,
+      }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as { ideas?: Array<{ text?: string }> };
+      })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const nextIdeas = (data?.ideas ?? [])
+          .map((item) => (typeof item?.text === "string" ? item.text.trim() : ""))
+          .filter(Boolean)
+          .slice(0, 3);
+        const resolvedIdeas = nextIdeas.length > 0 ? nextIdeas : fixedTopicIdeas;
+        topicIdeasCacheRef.current.set(topicIdeasCacheKey, resolvedIdeas);
+        setTopicIdeas(resolvedIdeas);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setTopicIdeas(fixedTopicIdeas);
+      })
+      .finally(() => {
+        if (controller.signal.aborted) return;
+        setIsTopicIdeasLoading(false);
+        setTopicIdeasForceRefreshKey((current) => (current === topicIdeasCacheKey ? null : current));
+      });
+
+    return () => controller.abort();
+  }, [
+    isTopicIdeasOpen,
+    isTopicIdeasOpeningMode,
+    npcId,
+    uiLanguage,
+    recentTopicMessages,
+    topicIdeasCacheKey,
+    fixedTopicIdeas,
+    topicIdeasForceRefreshKey,
+  ]);
+
+  const handleRefreshTopicIdeas = () => {
+    if (isTopicIdeasOpeningMode || !topicIdeasCacheKey || isTopicIdeasLoading) return;
+    // 只清当前上下文这一批 cache；其他 NPC 或其他上下文的建议继续保留。
+    topicIdeasCacheRef.current.delete(topicIdeasCacheKey);
+    setTopicIdeas(null);
+    setTopicIdeasForceRefreshKey(topicIdeasCacheKey);
   };
 
   const renderSummaryDetail = () => (
@@ -1232,16 +1390,42 @@ export default function ChatPage() {
                   </button>
                   {isTopicIdeasOpen && (
                     <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
-                      <button
-                        type="button"
-                        onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
-                        className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
-                      >
-                        <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
-                        <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
-                      </button>
+                      <div className="mb-2 px-1">
+                        <span className="inline-flex rounded-full bg-[#FAF6EE] px-2 py-1 text-[10px] text-[#7A7060]">
+                          {topicIdeasModeLabel}
+                        </span>
+                      </div>
+                      {isTopicIdeasOpeningMode && (
+                        <button
+                          type="button"
+                          onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
+                          className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                        >
+                          <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
+                          <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
+                        </button>
+                      )}
+                      {!isTopicIdeasOpeningMode && (
+                        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                          {isTopicIdeasLoading ? (
+                            <p className="py-1 text-[11px] text-[#7A7060]">{topicIdeasLoadingLabel}</p>
+                          ) : (
+                            <p className="py-1 text-[10px] text-[#7A7060]">
+                              {uiLanguage === "zh" ? "这几句更贴近当前对话。" : "These lines fit the current conversation."}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleRefreshTopicIdeas}
+                            disabled={isTopicIdeasLoading || isRefreshingTopicIdeas}
+                            className="shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-[10px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
+                          >
+                            {refreshTopicIdeasLabel}
+                          </button>
+                        </div>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {visibleStarterPrompts.map((prompt) => (
+                        {displayedTopicIdeas.map((prompt) => (
                           <button
                             key={`menu-${prompt}`}
                             type="button"
