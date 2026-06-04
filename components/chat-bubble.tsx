@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -23,24 +23,24 @@ import { buildClientApiUrl } from "@/lib/client-api-url";
 import { LightbulbIcon, TranslateIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
 
 /* ============================================================
-   Figma Design Tokens → Tailwind 映射
-   ─────────────────────────────────────────
-   background     #F3EDE0  页面底色（米白）
-   foreground     #28231A  主文字（深棕黑）
-   card           #FAF6EE  卡片底色（暖白）
-   primary        #2D4A1F  主色（深绿）→ 用户气泡
-   primary-fg     #F3EDE0  主色上文字
-   secondary      #E8E0CE  次色（暖灰）
-   secondary-fg   #4A4438  次色上文字
-   muted          #D8CFBC  弱化色
-   muted-fg       #7A7060  弱化文字
-   accent         #C9A84C  琥珀强调
+   Figma Design Tokens 鈫?Tailwind 鏄犲皠
+   鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+   background     #F3EDE0  椤甸潰搴曡壊锛堢背鐧斤級
+   foreground     #28231A  涓绘枃瀛楋紙娣辨榛戯級
+   card           #FAF6EE  鍗＄墖搴曡壊锛堟殩鐧斤級
+   primary        #2D4A1F  涓昏壊锛堟繁缁匡級鈫?鐢ㄦ埛姘旀场
+   primary-fg     #F3EDE0  涓昏壊涓婃枃瀛?
+   secondary      #E8E0CE  娆¤壊锛堟殩鐏帮級
+   secondary-fg   #4A4438  娆¤壊涓婃枃瀛?
+   muted          #D8CFBC  寮卞寲鑹?
+   muted-fg       #7A7060  寮卞寲鏂囧瓧
+   accent         #C9A84C  鐞ョ弨寮鸿皟
    border         rgba(40,35,26,0.1)
-   input-bg       #EDE7D8  输入框底色
-   radius         0.75rem  圆角基准
-   sidebar        #1E2A16  侧边栏
-   sidebar-fg     #D4C8A8  侧边栏文字
-   sidebar-accent #253318  侧边栏选中
+   input-bg       #EDE7D8  杈撳叆妗嗗簳鑹?
+   radius         0.75rem  鍦嗚鍩哄噯
+   sidebar        #1E2A16  渚ц竟鏍?
+   sidebar-fg     #D4C8A8  渚ц竟鏍忔枃瀛?
+   sidebar-accent #253318  渚ц竟鏍忛€変腑
    ============================================================ */
 
 interface ChatBubbleProps {
@@ -192,7 +192,7 @@ async function fetchAndPlayTts(
 }
 
 /* ============================================================
-   划词查词悬浮卡片 — Figma popover 风格
+   鍒掕瘝鏌ヨ瘝鎮诞鍗＄墖 鈥?Figma popover 椋庢牸
    ============================================================ */
 
 interface ExplainResult {
@@ -224,7 +224,7 @@ function hasUsefulNuance(data: ExplainResult, copy: ReturnType<typeof getUiCopy>
   const nuance = data.nuance_explanation.trim();
   if (nuance.length < 12) return false;
   if (nuance === data.translation.trim() || nuance === data.sentence_meaning.trim()) return false;
-  if (nuance.includes(copy.explain.error) || /解释失败|Couldn.t explain|failed/i.test(nuance)) {
+  if (nuance.includes(copy.explain.error) || /瑙ｉ噴澶辫触|Couldn.t explain|failed/i.test(nuance)) {
     return false;
   }
   return true;
@@ -325,12 +325,14 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
     const viewportHeight = typeof window === "undefined" ? 720 : window.innerHeight;
     const isMobile = viewportWidth < 768;
-    const width = Math.min(240, Math.max(180, viewportWidth - margin * 2));
+    const width = isMobile
+      ? Math.min(360, viewportWidth - margin * 2)
+      : Math.min(400, Math.max(340, viewportWidth - margin * 2));
     const anchorCenter = anchorRect.left + anchorRect.width / 2;
     const left = clampNumber(anchorCenter, margin + width / 2, viewportWidth - margin - width / 2);
     const spaceAbove = Math.max(0, anchorRect.top - margin - gap);
     const spaceBelow = Math.max(0, viewportHeight - anchorRect.bottom - margin - gap);
-    const placement = spaceAbove < 190 && spaceBelow >= spaceAbove ? "bottom" : "top";
+    const placement = spaceAbove < (isMobile ? 190 : 240) && spaceBelow >= spaceAbove ? "bottom" : "top";
     const availableHeight = placement === "bottom" ? spaceBelow : spaceAbove;
     const top = placement === "bottom" ? anchorRect.bottom + gap : anchorRect.top - gap;
 
@@ -362,12 +364,15 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         zIndex: 90,
       },
       cardStyle: {
-        maxHeight: `${Math.max(180, availableHeight - 12)}px`,
+        maxHeight: `${Math.min(Math.max(220, viewportHeight * 0.6), Math.max(210, availableHeight - 12))}px`,
       },
     };
   })();
 
   const showNuance = data ? hasUsefulNuance(data, copy) : false;
+  const lookupLabel = uiLanguage === "en" ? "Word lookup" : "查词";
+  const readingLabel = uiLanguage === "en" ? "Reading" : "读音";
+  const detailLabel = uiLanguage === "en" ? "Detailed explanation" : "详细解释";
 
   const handleToggleSave = () => {
     if (!data) return;
@@ -393,40 +398,40 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     <div ref={popoverRef} style={popoverLayout.style}>
       {popoverLayout.placement === "bottom" && (
         <div className="flex justify-center -mb-px">
-          <div className="w-2 h-2 bg-[#FAF6EE] border-l border-t border-[rgba(40,35,26,0.1)] rotate-45 translate-y-1" />
+          <div className="h-2 w-2 translate-y-1 rotate-45 border-l border-t border-[rgba(40,35,26,0.1)] bg-[#FAF6EE]" />
         </div>
       )}
-      {/* popover 卡片：Figma card 底色 + 精致阴影 */}
+      {/* popover 鍗＄墖锛欶igma card 搴曡壊 + 绮捐嚧闃村奖 */}
       <div
-        className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.1)] rounded-xl px-3.5 py-3 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)] overflow-y-auto overscroll-contain"
+        className="overflow-y-auto overscroll-contain rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-3 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)] md:rounded-2xl md:px-4 md:py-3.5"
         style={popoverLayout.cardStyle}
       >
         {loading ? (
-          <p className="text-[10px] text-[#7A7060] animate-pulse text-center py-1.5">
+          <p className="py-1.5 text-center text-[10px] text-[#7A7060] animate-pulse md:text-sm">
             {copy.explain.loading}
           </p>
         ) : data && (
           <>
-            {/* 单词 + 读音 + 发音按钮 */}
-            <div className="flex items-start justify-between gap-2 mb-2.5">
+            {/* 鍗曡瘝 + 璇婚煶 + 鍙戦煶鎸夐挳 */}
+            <div className="mb-2.5 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[8px] font-medium text-[#7A7060] tracking-wide">查词</p>
-                <span className="font-ja mt-0.5 block text-[14px] font-medium text-[#28231A] leading-snug break-words">{displayWord}</span>
+                <p className="text-[8px] font-medium tracking-wide text-[#7A7060] md:text-[11px]">{lookupLabel}</p>
+                <span className="font-ja mt-0.5 block break-words text-[14px] font-medium leading-snug text-[#28231A] md:text-[18px]">{displayWord}</span>
                 {wasCorrected && (
-                  <p className="mt-0.5 text-[8px] text-[#7A7060] break-words">
+                  <p className="mt-0.5 break-words text-[8px] text-[#7A7060] md:text-[11px]">
                     {uiLanguage === "en"
-                      ? `Corrected from “${originalSelection}”`
+                      ? `Corrected from "${originalSelection}"`
                       : `已从「${originalSelection}」自动修正`}
                   </p>
                 )}
                 {data.pronunciation && (
                   <div className="mt-1 flex items-center gap-2">
-                    <span className="text-[8px] font-medium text-[#7A7060]">读音</span>
-                    <span className="font-ja text-[10px] text-[#4A4438]">{data.pronunciation}</span>
+                    <span className="text-[8px] font-medium text-[#7A7060] md:text-[11px]">{readingLabel}</span>
+                    <span className="font-ja text-[10px] text-[#4A4438] md:text-[13px]">{data.pronunciation}</span>
                       <button
                         type="button"
                         onClick={() => { void fetchAndPlayTts(displayWord, npcId, `lookup:${messageId}:${displayWord}`).catch(() => undefined); }}
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] transition-colors"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 transition-colors hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] md:h-6 md:w-6"
                         aria-label={copy.explain.listen}
                         title={copy.explain.listen}
                       >
@@ -439,23 +444,23 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                 type="button"
                 onClick={onClose}
                 aria-label={copy.explain.close}
-                className="shrink-0 text-[9px] text-[#7A7060]/45 hover:text-[#28231A] transition-colors leading-none"
+                className="shrink-0 text-[9px] leading-none text-[#7A7060]/45 transition-colors hover:text-[#28231A] md:text-xs"
               >
                 ✕
               </button>
             </div>
 
-            {/* 简短释义 */}
-            <div className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2.5">
-              <p className="text-[9px] font-medium text-[#7A7060]">{copy.explain.shortMeaning}</p>
-              <p className="mt-1 text-[12px] text-[#2D4A1F] font-medium leading-snug break-words">{data.translation}</p>
+            {/* 绠€鐭噴涔?*/}
+            <div className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2.5 md:px-3 md:py-3">
+              <p className="text-[9px] font-medium text-[#7A7060] md:text-[11px]">{copy.explain.shortMeaning}</p>
+              <p className="mt-1 break-words text-[12px] font-medium leading-snug text-[#2D4A1F] md:text-[15px] md:leading-relaxed">{data.translation}</p>
             </div>
 
-            {/* 收藏按钮 */}
+            {/* 鏀惰棌鎸夐挳 */}
             <button
               type="button"
               onClick={handleToggleSave}
-              className={`mt-2 w-full rounded-md border px-2 py-1.5 text-[9px] font-medium transition-colors ${
+              className={`mt-2 w-full rounded-md border px-2 py-1.5 text-[9px] font-medium transition-colors md:px-3 md:py-2 md:text-[11px] ${
                 isSaved
                   ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
                   : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
@@ -464,29 +469,29 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
               {isSaved ? copy.explain.savedWord : copy.explain.saveWord}
             </button>
 
-            {/* 整句翻译 */}
+            {/* 鏁村彞缈昏瘧 */}
             <div className="border-t border-[rgba(40,35,26,0.08)] pt-2 mt-2">
-              <p className="font-ui text-[9px] font-medium text-[#7A7060]">{copy.explain.sentenceMeaning}</p>
-              <p className="font-ui mt-0.5 text-[10px] text-[#4A4438] leading-relaxed break-words">
+              <p className="font-ui text-[9px] font-medium text-[#7A7060] md:text-[11px]">{copy.explain.sentenceMeaning}</p>
+              <p className="font-ui mt-0.5 break-words text-[10px] leading-relaxed text-[#4A4438] md:text-[13px] md:leading-relaxed">
                 {data.sentence_meaning}
               </p>
               {explainError && (
-                <p className="font-ui mt-1.5 rounded-md bg-[#F3EDE0]/65 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060]">
+                <p className="font-ui mt-1.5 rounded-md bg-[#F3EDE0]/65 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060] md:text-[11px]">
                   {copy.explain.error}
                 </p>
               )}
             </div>
 
-            {/* 詳しく ▼ — 琥珀强调色，平滑展开 */}
+            {/* 瑭炽仐銇?鈻?鈥?鐞ョ弨寮鸿皟鑹诧紝骞虫粦灞曞紑 */}
             {showNuance && (
               <div className="border-t border-[rgba(40,35,26,0.08)] pt-2 mt-2">
                 <button
                   type="button"
                   onClick={() => setExpanded(!expanded)}
-                  className="flex items-center gap-1 text-[9px] text-[#7A7060] hover:text-[#2D4A1F] transition-colors"
+                  className="flex items-center gap-1 text-[9px] text-[#7A7060] transition-colors hover:text-[#2D4A1F] md:text-[11px]"
                 >
                   <span>{expanded ? copy.explain.hideExplanation : copy.explain.showExplanation}</span>
-                  <span className={`transition-transform duration-300 text-[7px] ${expanded ? "rotate-180" : ""}`}>▼</span>
+                  <span className={`text-[7px] transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}>▾</span>
                 </button>
                 <div
                   className={`grid transition-all duration-300 ease-in-out ${
@@ -494,10 +499,12 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="text-[9px] font-medium text-[#7A7060] mb-0.5">语感说明</p>
-                    <p className="font-ui text-[10px] text-[#4A4438] leading-relaxed break-words">
-                      {data.nuance_explanation}
-                    </p>
+                    <p className="mb-0.5 text-[9px] font-medium text-[#7A7060] md:text-[11px]">{detailLabel}</p>
+                    <div className="max-h-[min(20vh,120px)] overflow-y-auto pr-1 md:max-h-[130px]">
+                      <p className="font-ui break-words text-[10px] leading-relaxed text-[#4A4438] md:text-[13px] md:leading-relaxed">
+                        {data.nuance_explanation}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -505,7 +512,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
           </>
         )}
       </div>
-      {/* 小三角 */}
+      {/* 灏忎笁瑙?*/}
       {popoverLayout.placement === "top" && (
         <div className="flex justify-center -mt-px">
           <div className="w-2 h-2 bg-[#FAF6EE] border-r border-b border-[rgba(40,35,26,0.1)] rotate-45 -translate-y-1" />
@@ -517,7 +524,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
 }
 
 /* ============================================================
-   场合表达反馈抽屉
+   鍦哄悎琛ㄨ揪鍙嶉鎶藉眽
    ============================================================ */
 
 interface FeedbackDrawerProps {
@@ -544,8 +551,8 @@ function parseFeedbackAnalysisSections(analysis: string): {
   const text = analysis.trim();
   if (!text) return { usage: "", reason: "", details: "" };
 
-  const usageMatch = text.match(/\[(?:场合|場合|usage|scene)\]\s*([\s\S]*?)(?=\[(?:原句|理由|補足|备注|備考|why|reason|note|analysis)\]|$)/i);
-  const reasonMatch = text.match(/\[(?:原句|理由|補足|备注|備考|why|reason|note|analysis)\]\s*([\s\S]*?)(?=$)/i);
+  const usageMatch = text.match(/\[(?:鍦哄悎|鍫村悎|usage|scene)\]\s*([\s\S]*?)(?=\[(?:鍘熷彞|鐞嗙敱|瑁滆冻|澶囨敞|鍌欒€億why|reason|note|analysis)\]|$)/i);
+  const reasonMatch = text.match(/\[(?:鍘熷彞|鐞嗙敱|瑁滆冻|澶囨敞|鍌欒€億why|reason|note|analysis)\]\s*([\s\S]*?)(?=$)/i);
   const usage = usageMatch ? usageMatch[1].trim() : "";
   const reason = reasonMatch ? reasonMatch[1].trim() : "";
 
@@ -558,8 +565,8 @@ function parseFeedbackAnalysisSections(analysis: string): {
   }
 
   const sentences = text
-    .replace(/\[(?:场合|場合|usage|scene|原句|理由|補足|备注|備考|why|reason|note|analysis)\]\s*/gi, "")
-    .split(/\n+|(?<=[。！？!?])\s*/)
+    .replace(/\[(?:鍦哄悎|鍫村悎|usage|scene|鍘熷彞|鐞嗙敱|瑁滆冻|澶囨敞|鍌欒€億why|reason|note|analysis)\]\s*/gi, "")
+    .split(/\n+|(?<=[銆傦紒锛??])\s*/)
     .map((line) => line.trim())
     .filter(Boolean);
   return {
@@ -737,7 +744,7 @@ function FeedbackDrawer({
         aria-labelledby="feedback-drawer-title"
         className="relative mx-auto w-full max-w-xl max-h-[calc(100dvh-1rem)] sm:max-h-[70vh] flex flex-col rounded-t-2xl bg-[#F3EDE0] shadow-[0_-6px_32px_rgba(40,35,26,0.12)] border-t border-[rgba(40,35,26,0.08)] animate-slide-up"
       >
-        {/* 头部 */}
+        {/* 澶撮儴 */}
         <div className="shrink-0 px-4 sm:px-6 pt-5 pb-3 border-b border-[rgba(40,35,26,0.08)]">
           <button
             type="button"
@@ -745,7 +752,7 @@ function FeedbackDrawer({
             className="absolute top-4 right-4 w-6 h-6 rounded-full text-[#7A7060] hover:bg-[rgba(40,35,26,0.06)] hover:text-[#28231A] text-xs leading-none flex items-center justify-center transition-colors"
             aria-label={copy.feedback.close}
           >
-            ✕
+            鉁?
           </button>
           <h2 id="feedback-drawer-title" className="font-ui text-sm font-medium text-[#28231A] tracking-wide mb-0.5">
             {copy.feedback.title}
@@ -761,7 +768,7 @@ function FeedbackDrawer({
             </button>
           )}
 
-          {/* 用户原句 */}
+          {/* 鐢ㄦ埛鍘熷彞 */}
           <div className="mt-3 rounded-lg bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3 py-2">
             <span className="text-[8px] font-medium text-[#7A7060] tracking-wider">{copy.feedback.original}</span>
             <p className="font-ui text-xs text-[#28231A] mt-0.5 leading-relaxed break-words [overflow-wrap:anywhere]">{userText}</p>
@@ -784,16 +791,16 @@ function FeedbackDrawer({
                 void playUserRecording();
               }}
               aria-label={copy.feedback.userRecording}
-              title={isUserRecordingPlaying ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.userRecording}
+              title={isUserRecordingPlaying ? (uiLanguage === "zh" ? "鍋滄" : "Stop") : copy.feedback.userRecording}
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2D4A1F] text-[#F3EDE0] py-2 text-[10px] font-medium hover:bg-[#2D4A1F]/90 transition-colors"
             >
               <VolumeIcon size={13} />
-              <span>{isUserRecordingPlaying ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.userRecording}</span>
+              <span>{isUserRecordingPlaying ? (uiLanguage === "zh" ? "鍋滄" : "Stop") : copy.feedback.userRecording}</span>
             </button>
           )}
         </div>
 
-        {/* 三档场合卡片 */}
+        {/* 涓夋。鍦哄悎鍗＄墖 */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-5 py-3 space-y-2">
           {loading ? (
             <div className="py-10 text-center">
@@ -925,7 +932,7 @@ function FeedbackDrawer({
 }
 
 /* ============================================================
-   ChatBubble 主组件
+   ChatBubble 涓荤粍浠?
    ============================================================ */
 
 function mapFeedbackKeyToStyle(key: FeedbackLevelKey): ExpressionHintStyle {
@@ -1262,7 +1269,7 @@ export function ChatBubble({
 
   return (
     <>
-      {/* 消息行：整行 hover 感知区域 */}
+      {/* 娑堟伅琛岋細鏁磋 hover 鎰熺煡鍖哄煙 */}
       <div
         className={`flex flex-col ${sender === "user" ? "items-end" : "items-start"}`}
         onMouseEnter={() => setIsHovered(true)}
@@ -1273,12 +1280,12 @@ export function ChatBubble({
             sender === "user" ? "max-w-[82vw] sm:max-w-[70%] flex-row-reverse" : "max-w-[70%]"
           }`}
         >
-          {/* 头像 */}
+          {/* 澶村儚 */}
           <div className="shrink-0 mt-0.5">{avatar}</div>
 
-          {/* 气泡 + 外部按钮 */}
+          {/* 姘旀场 + 澶栭儴鎸夐挳 */}
           <div className={`flex flex-col ${sender === "user" ? "min-w-0 max-w-full" : ""}`}>
-            {/* 气泡本体：Figma primary 色 + card 色 + 精致圆角阴影 */}
+            {/* 姘旀场鏈綋锛欶igma primary 鑹?+ card 鑹?+ 绮捐嚧鍦嗚闃村奖 */}
             <div
               ref={bubbleRef}
               onMouseUp={handleTextSelection}
@@ -1295,7 +1302,7 @@ export function ChatBubble({
               {text}
             </div>
 
-            {/* 按钮区域：气泡外部下方，hover 淡入 */}
+            {/* 鎸夐挳鍖哄煙锛氭皵娉″閮ㄤ笅鏂癸紝hover 娣″叆 */}
             <div
               className={`flex flex-wrap gap-2 transition-all duration-200 ${
                 isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none"
