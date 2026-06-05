@@ -144,3 +144,14 @@
 - Public note: Kotomachi's next phase focuses on polishing short, low-pressure speaking loops across different relationship contexts inside a more coherent language town.
 - Severity: Low
 - Status: Planned
+
+### 2026-06-04 - Conversation rhythm and topic seed system v0
+- Source: internal product iteration
+- Feature area: Conversation flow / Topic Ideas / NPC design
+- Problem type: conversation depth and short-session completeness
+- Observation: After expanding to five NPCs, the next challenge is not adding more characters but helping users stay with one NPC for a few more low-pressure turns.
+- Diagnosis: The existing topic pool should evolve from fixed starter lines into a reusable conversation seed library that can support opening, continuation, NPC extension, and review without becoming a visible course system.
+- Decision: Define Conversation Rhythm v0 around implicit topic seeds, not explicit tasks or stage UI.
+- Public note: Kotomachi's next design focus is making short NPC conversations easier to start, easier to continue, and gently complete through reusable topic seeds.
+- Severity: Low
+- Status: Planned
