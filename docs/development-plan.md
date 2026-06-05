@@ -7,14 +7,20 @@
 
 ## 0. Current Status / 当前阶段
 
-Kotomachi 当前处于 **MVP v1.x + 5 NPC + beta testing / polish** 阶段。
+Kotomachi 当前处于 **MVP v1.x + 5 NPC + conversation rhythm v0 baseline + ongoing polish** 阶段。
 
 - [x] 可以运行
 - [x] 可以自用
 - [x] 可以给少量朋友测试
 - [x] 核心学习闭环已经打通
 - [x] 已覆盖 5 个不同关系语境 / register 的 NPC
-- [x] 后续重点从“大功能冲刺”转向“beta 稳定、体验打磨、bad case 观察”
+- [x] Conversation Rhythm v0 已完成第一轮落地：
+  - opening mode 已稳定；
+  - continuation mode topic ideas 已强化；
+  - soft landing Review Cards 已改进；
+- [x] 世界状态 / 日期 / 季节规则已统一；
+- [x] prompt safety / 上下文一致性已强化；
+- [x] 后续重点继续稳定体验、基于 bad case 迭代、准备产品化扩展。
 
 这不是正式商业上线状态，也不是 App Store / Play Store 产品。
 
@@ -77,6 +83,59 @@ Kotomachi 当前处于 **MVP v1.x + 5 NPC + beta testing / polish** 阶段。
 - [x] Cross mentions
 - [x] Memory / familiarity 的轻量 LocalStorage 机制
 - [x] Avatar style spec v1：scene-object badge / 物件徽章方向
+- [x] 5 NPC baseline complete：
+  - Misaki / 美咲：咖啡馆，轻丁寧，安静闲聊；
+  - Kimura / 木村：便利店，随意口语，年轻熟人感；
+  - Taisho / 大将：居酒屋，熟客口语，年长者寒暄；
+  - Haruka / 遥：研究室 / 校园，轻丁寧，前辈请教；
+  - Aoi / 葵：学生ラウンジ / サークル仲間，タメ口，同级朋友；
+- [x] 当前已覆盖日常、校园、朋友、前辈请教、下班后等核心关系语境场景。
+
+### 1.6 近期完成的质量强化
+
+- [x] Conversation Rhythm v0 baseline：
+  - opening mode：本轮还没展开时使用 fixed topic pool；
+  - continuation mode：对话中由 AI 根据上下文生成接话建议；
+  - topic pool 已定义为 conversation seed library 的基础；
+  - NPC 主回复已加入轻量 rhythm：先接住、轻延展、小入口；
+  - 不做显性阶段 UI，不做任务系统/课程系统/进度条。
+- [x] Topic Ideas polish complete：
+  - continuation topic ideas 已强化：
+    - 优先顺着最近上下文；
+    - 输出用户可直接发送的日语短句；
+    - 遵守 NPC register；
+    - 三条建议应有不同角度；
+    - 不强行切换 topic seed；
+    - fallback 到 fixed topic pool 仍保留。
+- [x] World state / local date / seasonal hints complete：
+  - world state 已从随机氛围中拆出硬事实；
+  - local date context 已接入：date、weekday、weekend、time of day、month/season；
+  - seasonal cultural hints 已作为可选语境素材接入；
+  - 明确分层：local date context = 日期/星期/时间段硬事实，world state = 街区氛围，seasonal hints = 季节文化素材，topic seed = 对话主题骨架；
+  - 修复了周五显示周末、中午说夜晚、六月说圣诞等一致性问题。
+- [x] Prompt safety / context consistency complete：
+  - 防止 NPC 编造用户过去说过的话；
+  - 修复 Aoi false memory / false intimacy bad case；
+  - 修复真实地名规则过严/过松问题：
+    - 不把 Kotomachi 绑定到真实地点；
+    - 用户明确问旅行/文化/地理时，可以一般性提真实地名；
+  - chat / welcome / topic ideas 均需遵守：world state、local date context、seasonal hints、fictional town boundary。
+- [x] Review Cards soft landing improved：
+  - Review Cards 已支持轻量 soft landing；
+  - 查词 / 表达提示 / 非日语输入等 evidence signals 已被纳入；
+  - 修复 recent lookups 残片重复展示问题；
+  - Review Cards / Saved Items 不会被 start-over 删除；
+  - Review Cards 不做评分、不做正式学习报告、不做 One Takeaway 首页模块。
+- [x] Expression Hints hardening complete：
+  - 修复推荐表达偶发混入用户英文原句的问题；
+  - 推荐表达字段应是可直接使用的自然日语；
+  - 解释字段可以说明原句如何转化；
+  - 修复表达提示面板关闭按钮乱码；
+  - 收藏 / TTS 功能保持不受影响。
+- [x] System map established：
+  - 已新增 `docs/system-map.md`；
+  - 用于记录：product loop、world state flow、topic ideas/conversation seed flow、NPC integration checklist、learning asset flow、state ownership table、risk map；
+  - 后续跨模块改动应先参考 system map。
 
 ---
 
@@ -118,21 +177,19 @@ Kotomachi 不应被写成：
 
 ---
 
-## 4. Near-term Priorities / 近期优先级
+## 4. Near-term Direction / 近期方向
 
-### 4.1 Beta stabilization / bad case logging
+### 4.1 Product stabilization & polish
 
-近期第一优先级：
+近期优先级：
 
-- 朋友 beta feedback；
-- bug fix；
-- bad case logging；
-- prompt drift 观察；
-- 小范围 UI polish；
-- smoke test；
-- 修复真实使用中出现的链路问题。
+- 继续稳定 5 个 NPC 的真实使用体验；
+- 基于实际使用中的 bad case 做小修小补；
+- 小范围 polish prompt / copy / UI；
+- 保持 demo path 稳定可靠；
+- 准备后续产品化扩展（新增 NPC、新场景等）。
 
-重点观察：
+重点关注：
 
 - Aoi 是否太黏、太恋爱、太二次元；
 - Haruka 是否老师腔、顾问腔；
@@ -140,59 +197,38 @@ Kotomachi 不应被写成：
 - Taisho 是否人生导师腔；
 - Kimura 是否太冷、太短、接不住话；
 - topic ideas 是否真的能帮助用户接话；
-- welcome 是否自然、不刷屏；
+- welcome 是否自然、有边界、不刷屏；
 - Review Cards 是否在短对话后仍不尴尬；
 - 查词 / 表达提示是否稳定。
 
-### 4.2 NPC scene spec consolidation
+### 4.2 Next product expansion candidates
 
-目标：避免 NPC 越多越像“不同头像的同一个 AI”。
+后续候选扩展方向（暂不做）：
 
-每个 NPC spec 后续应更明确包含：
+- 新 NPC 内容扩展；
+- 旅行 / 职场 / 书店 / 图书馆等新场景；
+- feedback button；
+- lightweight learning preferences；
+- voice advice v1；
+- relationship-aware expression suggestions；
+- possible multilingual template expansion；
+- public demo / social sharing polish。
 
-- 用户为什么会找 TA 聊；
-- 关系距离；
-- 语气 / register；
-- 适合练什么表达；
-- 典型开场；
-- 典型可深入话题；
-- 什么时候应该轻轻收束；
-- 禁止行为；
-- 好回复 / 坏回复样例；
-- avatar direction；
-- starter / topic ideas 应该如何符合这个 NPC；
-- 这个 NPC 如何帮助用户把话多聊几轮。
+### 4.3 Deferred / 暂不做
 
-这是产品设计 / prompt 设计规范，不是新功能。
+明确近期暂不做：
 
-### 4.3 Light conversation rhythm / 主题阶段感 v0
-
-目标：解决“用户和单个 NPC 聊不深 / 很快冷场”的问题。
-
-这不是任务系统、关卡系统、进度条或课程流程。v0 不做显性 UI 阶段，不显示“当前阶段：开场 / 展开 / 收束”。
-
-后续探索一种轻量 conversation rhythm，让一次短对话自然包含：
-
-- `opening`：用户更容易说第一句；
-- `development`：围绕一个小场景多聊几轮；
-- `soft landing`：在不制造任务感的前提下，帮助用户意识到“这次说了几句，也有一点收获”。
-
-v0 先通过这些方式体现：
-
-- 更好的 NPC scene spec；
-- 更贴合上下文的 topic ideas；
-- 更自然的 starter prompts；
-- 更好的 Review Card 生成质量；
-- NPC 在合适时轻轻延展或收束；
-- 避免 NPC 无限闲聊、突然教学或过早总结。
-
-示例主题方向不是固定任务，只是场景素材：
-
-- Aoi：兴趣、放课后、朋友语气、最近推荐；
-- Haruka：研究室、发表、文献、留学前不安；
-- Kimura：便利店、夜勤、生活节奏、零食；
-- Misaki：咖啡、安静时间、电影 / 书、休息；
-- Taisho：一天结束、吃点什么、疲惫、熟客闲聊。
+- 显性课程系统；
+- 任务系统；
+- 打卡 / streak；
+- One Takeaway 首页模块；
+- 登录 / 数据库；
+- 复杂长期记忆；
+- 大规模 NPC expansion；
+- Live2D / WebRTC；
+- 商业化后台；
+- 重型 RAG；
+- 语音评分 / 发音打分。
 
 ---
 
@@ -395,19 +431,7 @@ Kotomachi 需要关注这些状态：
 
 ---
 
-## 9. Deferred / 暂缓
-
-- `Feedback Button`：当前 beta 反馈主要通过微信 / 朋友沟通收集，暂不急。
-- `Learning preferences`：当前 NPC 和场景数量还不多，暂不急。
-- `Voice advice`：长期重要，但近期不做重功能。
-- `One Takeaway`：首页独立展示或把表达塞回输入框，目前判断语义不自然，暂不做。
-- `大量新增 NPC`：当前已有 5 个，近期不继续堆数量。
-- `国内部署迁移`：仍暂缓。
-- `Edge PWA 图标缓存`：仍暂缓。
-
----
-
-## 10. Not Doing / 不走的方向
+## 9. Not Doing / 不走的方向
 
 Kotomachi 不走这些方向：
 
@@ -421,11 +445,18 @@ Kotomachi 不走这些方向：
 - Live2D / WebRTC；
 - 过度剧情化世界观；
 - 过度游戏化；
-- 把低压力练习变成任务压力。
+- 把低压力练习变成任务压力；
+- 登录 / 数据库；
+- 复杂长期记忆；
+- 大规模 NPC expansion；
+- 显性课程系统；
+- 任务系统；
+- One Takeaway 首页模块；
+- 语音评分 / 发音打分。
 
 ---
 
-## 11. Evaluation Focus / 当前评估重点
+## 10. Evaluation Focus / 当前评估重点
 
 - 主聊天是否保持自然日语，不主动纠错；
 - 表达提示是否有用，但不变成批改作业；
@@ -434,12 +465,12 @@ Kotomachi 不走这些方向：
 - Topic ideas 是否能帮助用户继续说，而不是给泛泛话题；
 - Welcome 是否自然、有边界、不刷屏；
 - 5 个 NPC 是否保持各自关系语境和 register；
-- 移动端 / PWA 是否足够稳定用于 beta。
+- 移动端 / PWA 是否足够稳定用于使用。
 
 ---
 
-## 12. README 的关系
+## 11. README 的关系
 
-README 面向外部读者，写简洁的产品说明。  
-这个文件负责更完整的阶段判断、已完成清单和维护节奏。  
+README 面向外部读者，写简洁的产品说明。
+这个文件负责更完整的阶段判断、已完成清单和维护节奏。
 两者要一致，但层级不同，不要互相打架。
