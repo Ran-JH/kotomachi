@@ -124,7 +124,7 @@ Current decisions:
 - Weather should be mentioned only when current world state or recent messages support it.
 - Chat / welcome / topic ideas prompts should not contradict the provided world state.
 - Chat / welcome / topic ideas prompts should not contradict the provided local date context.
-- Kotomachi should use fictional or generic place references, not real-world place names.
+- Do not anchor Kotomachi itself to real-world place names. Real place names are allowed when the user explicitly asks about travel, geography, or culture. Use general-knowledge framing and avoid real-time claims.
 
 ## 5. Topic Ideas / Conversation Seed Flow
 
@@ -268,7 +268,7 @@ Notes:
 - Do not randomize real calendar facts such as weekday / weekend into atmosphere copy unless they come from real current time.
 - Seasonal references must be derived from local date context or explicit world state / recent message support.
 - Seasonal hints cannot be asserted as happening events.
-- Do not mention real-world place names in prompts unless a future feature explicitly configures them.
+- Do not anchor Kotomachi to real-world place names. Real place names are allowed when the user explicitly asks about travel, geography, or culture, but avoid real-time claims.
 - Every topic pool change must check opening fallback and topic ideas fallback.
 - Every localStorage schema change must check migration / compatibility.
 - Every homepage card structure change must check mobile and horizontal scroll.
