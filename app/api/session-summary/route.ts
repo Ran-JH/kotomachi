@@ -724,6 +724,38 @@ function extractConversationReviewWords(
   return candidates;
 }
 
+function deduplicateReviewWords(words: ReviewWord[]): ReviewWord[] {
+  if (words.length <= 1) return words;
+
+  const keep = new Set<number>();
+
+  for (let i = 0; i < words.length; i++) {
+    const wordA = words[i];
+    let shouldKeep = true;
+
+    for (let j = 0; j < words.length; j++) {
+      if (i === j) continue;
+      const wordB = words[j];
+
+      const aIsSubstring = wordB.word.includes(wordA.word);
+      const bIsSubstring = wordA.word.includes(wordB.word);
+
+      if (aIsSubstring && !bIsSubstring) {
+        if (wordB.word.length - wordA.word.length >= 2) {
+          shouldKeep = false;
+          break;
+        }
+      }
+    }
+
+    if (shouldKeep) {
+      keep.add(i);
+    }
+  }
+
+  return words.filter((_, index) => keep.has(index)).slice(0, 5);
+}
+
 function normalizeReviewWordsWithEvidence(
   value: unknown,
   request: SessionSummaryRequest,
@@ -737,7 +769,6 @@ function normalizeReviewWordsWithEvidence(
     if (!word || seen.has(word.word)) continue;
     words.push(word);
     seen.add(word.word);
-    if (words.length >= 5) return words;
   }
 
   for (const word of normalizeReviewWords(value)) {
@@ -747,17 +778,16 @@ function normalizeReviewWordsWithEvidence(
       source: word.source === "looked_up" ? "looked_up" : "conversation",
     });
     seen.add(word.word);
-    if (words.length >= 5) return words;
   }
 
   for (const word of extractConversationReviewWords(request.messages, uiLanguage)) {
     if (isLowValueReviewWord(word.word) || seen.has(word.word)) continue;
     words.push(word);
     seen.add(word.word);
-    if (words.length >= 5) return words;
   }
 
-  return words;
+  const deduplicated = deduplicateReviewWords(words);
+  return deduplicated.slice(0, 5);
 }
 
 function sanitizeNextTalkPrompt(
