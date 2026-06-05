@@ -209,7 +209,7 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
       crossMentions: [
         "美咲さんの店、新学期になると学生さんが増えますよね。",
         "木村くんのコンビニ、放課後はかなり混んでました。",
-        "大将のところも、金曜は少しにぎやかそうでした。",
+        "大将のところも、近ごろは少しにぎやかそうでした。",
       ],
     },
   ],
@@ -221,7 +221,7 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
         { label: "疲れ気味", thoughts: ["今日も夜勤。", "もう体が重い…"] },
         { label: "眠い", thoughts: ["眠すぎる。", "授業中も寝そうになった。"] },
         { label: "ばたばた", thoughts: ["客多くてしんどい。", "レジがずっと忙しかった。"] },
-        { label: "週末待ち", thoughts: ["あと2日で休み。", "休みになったら寝たい。"] },
+        { label: "休み待ち", thoughts: ["早く休みが来てほしい。", "休みになったら寝たい。"] },
         { label: "回復中", thoughts: ["やっと少し休めた。", "昼間起きてるの久しぶり。"] },
       ],
       crossMentions: [
@@ -414,12 +414,323 @@ export function getNpcState(
   };
 }
 
-export function getTimeOfDay(): "朝" | "昼" | "夕" | "夜" {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 11) return "朝";
-  if (hour >= 11 && hour < 17) return "昼";
-  if (hour >= 17 && hour < 21) return "夕";
+export type LocalDateContext = {
+  localDateKey: string;
+  year: number;
+  month: number;
+  day: number;
+  dayOfWeek: number;
+  dayLabelJa: string;
+  dayLabelEn: string;
+  dateLabelJa: string;
+  dateLabelEn: string;
+  isWeekend: boolean;
+  timeOfDay: "late_night" | "morning" | "noon" | "afternoon" | "evening" | "night";
+  timeLabelJa: string;
+  timeLabelEn: string;
+  season: "winter" | "spring" | "summer" | "autumn";
+  seasonLabelJa: string;
+  seasonLabelEn: string;
+  seasonalHintsJa: string[];
+  seasonalHintsEn: string[];
+  seasonalAvoidJa: string[];
+};
+
+const DAY_LABELS_JA = ["日曜", "月曜", "火曜", "水曜", "木曜", "金曜", "土曜"] as const;
+const DAY_LABELS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+const MONTH_LABELS_EN = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+const TIME_LABELS: Record<LocalDateContext["timeOfDay"], { ja: string; en: string }> = {
+  late_night: { ja: "深夜", en: "late night" },
+  morning: { ja: "朝", en: "morning" },
+  noon: { ja: "昼", en: "noon" },
+  afternoon: { ja: "午後", en: "afternoon" },
+  evening: { ja: "夕方", en: "evening" },
+  night: { ja: "夜", en: "night" },
+};
+
+const SEASON_LABELS: Record<LocalDateContext["season"], { ja: string; en: string }> = {
+  winter: { ja: "冬", en: "winter" },
+  spring: { ja: "春", en: "spring" },
+  summer: { ja: "夏", en: "summer" },
+  autumn: { ja: "秋", en: "autumn" },
+};
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function getLocalTimeOfDay(hour: number): LocalDateContext["timeOfDay"] {
+  if (hour < 5) return "late_night";
+  if (hour < 11) return "morning";
+  if (hour < 14) return "noon";
+  if (hour < 17) return "afternoon";
+  if (hour < 20) return "evening";
+  return "night";
+}
+
+function isValidTimeOfDay(value: unknown): value is LocalDateContext["timeOfDay"] {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(TIME_LABELS, value);
+}
+
+function isDateLike(value: unknown): value is Date {
+  return (
+    value instanceof Date ||
+    (!!value &&
+      typeof value === "object" &&
+      typeof (value as Date).getFullYear === "function" &&
+      typeof (value as Date).getMonth === "function" &&
+      typeof (value as Date).getDate === "function" &&
+      typeof (value as Date).getDay === "function" &&
+      typeof (value as Date).getHours === "function")
+  );
+}
+
+function getSeasonFromMonth(month: number): LocalDateContext["season"] {
+  if (month === 12 || month === 1 || month === 2) return "winter";
+  if (month >= 3 && month <= 5) return "spring";
+  if (month >= 6 && month <= 8) return "summer";
+  return "autumn";
+}
+
+function getSeasonalCultureHints(
+  month: number,
+  season: LocalDateContext["season"],
+): Pick<LocalDateContext, "seasonalHintsJa" | "seasonalHintsEn" | "seasonalAvoidJa"> {
+  const hintsJa = new Set<string>();
+  const hintsEn = new Set<string>();
+  const avoidJa = new Set<string>([
+    "季節の話題は現在の出来事として断定しない",
+    "天気やイベントが今まさに起きているとは言わない",
+  ]);
+
+  if (season === "spring") {
+    hintsJa.add("桜");
+    hintsJa.add("新学期");
+    hintsJa.add("サークル見学");
+    hintsJa.add("引っ越し");
+    hintsJa.add("少し暖かくなる感じ");
+    hintsEn.add("sakura");
+    hintsEn.add("new semester");
+    hintsEn.add("club visits");
+    hintsEn.add("moving");
+    hintsEn.add("slightly warmer weather");
+  }
+
+  if (month === 4) {
+    hintsJa.add("入学");
+    hintsJa.add("履修登録");
+    hintsJa.add("研究室初訪問");
+    hintsJa.add("サークル勧誘");
+    hintsEn.add("new enrollment");
+    hintsEn.add("course registration");
+    hintsEn.add("first lab visit");
+    hintsEn.add("club recruiting season");
+  }
+
+  if (month === 6) {
+    hintsJa.add("梅雨");
+    hintsJa.add("湿気");
+    hintsJa.add("雨具");
+    hintsJa.add("店内でゆっくり過ごす感じ");
+    hintsEn.add("rainy season");
+    hintsEn.add("humidity");
+    hintsEn.add("rain gear");
+    hintsEn.add("spending time indoors");
+  }
+
+  if (season === "summer") {
+    hintsJa.add("冷たい飲み物");
+    hintsJa.add("夏休み");
+    hintsJa.add("花火");
+    hintsJa.add("夏祭り");
+    hintsJa.add("暑さ");
+    hintsEn.add("cold drinks");
+    hintsEn.add("summer break");
+    hintsEn.add("fireworks");
+    hintsEn.add("summer festivals");
+    hintsEn.add("heat");
+  }
+
+  if (season === "autumn") {
+    hintsJa.add("紅葉");
+    hintsJa.add("読書");
+    hintsJa.add("文化祭");
+    hintsJa.add("温かい飲み物");
+    hintsJa.add("少し涼しくなる感じ");
+    hintsEn.add("autumn leaves");
+    hintsEn.add("reading");
+    hintsEn.add("school festival");
+    hintsEn.add("warm drinks");
+    hintsEn.add("slightly cooler air");
+  }
+
+  if (season === "winter") {
+    hintsJa.add("温かいもの");
+    hintsJa.add("イルミネーション");
+    hintsJa.add("年末");
+    hintsJa.add("新年");
+    hintsJa.add("冬休み");
+    hintsEn.add("warm food");
+    hintsEn.add("illuminations");
+    hintsEn.add("year-end mood");
+    hintsEn.add("new year");
+    hintsEn.add("winter break");
+  }
+
+  if (month === 12) {
+    hintsJa.add("クリスマス");
+    hintsJa.add("年末");
+    hintsJa.add("忘年会");
+    hintsJa.add("イルミネーション");
+    hintsEn.add("Christmas");
+    hintsEn.add("year end");
+    hintsEn.add("year-end gathering");
+    hintsEn.add("illuminations");
+  }
+
+  if (month !== 12) {
+    avoidJa.add("12月以外はクリスマスや年末を自発的に出さない");
+  }
+  if (season !== "spring") {
+    avoidJa.add("春以外は桜を今の出来事のように言わない");
+  }
+  if (season !== "autumn") {
+    avoidJa.add("秋以外は紅葉を今の出来事のように言わない");
+  }
+  if (season !== "winter") {
+    avoidJa.add("冬以外は雪を現在の天気として言わない");
+  }
+
+  return {
+    seasonalHintsJa: Array.from(hintsJa),
+    seasonalHintsEn: Array.from(hintsEn),
+    seasonalAvoidJa: Array.from(avoidJa),
+  };
+}
+
+function buildLocalDateContext(
+  year: number,
+  month: number,
+  day: number,
+  dayOfWeek: number,
+  timeOfDay: LocalDateContext["timeOfDay"],
+  isWeekend: boolean,
+): LocalDateContext {
+  const season = getSeasonFromMonth(month);
+  const localDateKey = `${year}-${padDatePart(month)}-${padDatePart(day)}`;
+  const seasonalCultureHints = getSeasonalCultureHints(month, season);
+  return {
+    localDateKey,
+    year,
+    month,
+    day,
+    dayOfWeek,
+    dayLabelJa: DAY_LABELS_JA[dayOfWeek],
+    dayLabelEn: DAY_LABELS_EN[dayOfWeek],
+    dateLabelJa: `${month}月${day}日`,
+    dateLabelEn: `${MONTH_LABELS_EN[month - 1]} ${day}`,
+    isWeekend,
+    timeOfDay,
+    timeLabelJa: TIME_LABELS[timeOfDay].ja,
+    timeLabelEn: TIME_LABELS[timeOfDay].en,
+    season,
+    seasonLabelJa: SEASON_LABELS[season].ja,
+    seasonLabelEn: SEASON_LABELS[season].en,
+    seasonalHintsJa: seasonalCultureHints.seasonalHintsJa,
+    seasonalHintsEn: seasonalCultureHints.seasonalHintsEn,
+    seasonalAvoidJa: seasonalCultureHints.seasonalAvoidJa,
+  };
+}
+
+export function getLocalDateContext(now = new Date()): LocalDateContext {
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const date = now.getDate();
+  const dayOfWeek = now.getDay();
+  const timeOfDay = getLocalTimeOfDay(now.getHours());
+  return buildLocalDateContext(year, month, date, dayOfWeek, timeOfDay, dayOfWeek === 0 || dayOfWeek === 6);
+}
+
+export function resolveLocalDateContext(
+  input?: Partial<LocalDateContext> | null,
+  fallbackSource: Date | LocalDateContext = new Date(),
+): LocalDateContext {
+  const fallback =
+    isDateLike(fallbackSource) ? getLocalDateContext(fallbackSource) : fallbackSource;
+  if (!input || typeof input !== "object") return fallback;
+
+  const year =
+    typeof input.year === "number" && Number.isInteger(input.year) && input.year > 0
+      ? input.year
+      : fallback.year;
+  const month =
+    typeof input.month === "number" && Number.isInteger(input.month) && input.month >= 1 && input.month <= 12
+      ? input.month
+      : fallback.month;
+  const day =
+    typeof input.day === "number" && Number.isInteger(input.day) && input.day >= 1 && input.day <= 31
+      ? input.day
+      : fallback.day;
+  const dayOfWeek =
+    typeof input.dayOfWeek === "number" && input.dayOfWeek >= 0 && input.dayOfWeek <= 6
+      ? input.dayOfWeek
+      : fallback.dayOfWeek;
+  const timeOfDay =
+    isValidTimeOfDay(input.timeOfDay)
+      ? input.timeOfDay
+      : fallback.timeOfDay;
+  const localDateKey =
+    typeof input.localDateKey === "string" && input.localDateKey.trim()
+      ? input.localDateKey.trim()
+      : `${year}-${padDatePart(month)}-${padDatePart(day)}`;
+  const isWeekend =
+    typeof input.isWeekend === "boolean" ? input.isWeekend : dayOfWeek === 0 || dayOfWeek === 6;
+
+  const [keyYearText, keyMonthText, keyDayText] = localDateKey.split("-");
+  const normalizedYear = Number(keyYearText);
+  const normalizedMonth = Number(keyMonthText);
+  const normalizedDay = Number(keyDayText);
+  const safeYear = Number.isFinite(normalizedYear) ? normalizedYear : year;
+  const safeMonth =
+    Number.isFinite(normalizedMonth) && normalizedMonth >= 1 && normalizedMonth <= 12
+      ? normalizedMonth
+      : month;
+  const safeDay =
+    Number.isFinite(normalizedDay) && normalizedDay >= 1 && normalizedDay <= 31
+      ? normalizedDay
+      : day;
+
+  return buildLocalDateContext(safeYear, safeMonth, safeDay, dayOfWeek, timeOfDay, isWeekend);
+}
+
+export function getTimeOfDay(input?: Date | LocalDateContext): "朝" | "昼" | "夕" | "夜" {
+  const localDateContext =
+    input instanceof Date ? getLocalDateContext(input) : input ?? getLocalDateContext();
+
+  if (localDateContext.timeOfDay === "morning") return "朝";
+  if (localDateContext.timeOfDay === "noon" || localDateContext.timeOfDay === "afternoon") return "昼";
+  if (localDateContext.timeOfDay === "evening") return "夕";
   return "夜";
+}
+
+export function getLocalDateAtmosphereLabelJa(localDateContext: LocalDateContext): string {
+  if (localDateContext.dayOfWeek === 5) return `金曜の${localDateContext.timeLabelJa}`;
+  if (localDateContext.isWeekend) return `週末の${localDateContext.timeLabelJa}`;
+  return `平日の${localDateContext.timeLabelJa}`;
 }
 
 interface WorldState {
@@ -459,28 +770,28 @@ const WORLD_STATES: WorldState[] = [
   },
   {
     id: "quiet_weekday",
-    description: "少し静かな平日。",
-    atmosphere: "静かな平日",
+    description: "少し静かな昼下がり。",
+    atmosphere: "静かな昼下がり",
     ambientTexts: ["駅前がいつもより静か。", "遠くで電車の音だけがする。", "空気が少し平たい。"],
     reactions: {
-      aoi: "こういう静かな日って、だらっと話すにはちょうどいいね。",
-      haruka: "こんな静かな日は、文献を読むにはちょうどいいです。",
+      aoi: "こういう静かな空気だと、ちょっと話しやすくない？",
+      haruka: "こんな静かな空気だと、文献も少し読みやすいです。",
       misaki: "店も少し静かで、コーヒーの香りがよく残ります。",
-      kimura: "今日は変に暇で、逆にぼーっとする。",
+      kimura: "今は少し落ち着いてて、逆にぼーっとする。",
       taisho: "こういう日は仕込みを丁寧にやるに限るな。",
     },
   },
   {
     id: "weekend_night",
-    description: "週末の夜で少しにぎやか。",
-    atmosphere: "にぎやかな週末",
+    description: "少しにぎやかなひととき。",
+    atmosphere: "にぎやかな時間",
     ambientTexts: ["遠くで笑い声がした。", "夜風に食べ物の匂いが混じっている。", "駅前がいつもより明るい。"],
     reactions: {
-      aoi: "週末の夜って、なんとなく誰かと話したくならない？",
-      haruka: "週末でも、少しだけ研究室に寄る日もあるんです。",
-      misaki: "週末の夜は、少しだけ人の流れが変わりますね。",
-      kimura: "週末の夜は、コンビニもなんだかんだ忙しい。",
-      taisho: "週末はやっぱり夜が本番だな。",
+      aoi: "こういうにぎやかな空気って、なんとなく誰かと話したくならない？",
+      haruka: "少しにぎやかな空気でも、話せる場所はちゃんとありますよ。",
+      misaki: "こういう時間は、少しだけ人の流れが変わりますね。",
+      kimura: "こういう時間帯は、コンビニもなんだかんだ動きます。",
+      taisho: "こういうにぎやかな空気も、店らしくて悪くないな。",
     },
   },
   {
@@ -511,9 +822,13 @@ const WORLD_STATES: WorldState[] = [
   },
 ];
 
-export function getWorldContext(): WorldState {
-  const now = new Date();
-  const seed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+export function getWorldContext(localDateContext: LocalDateContext = getLocalDateContext()): WorldState {
+  const seed =
+    Number.isFinite(localDateContext.year) &&
+    Number.isFinite(localDateContext.month) &&
+    Number.isFinite(localDateContext.day)
+      ? localDateContext.year * 10000 + localDateContext.month * 100 + localDateContext.day
+      : new Date().getFullYear() * 10000 + (new Date().getMonth() + 1) * 100 + new Date().getDate();
   return WORLD_STATES[seed % WORLD_STATES.length];
 }
 

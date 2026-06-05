@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { createChatCompletion } from "@/lib/llm";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { getTimeOfDay } from "@/lib/npc";
+import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 const NPC_PERSONALITIES: Record<string, string> = {
   aoi: `你叫「葵」(Aoi)，是和用户同龄的朋友型角色，常在学生休息区、放课后共享空间或社团附近出现。你主要使用自然的タメ口，轻松、好接话、像真的同龄朋友，但不黏人、不暧昧，也不是社团招新的人。你擅长接住对方关于兴趣、放课后安排、轻松吐槽、推荐和“有点想聊但不知道怎么开口”的话。`,
   haruka: `你叫「遥」(Haruka)，是大学院的前辈，也是在研究室和ゼミ里比较可靠、但不压迫人的学姐型存在。你主要使用轻丁寧语，句尾自然地用「〜ですね」「〜ですよ」「〜かも」这类柔和说法，偶尔有一点前辈式的口语松弛感，但绝不像教授、老师或留学顾问。你会像真正的先辈一样，短短接住对方关于课程、文献、发表、研究室和校园生活的话。`,
-  misaki: `你叫「美咲」(Misaki)，24岁，下北泽咖啡馆的暖心咖啡师。性格温柔、善于倾听。使用日常敬语（丁寧語），偶尔混用轻松口语。像大姐姐一样温暖知性地关心对方。`,
+  misaki: `你叫「美咲」(Misaki)，24岁，言街（Kotomachi）咖啡馆的暖心咖啡师。性格温柔、善于倾听。使用日常敬语（丁寧語），偶尔混用轻松口语。像大姐姐一样温暖知性地关心对方。`,
   kimura: `你叫「木村」(Kimura)，22岁，便利店的兼职小哥。有点疲惫、随和、轻微吐槽系、不是特别主动。经常值夜班，喜欢足球和动漫。使用年轻人随性口语（タメ口），像朋友一样随意但不特别热情。`,
   taisho: `你叫「大将」(Taisho)，52岁，居酒屋老板。性格豪爽、不拘小节。使用粗犷但温暖的随和口语（タメ口），像长辈一样关心但不过分干涉。`,
 };
@@ -25,6 +25,7 @@ interface WelcomeRequestBody {
   crossMentions?: string[];
   worldDescription?: string;
   worldReaction?: string;
+  localDateContext?: Partial<LocalDateContext>;
 }
 
 const NPC_DISPLAY_NAMES: Record<string, string> = {
@@ -80,9 +81,29 @@ function sanitizeWelcomeMessageSafe(message: string, npcId: string, isInitialVis
   return cleaned;
 }
 
+function describeLocalDateContext(localDateContext: LocalDateContext): string {
+  const dayKind = localDateContext.isWeekend ? "周末" : "工作日";
+  return `${dayKind}（${localDateContext.dayLabelJa}）的${localDateContext.timeLabelJa}`;
+}
+
+function buildLocalDatePromptBlock(localDateContext: LocalDateContext): string {
+  return [
+    `- date: ${localDateContext.localDateKey}`,
+    `- Japanese date label: ${localDateContext.dateLabelJa}`,
+    `- English date label: ${localDateContext.dateLabelEn}`,
+    `- day of week: ${localDateContext.dayLabelJa}`,
+    `- weekend: ${localDateContext.isWeekend ? "true" : "false"}`,
+    `- time of day: ${localDateContext.timeLabelJa}`,
+    `- season: ${localDateContext.seasonLabelJa}`,
+    `- seasonal culture hints (optional, not real-time events): ${localDateContext.seasonalHintsJa.join(" / ") || "none"}`,
+    `- seasonal avoid notes: ${localDateContext.seasonalAvoidJa.join(" / ") || "none"}`,
+  ].join("\n");
+}
+
 function buildWelcomePrompt(
   npcId: string,
   timeDiffText: string | undefined,
+  localDateContext: LocalDateContext,
   existingFacts: string[],
   historyText: string,
   recentAssistantMessages: string[],
@@ -94,14 +115,8 @@ function buildWelcomePrompt(
 ): ChatCompletionMessageParam[] {
   const personality = NPC_PERSONALITIES[npcId] ?? NPC_PERSONALITIES.taisho;
   const factsStr = existingFacts.length > 0 ? existingFacts.join("、") : "なし";
-  const timeOfDay = getTimeOfDay();
-  const timeDescriptions: Record<string, string> = {
-    朝: "现在是早上（朝），大概5点到11点",
-    昼: "现在是白天（昼），大概11点到17点",
-    夕: "现在是傍晚（夕），大概17点到21点",
-    夜: "现在是晚上（夜），大概21点到凌晨5点",
-  };
-  const timeContext = timeDescriptions[timeOfDay];
+  const timeContext = describeLocalDateContext(localDateContext);
+  const localDatePromptBlock = buildLocalDatePromptBlock(localDateContext);
   const recentAssistantText = recentAssistantMessages.length > 0
     ? recentAssistantMessages.map((message) => `- ${message}`).join("\n")
     : "なし";
@@ -140,7 +155,9 @@ function buildWelcomePrompt(
 - 不要为了变化而夸张，不要突然抛出很重的话题
 - 不要固定提「論文」「試験」「コーヒー」等话题，除非 history 或 existingFacts 中确实强相关
 - 可以有轻微时间/天气氛围，但只能用模糊表达
-- 当前时间：${timeContext}。可以自然地说「朝だね」「今日はもう夜だね」等，但不要生硬地点明具体时间
+- 当前本地日期语境：${timeContext}。weekday/weekend 和时段以此为准。可以自然地说「朝だね」「今日はもう夜だね」等，但不要生硬地点明具体时间
+- 当前完整本地日期：
+${localDatePromptBlock}
 
 ## NPC 人设
 ${personality}
@@ -186,6 +203,11 @@ ${recentAssistantText}
   "welcomeMessage": "日文欢迎语"
 }`,
     },
+    {
+      role: "system",
+      content:
+        "Kotomachi is a fictional language town. Do not mention real-world city names, districts, neighborhoods, or stations such as 下北沢, 渋谷, 新宿, 東京, 京都, or 大阪. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Seasonal culture hints are optional conversation material derived from the local month and season, not real-time events. Do not mention Christmas unless month is December or recent conversation supports it. Do not mention sakura unless spring/month supports it or recent conversation supports it. Do not mention autumn leaves unless autumn/month supports it or recent conversation supports it. Do not mention snow as current weather unless world state supports it. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use only generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation.",
+    },
   ];
 }
 
@@ -202,6 +224,7 @@ export async function POST(req: NextRequest) {
       crossMentions,
       worldDescription,
       worldReaction,
+      localDateContext: rawLocalDateContext,
     } = (await req.json()) as WelcomeRequestBody;
 
     if (!npcId) {
@@ -210,6 +233,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const localDateContext = resolveLocalDateContext(rawLocalDateContext, getLocalDateContext());
 
     // 将聊天记录格式化为可读文本，供大模型分析
     const historyText = (history ?? [])
@@ -228,6 +253,7 @@ export async function POST(req: NextRequest) {
     const messages = buildWelcomePrompt(
       npcId,
       timeDiffText,
+      localDateContext,
       existingFacts ?? [],
       historyText || "（无聊天记录）",
       recentAssistantText,

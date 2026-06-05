@@ -27,7 +27,7 @@ import {
   clearNpcChatData,
   type StoredMessage,
 } from "@/lib/memory";
-import { isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
+import { getLocalDateContext, isNpcId, NPC_AVATARS, getNpcState, getWorldContext, type NpcId } from "@/lib/npc";
 import {
   SAVED_ITEMS_UPDATED_EVENT,
   loadSavedItems,
@@ -435,7 +435,8 @@ export default function ChatPage() {
     if (existingRequest) return existingRequest;
 
     const npcState = getNpcState(targetNpcId);
-    const worldContext = getWorldContext();
+    const localDateContext = getLocalDateContext();
+    const worldContext = getWorldContext(localDateContext);
     const request = fetch(buildClientApiUrl("/api/welcome"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -448,6 +449,7 @@ export default function ChatPage() {
         lifeArc: npcState.arcDescription,
         lifeArcState: npcState.label,
         crossMentions: npcState.crossMentions,
+        localDateContext,
         worldDescription: worldContext.description,
         worldReaction: worldContext.reactions[targetNpcId],
       }),
@@ -669,9 +671,10 @@ export default function ChatPage() {
     }));
     historyForApi.push({ role: "user", content: userText, createdAt: userCreatedAt });
     const npcState = getNpcState(npcId);
-    const worldContext = getWorldContext();
+    const localDateContext = getLocalDateContext();
+    const worldContext = getWorldContext(localDateContext);
     try {
-      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
+      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
       const useVoice = true;
@@ -1036,6 +1039,8 @@ export default function ChatPage() {
     }
 
     const controller = new AbortController();
+    const localDateContext = getLocalDateContext();
+    const worldContext = getWorldContext(localDateContext);
     setTopicIdeas(null);
     setIsTopicIdeasLoading(true);
 
@@ -1046,6 +1051,9 @@ export default function ChatPage() {
         npcId,
         uiLanguage: uiLanguage === "en" ? "en" : "zh",
         recentMessages: recentTopicMessages,
+        localDateContext,
+        worldDescription: worldContext.description,
+        worldReaction: worldContext.reactions[npcId] ?? "",
       }),
       signal: controller.signal,
     })

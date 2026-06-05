@@ -5,15 +5,8 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ContinueSection } from "@/components/home/continue-section";
 import { InspirationSection } from "@/components/home/inspiration-section";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
-import { getTimeOfDay, getWorldContext } from "@/lib/npc";
+import { getLocalDateAtmosphereLabelJa, getLocalDateContext, getTimeOfDay, getWorldContext } from "@/lib/npc";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
-
-const TIME_LABELS: Record<string, string> = {
-  朝: "朝の街",
-  昼: "昼の街",
-  夕: "夕の街",
-  夜: "夜の街",
-};
 
 const TIME_BG: Record<string, string> = {
   朝: "linear-gradient(180deg, #F5E4CE 0%, #F3EDE0 50%)",
@@ -23,8 +16,9 @@ const TIME_BG: Record<string, string> = {
 };
 
 export default function Home() {
-  const timeOfDay = getTimeOfDay();
-  const worldContext = getWorldContext();
+  const localDateContext = getLocalDateContext();
+  const timeOfDay = getTimeOfDay(localDateContext);
+  const worldContext = getWorldContext(localDateContext);
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
 
   useEffect(() => {
@@ -36,10 +30,11 @@ export default function Home() {
     saveUiLanguage(language);
   };
 
-  const timeLabel = TIME_LABELS[timeOfDay] ?? "街の時間";
+  const timeLabel = getLocalDateAtmosphereLabelJa(localDateContext);
   const background = TIME_BG[timeOfDay] ?? "#F3EDE0";
+  const localDayNumber = Number(localDateContext.localDateKey.slice(-2)) || new Date().getDate();
   const ambientText =
-    worldContext.ambientTexts[new Date().getDate() % worldContext.ambientTexts.length];
+    worldContext.ambientTexts[localDayNumber % worldContext.ambientTexts.length];
 
   return (
     <main

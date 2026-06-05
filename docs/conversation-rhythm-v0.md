@@ -112,6 +112,27 @@ Topic Seed System 是它的内容基础。
 - 不要把用户 starter 直接塞进 NPC 回复；
 - 同一个 seed 可以支持 opening、continuation、review，不是单一文案条目。
 
+## 4.1 Topic Seeds and World-State Overlays
+
+topic seed 提供的是稳定的对话骨架，不直接写死当天的天气。
+
+- seed 负责：scene、relationship、register、可自然展开的小主题
+- world state 负责：weather、time、街区当天的氛围
+- weather / time / world state 应作为 overlay 叠加到 seed 上，而不是把 seed 本身写成固定天气
+
+例如：
+
+- 可以写：`café atmosphere with weather / time overlay when available`
+- 不建议写死：`rainy café atmosphere`
+
+使用规则：
+
+- 只有当前 world state 或 recent messages 支持时，才提具体天气
+- 如果当前 world state 是 sunny，就不要生成 rainy 的接话
+- 如果没有 world state 信息，就不要主动编造天气
+- 如果最近聊天已经提到雨、闷热、晴天等，再顺着聊可以
+- AI topic ideas 应把 seed 当作稳定骨架，把 weather / time 当作可选 overlay
+
 ## 5. Product Principle
 
 Kotomachi 的一段理想短对话，不是无限陪聊，而是一个轻量 loop：
@@ -264,7 +285,7 @@ Soft landing 主要由这些部分支持：
 
 - coffee taste / coffee recommendation
 - quiet time / resting at a cafe
-- rainy cafe atmosphere
+- café atmosphere with weather / time overlay when available
 - books / movies / small cultural talk
 - saying you want to slow down
 
@@ -272,7 +293,7 @@ Soft landing 主要由这些部分支持：
 
 - convenience-store new items
 - night shift and tiredness
-- rainy-day customers
+- convenience-store customer flow with weather / time overlay when available
 - daily rhythm and small fatigue
 - buying something quickly before going home
 
@@ -282,7 +303,7 @@ Soft landing 主要由这些部分支持：
 - choosing something to eat
 - tired after work / school
 - regular-customer small talk
-- rainy evening / izakaya atmosphere
+- izakaya evening atmosphere with weather / time overlay when available
 
 ### Haruka / 遥
 

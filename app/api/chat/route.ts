@@ -1,19 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createChatCompletion } from "@/lib/llm";
-import { getTimeOfDay } from "@/lib/npc";
+import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
 
-function buildSystemPrompt(npcId: string, memories: string[], conversationCount: number, lifeArc?: string, lifeArcState?: string, crossMentions?: string[], worldDescription?: string, worldReaction?: string): string {
+type ChatRequestBody = {
+  text?: string;
+  npcId?: string;
+  history?: ChatCompletionMessageParam[];
+  memories?: string[];
+  conversationCount?: number;
+  lifeArc?: string;
+  lifeArcState?: string;
+  crossMentions?: string[];
+  worldDescription?: string;
+  worldReaction?: string;
+  localDateContext?: Partial<LocalDateContext>;
+};
+
+function describeLocalDateContext(localDateContext: LocalDateContext): string {
+  const dayKind = localDateContext.isWeekend ? "周末" : "工作日";
+  return `${dayKind}（${localDateContext.dayLabelJa}）的${localDateContext.timeLabelJa}`;
+}
+
+function buildLocalDatePromptBlock(localDateContext: LocalDateContext): string {
+  return [
+    `- date: ${localDateContext.localDateKey}`,
+    `- Japanese date label: ${localDateContext.dateLabelJa}`,
+    `- English date label: ${localDateContext.dateLabelEn}`,
+    `- day of week: ${localDateContext.dayLabelJa}`,
+    `- weekend: ${localDateContext.isWeekend ? "true" : "false"}`,
+    `- time of day: ${localDateContext.timeLabelJa}`,
+    `- season: ${localDateContext.seasonLabelJa}`,
+    `- seasonal culture hints (optional, not real-time events): ${localDateContext.seasonalHintsJa.join(" / ") || "none"}`,
+    `- seasonal avoid notes: ${localDateContext.seasonalAvoidJa.join(" / ") || "none"}`,
+  ].join("\n");
+}
+
+function buildSystemPrompt(
+  npcId: string,
+  memories: string[],
+  conversationCount: number,
+  localDateContext: LocalDateContext,
+  lifeArc?: string,
+  lifeArcState?: string,
+  crossMentions?: string[],
+  worldDescription?: string,
+  worldReaction?: string,
+): string {
   const memoryLine = memories?.length ? memories.join("、") : "なし";
-
-  const timeOfDay = getTimeOfDay();
-  const timeDescriptions: Record<string, string> = {
-    朝: "早上（朝）",
-    昼: "白天（昼）",
-    夕: "傍晚（夕）",
-    夜: "晚上（夜）",
-  };
-  const timeContext = timeDescriptions[timeOfDay];
+  const timeContext = describeLocalDateContext(localDateContext);
+  const localDatePromptBlock = buildLocalDatePromptBlock(localDateContext);
 
   // 邻里提及提示
   const neighborHint = crossMentions?.length
@@ -36,13 +72,15 @@ function buildSystemPrompt(npcId: string, memories: string[], conversationCount:
   }
 
   if (npcId === "misaki") {
-    return `你叫「美咲」(Misaki)，24岁，是位于下北泽咖啡馆的暖心咖啡师。你性格温柔、善于倾听。
+    return `你叫「美咲」(Misaki)，24岁，是位于言街（Kotomachi）咖啡馆的暖心咖啡师。你性格温柔、善于倾听。
 # 核心社交约束：
 - 严禁充当"日语老师"。即使对方日文语法出现严重破绽，也【绝对不要在聊天中主动纠正他】。顺着对方的话题继续聊，保持温暖、知性的态度。
 - 反客服化：聊天要像真正的日本朋友一样，先针对对方上一句的话做出情绪共鸣，谈谈自己的感受，然后再自然引申，避免生硬地在每次句尾用问题逼对方回答。
 - 简易记忆联动：你脑中关于用户的标签事实是：[${memoryLine}]。请在对话的打招呼或合适时机非常自然地提起。
 - 熟悉度：你们已经聊了约${conversationCount}次。${familiarityHint}
 - 当前时段：${timeContext}。请自然地体现此时段感，但不要生硬地点明时间。
+- 当前本地日期：
+${localDatePromptBlock}
 - 最近生活：${lifeArc ? `正在经历「${lifeArc}」，当前状态：${lifeArcState}。请自然地在对话中偶尔提起与当前生活相关的话题，让用户感觉你是一个有连续生活的人。` : ""}
 - 邻里感：${neighborHint}
 - 天气氛围：${worldHint}
@@ -124,14 +162,31 @@ function buildSystemPrompt(npcId: string, memories: string[], conversationCount:
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, npcId, history, memories, conversationCount, lifeArc, lifeArcState, crossMentions, worldDescription, worldReaction } = await req.json();
+    const {
+      text,
+      npcId,
+      history,
+      memories,
+      conversationCount,
+      lifeArc,
+      lifeArcState,
+      crossMentions,
+      worldDescription,
+      worldReaction,
+      localDateContext: rawLocalDateContext,
+    } = (await req.json()) as ChatRequestBody;
 
     if (!text) {
       return NextResponse.json({ error: "消息不能为空" }, { status: 400 });
     }
 
+    const localDateContext = resolveLocalDateContext(rawLocalDateContext, getLocalDateContext());
+    const sharedSafetyPrompt =
+      "Kotomachi is a fictional language town. Do not mention real-world city names, districts, neighborhoods, or stations such as 下北沢, 渋谷, 新宿, 東京, 京都, or 大阪. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Seasonal culture hints are optional conversation material derived from the local month and season, not real-time events. Do not mention Christmas unless month is December or recent conversation supports it. Do not mention sakura unless spring/month supports it or recent conversation supports it. Do not mention autumn leaves unless autumn/month supports it or recent conversation supports it. Do not mention snow as current weather unless world state supports it. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use only generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation.";
+
     const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: buildSystemPrompt(npcId, memories ?? [], conversationCount ?? 0, lifeArc, lifeArcState, crossMentions, worldDescription, worldReaction) },
+      { role: "system", content: buildSystemPrompt(npcId ?? "misaki", memories ?? [], conversationCount ?? 0, localDateContext, lifeArc, lifeArcState, crossMentions, worldDescription, worldReaction) },
+      { role: "system", content: sharedSafetyPrompt },
       ...(history ?? []),
       { role: "user", content: text },
     ];
