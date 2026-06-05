@@ -47,6 +47,48 @@ function containsLatinFragment(value: string): boolean {
   return /[A-Za-z]{2,}/.test(value);
 }
 
+/**
+ * 检测是否包含危险的长英文片段（3个或更多连续英文单词）
+ */
+function containsLongEnglishPhrase(value: string): boolean {
+  // 匹配3个或更多连续英文单词
+  const multiWordPattern = /[A-Za-z]+\s+[A-Za-z]+\s+[A-Za-z]+/;
+  if (multiWordPattern.test(value)) {
+    return true;
+  }
+  // 检测是否有过长的连续字母（超过4个）且不是日语常用英文词
+  const longWordPattern = /[A-Za-z]{5,}/g;
+  const matches = value.match(longWordPattern);
+  if (!matches) return false;
+  
+  // 允许的安全英文词
+  const safeWords = new Set([
+    "LINE", "SNS", "AI", "カフェ", "CAFE", "JAPAN", "TOKYO", "OSAKA",
+    "APP", "WEB", "MAIL", "NET", "PC", "TV", "CD", "DVD", "OK", "NG",
+  ]);
+  
+  // 检查是否有任何非安全的长词
+  return matches.some(word => !safeWords.has(word.toUpperCase()));
+}
+
+/**
+ * 检测是否包含用户原句中的连续英文片段
+ */
+function containsOriginalEnglishFragment(value: string, originalText: string): boolean {
+  // 从原句中提取英文单词
+  const englishWords = originalText.match(/[A-Za-z]{2,}/g) || [];
+  if (englishWords.length < 2) return false;
+  
+  // 检查是否包含连续的多个英文单词
+  for (let i = 0; i < englishWords.length - 1; i++) {
+    const phrase = `${englishWords[i]} ${englishWords[i + 1]}`;
+    if (value.toLowerCase().includes(phrase.toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function includesAny(value: string, words: string[]): boolean {
   return words.some((word) => value.toLowerCase().includes(word.toLowerCase()));
 }
@@ -195,15 +237,19 @@ function buildFallbackResponse(userText: string): FeedbackResponse {
   return buildIntentFallback(userText);
 }
 
-function needsFallback(response: FeedbackResponse): boolean {
+function needsFallback(response: FeedbackResponse, userText: string): boolean {
   const values = [response.casual.nativeSay, response.business.nativeSay, response.formal.nativeSay];
   const allSame = sameExpression(values[0], values[1]) && sameExpression(values[1], values[2]);
-  const hasBadText = values.some((value) => containsAsrArtifact(value) || containsLatinFragment(value));
+  const hasBadText = values.some((value) => 
+    containsAsrArtifact(value) || 
+    containsLongEnglishPhrase(value) || 
+    containsOriginalEnglishFragment(value, userText)
+  );
   return allSame || hasBadText;
 }
 
 function repairFeedbackResponse(response: FeedbackResponse, userText: string): FeedbackResponse {
-  if (needsFallback(response)) return buildIntentFallback(userText);
+  if (needsFallback(response, userText)) return buildIntentFallback(userText);
 
   const fallback = buildIntentFallback(userText);
   return {
@@ -247,12 +293,14 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 - analysis 必须说明真实学习点，例如语气差异、使用场景、句尾自然度、词汇选择、为什么这样说更自然
 - 不要说「你错了」，不要考试批改口吻，改用「这里会有点…」「更自然的做法是…」
 - 不要写内部解释，例如「系统暂时可能生成完整建议」
+- 【关键】nativeSay 必须是完全自然的日语，绝对不要包含用户原句中的英文长片段（如 "i just feel", "these days", "warmer and damper"）或连续英文字母超过3个的非日语常用词
+- nativeSay 只能包含：日语假名、汉字、日语标点、表情符号，以及极少量日语中常用的英文缩写（如 LINE、SNS、AI、カフェ）
 
 【重要】混合语言处理规则：
 - 用户的句子中经常混入英语或中文词汇，这是因为他们还不会对应的日语表达才用母语/英语替代的
 - 绝对不要简单说"不要用英语/中文"或"应该用日语"——这毫无帮助
 - 必须在 analysis 中重点教学：这个英语/中文词在日语里怎么说，给出具体的日语表达，并用简短的话解释用法和语境
-- nativeSay 中必须把所有英语/中文替换为地道的日语表达
+- nativeSay 中必须把所有英语/中文替换为地道的日语表达，完全不要保留原句中的英文片段
 - 例如用户说"今日は tired"，analysis 应写"tired 在日语里说 疲れた（つかれた），跟朋友可以说 今日疲れちゃった，更随意的话 疲れたー 就行"
 
 参考意图处理：

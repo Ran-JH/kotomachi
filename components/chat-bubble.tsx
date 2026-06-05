@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -441,13 +441,13 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                 )}
               </div>
               <button
-                type="button"
-                onClick={onClose}
-                aria-label={copy.explain.close}
-                className="shrink-0 text-[9px] leading-none text-[#7A7060]/45 transition-colors hover:text-[#28231A] md:text-xs"
-              >
-                ✕
-              </button>
+                      type="button"
+                      onClick={onClose}
+                      aria-label={copy.explain.close}
+                      className="shrink-0 text-[9px] leading-none text-[#7A7060]/45 transition-colors hover:text-[#28231A] md:text-xs"
+                    >
+                      ×
+                    </button>
             </div>
 
             {/* 绠€鐭噴涔?*/}
@@ -752,7 +752,7 @@ function FeedbackDrawer({
             className="absolute top-4 right-4 w-6 h-6 rounded-full text-[#7A7060] hover:bg-[rgba(40,35,26,0.06)] hover:text-[#28231A] text-xs leading-none flex items-center justify-center transition-colors"
             aria-label={copy.feedback.close}
           >
-            鉁?
+            ×
           </button>
           <h2 id="feedback-drawer-title" className="font-ui text-sm font-medium text-[#28231A] tracking-wide mb-0.5">
             {copy.feedback.title}
