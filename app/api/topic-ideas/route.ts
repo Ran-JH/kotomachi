@@ -226,21 +226,40 @@ function buildPrompt(
 - 只有 current world state 或 recent messages 支持时，才提具体天气。
 - 不要编造 rain / sunny / weather 细节。
 - 把 topic seed 当成稳定骨架，把 weather / time 当成可选 overlay。
-- 每条都要短、自然、低压力，适合初中级学习者。
-- 每条只写一句，不要解释，不要翻译，不要评价用户。
-- 输出必须是用户可以直接说出口的日语句子，不是 NPC 的回复。
-- 输出必须是“用户下一句可以直接填进输入框的话”，不是课程标题，不是任务，不是总结，也不是“建议用户聊 xxx”的说明。
-- 不要写老师式、客服式、考试式句子。
-- 如果上下文很少，就结合当前 NPC 场景给轻量 starter，但仍然是“下一句可以说的话”。
+- Do not force seasonal or world-state references into every suggestion. Use them only when they help the current conversation.
+
+## 3 条建议的不同角度
+- 第一条：Follow-up - 顺着当前话题追问细节（それ、もう少し詳しく聞いてもいいですか？这类）
+- 第二条：Self-expression - 表达自己的感受、状态或偏好（私もそう思います/今日はちょっと疲れています这类）
+- 第三条：Gentle bridge - 轻轻转到相关小话题，但不突兀（そういえば…这类）
+- 不要三条都只是同义改写，必须角度不同
+
+## 输出必须是用户可直接发送的话
+- 只输出日语短句，用户可以直接复制粘贴发送
+- 绝对禁止输出：
+  - 标题、任务、解释、“你可以问…”、“Try asking…”、“おすすめについて質問する”这类说明句
+  - NPC 要说的话
+  - 语法讲解、课程目标、总结句
+  - 多句长段落
+  - 中文或英文句子
+- 好的例子：
+  - それ、もう少し詳しく聞いてもいいですか。
+  - 今日は静かな席で、ゆっくり飲みたいです。
+  - 最近、みんな何にハマってる感じ？
+- 坏的例子：
+  - おすすめについて質問する
+  - 你可以问店里有什么推荐。
+  - 次に、相手のおすすめを聞いてみましょう。
+
+## 当前 NPC 的 relationship / register 约束（优先级最高！
+- 即使语法正确，但如果不符合当前 NPC 的关系语气，也是失败的建议
+${registerHints}
 
 ## 当前 NPC 场景
 ${sceneHint}
 
 ## 当前 NPC 的 conversation seed directions
 ${seedHints}
-
-## 当前 NPC 的 relationship / register 约束
-${registerHints}
 
 ## 当前 local date context
 ${localDateHint}
@@ -258,7 +277,7 @@ ${worldHint}
     { "text": "..." }
   ]
 }
-- ideas 里只放 3 条左右。
+- ideas 里只放 3 条。
 - 每条尽量 1 句。
 - 不要输出 markdown。
 - 不要输出额外说明。`;
@@ -286,7 +305,7 @@ export async function POST(req: NextRequest) {
     }
 
     const sharedSafetyPrompt =
-      "Kotomachi is a fictional language town. Do not mention real-world city names, districts, neighborhoods, or stations such as 下北沢, 渋谷, 新宿, 東京, 京都, or 大阪. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use only generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation.";
+      "Kotomachi is a fictional language town. Do not claim Kotomachi is located in a real city, district, station, or neighborhood like 下北沢, 渋谷, 新宿, 東京, or 京都. Do not invent real-world local facts as if happening around the NPC. If the user asks about real-world places, travel, culture, or geography, you may mention real place names as general knowledge or suggestions using cautious framing like \"旅行先としてなら\" or \"この街の外の話になりますが\". Do NOT claim real-time events, weather, crowds, or current local conditions unless the user provides them. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり for Kotomachi locations. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation.";
 
     const messages: ChatCompletionMessageParam[] = [
       { role: "system", content: buildPrompt(npcId, worldDescription, worldReaction, localDateContext) },
