@@ -112,10 +112,19 @@ function hashText(value: string): string {
 }
 
 function sanitizeAssistantSceneText(text: string): string {
-  const stageDirectionPattern =
-    /[（(［\[](?=[^）)\]］]{0,40}(?:ながら|渡し|押し|見|笑|うなず|手|レンジ))[^）)\]］]*[）)\]］]\s*/g;
+  let result = text;
+  
+  const stageDirectionPatterns = [
+    /[（(［\[][^）)\]］]*[）)\]］]\s*/g,
+    /\*[^*]+\*\s*/g,
+    /\[[^\]]+\]\s*/g,
+  ];
 
-  return text.replace(stageDirectionPattern, "").trim();
+  for (const pattern of stageDirectionPatterns) {
+    result = result.replace(pattern, "");
+  }
+
+  return result.trim();
 }
 
 const REVIEW_FILLER_PATTERNS = [
