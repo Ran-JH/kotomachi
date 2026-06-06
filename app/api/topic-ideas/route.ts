@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createChatCompletion } from "@/lib/llm";
+import { getConversationScene } from "@/lib/conversation-scenes";
 import {
   getLocalDateContext,
   getWorldContext,
@@ -22,6 +23,7 @@ type TopicIdeasRequestBody = {
   worldDescription?: string;
   worldReaction?: string;
   localDateContext?: Partial<LocalDateContext>;
+  activeSceneId?: string;
 };
 
 type TopicIdeaItem = {
@@ -134,6 +136,31 @@ const FALLBACK_IDEAS: Record<NpcId, string[]> = {
   ],
 };
 
+function fallbackSceneIdeas(activeSceneId?: string): TopicIdeaItem[] | null {
+  const scene = getConversationScene(activeSceneId);
+  if (!scene) return null;
+  return scene.fallbackUserLines.slice(0, 4).map((text) => ({ text }));
+}
+
+function buildScenePrompt(activeSceneId?: string): string {
+  const scene = getConversationScene(activeSceneId);
+  if (!scene) return "";
+
+  return [
+    "You are generating response options for a guided scenario, not broad topic ideas.",
+    `Current guided scenario: ${scene.id}.`,
+    `Scene title: ${scene.title}.`,
+    `Scene setup: ${scene.setup}.`,
+    `User goal: ${scene.userGoal}.`,
+    `Possible beats: ${scene.possibleBeats.join(" / ")}.`,
+    `Useful intents: ${scene.usefulIntents.join(" / ")}.`,
+    `Soft landing: ${scene.softLanding}.`,
+    `Avoid: ${scene.avoid.join(" / ")}.`,
+    "Return short lines the user can directly say next in this scene.",
+    "Do not turn this into a task checklist.",
+  ].join("\n");
+}
+
 function normalizeText(text: string, maxLength = 300): string {
   const compact = text.replace(/\s+/g, " ").trim();
   return compact.length > maxLength ? `${compact.slice(0, maxLength).trimEnd()}…` : compact;
@@ -189,6 +216,7 @@ function buildPrompt(
   worldDescription: string,
   worldReaction: string,
   localDateContext: LocalDateContext,
+  activeSceneId?: string,
 ): string {
   const sceneHint = NPC_SCENE_HINTS[npcId];
   const seedHints = NPC_TOPIC_SEED_HINTS[npcId].map((item) => `- ${item}`).join("\n");
@@ -208,6 +236,7 @@ function buildPrompt(
     `description: ${worldDescription}`,
     `npc reaction: ${worldReaction}`,
   ].join("\n");
+  const scenePrompt = buildScenePrompt(activeSceneId);
   return `你是一个日语学习产品里的“接话建议生成器”，不是 NPC 本人。
 你的任务不是回复用户，而是根据最近聊天，生成 3 条“用户下一句可以对 NPC 说的话”。
 
@@ -267,6 +296,8 @@ ${localDateHint}
 ## 当前 world state overlay
 ${worldHint}
 
+${scenePrompt ? `## current guided scenario\n${scenePrompt}\n` : ""}
+
 ## 输出要求
 - 严格返回 JSON。
 - 只允许以下结构：
@@ -285,13 +316,16 @@ ${worldHint}
 
 export async function POST(req: NextRequest) {
   let resolvedNpcId: NpcId = "misaki";
+  let resolvedActiveSceneId: string | undefined;
   try {
     const body = (await req.json()) as TopicIdeasRequestBody;
     const rawNpcId = body.npcId ?? "";
     const npcId: NpcId = isNpcId(rawNpcId) ? rawNpcId : "misaki";
     resolvedNpcId = npcId;
+    resolvedActiveSceneId = body.activeSceneId;
     const recentMessages = normalizeMessages(body.recentMessages);
     const localDateContext = resolveLocalDateContext(body.localDateContext, getLocalDateContext());
+    const sceneFallbackIdeas = fallbackSceneIdeas(body.activeSceneId);
     const clientWorldDescription =
       typeof body.worldDescription === "string" ? body.worldDescription.trim() : "";
     const clientWorldReaction =
@@ -301,14 +335,14 @@ export async function POST(req: NextRequest) {
     const worldReaction = clientWorldReaction || fallbackWorld.reactions[npcId] || "";
 
     if (recentMessages.length === 0) {
-      return NextResponse.json({ ideas: fallbackIdeasFor(npcId) });
+      return NextResponse.json({ ideas: sceneFallbackIdeas ?? fallbackIdeasFor(npcId) });
     }
 
     const sharedSafetyPrompt =
       "Kotomachi is a fictional language town. Do not claim Kotomachi is located in a real city, district, station, or neighborhood like 下北沢, 渋谷, 新宿, 東京, or 京都. Do not invent real-world local facts as if happening around the NPC. If the user asks about real-world places, travel, culture, or geography, you may mention real place names as general knowledge or suggestions using cautious framing like \"旅行先としてなら\" or \"この街の外の話になりますが\". Do NOT claim real-time events, weather, crowds, or current local conditions unless the user provides them. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり for Kotomachi locations. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation.";
 
     const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: buildPrompt(npcId, worldDescription, worldReaction, localDateContext) },
+      { role: "system", content: buildPrompt(npcId, worldDescription, worldReaction, localDateContext, body.activeSceneId) },
       { role: "system", content: sharedSafetyPrompt },
       {
         role: "user",
@@ -319,6 +353,7 @@ export async function POST(req: NextRequest) {
           localDateContext,
           worldDescription,
           worldReaction,
+          activeSceneId: body.activeSceneId,
         }),
       },
     ];
@@ -330,11 +365,33 @@ export async function POST(req: NextRequest) {
     });
 
     const parsed = JSON.parse(raw) as { ideas?: unknown };
-    const ideas = sanitizeIdeas(parsed.ideas, npcId);
+    const ideas = body.activeSceneId
+      ? (() => {
+          const rawIdeas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+          const seen = new Set<string>();
+          const nextIdeas = rawIdeas
+            .map((item) => {
+              if (typeof item === "string") return item;
+              if (!item || typeof item !== "object") return "";
+              return typeof (item as { text?: unknown }).text === "string"
+                ? String((item as { text: string }).text)
+                : "";
+            })
+            .map((text) => normalizeText(text, 120))
+            .filter((text) => {
+              if (!text || seen.has(text)) return false;
+              seen.add(text);
+              return true;
+            })
+            .slice(0, 4)
+            .map((text) => ({ text }));
+          return nextIdeas.length > 0 ? nextIdeas : (sceneFallbackIdeas ?? fallbackIdeasFor(npcId));
+        })()
+      : sanitizeIdeas(parsed.ideas, npcId);
     return NextResponse.json({ ideas });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "service error";
     console.warn("[topic-ideas] route error:", message);
-    return NextResponse.json({ ideas: fallbackIdeasFor(resolvedNpcId) });
+    return NextResponse.json({ ideas: fallbackSceneIdeas(resolvedActiveSceneId) ?? fallbackIdeasFor(resolvedNpcId) });
   }
 }

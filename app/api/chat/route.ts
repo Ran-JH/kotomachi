@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createChatCompletion } from "@/lib/llm";
+import { getConversationScene } from "@/lib/conversation-scenes";
 import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
 
 type ChatRequestBody = {
@@ -15,6 +16,7 @@ type ChatRequestBody = {
   worldDescription?: string;
   worldReaction?: string;
   localDateContext?: Partial<LocalDateContext>;
+  activeSceneId?: string;
 };
 
 function describeLocalDateContext(localDateContext: LocalDateContext): string {
@@ -162,6 +164,30 @@ ${localDatePromptBlock}
   return `你是一位友善的日语对话伙伴。请用自然日文回复，2-3句以内。绝对不纠错。记忆事实为：[${memoryLine}]。熟悉度：聊了约${conversationCount}次。${familiarityHint}当前时段：${timeContext}。`;
 }
 
+function buildScenePrompt(activeSceneId?: string): string | null {
+  const scene = getConversationScene(activeSceneId);
+  if (!scene) return null;
+
+  return [
+    `Current temporary guided scenario: ${scene.id}.`,
+    `Scene title: ${scene.title}.`,
+    `Scene setup: ${scene.setup}.`,
+    `User goal: ${scene.userGoal}.`,
+    "Use this as soft context, not a task flow.",
+    "If the user stays in the scene, continue one small exchange naturally.",
+    "If the user drifts away, follow the drift and do not force the scene back.",
+    "Do not score, correct, test, or check off beats one by one.",
+    "Do not include stage directions, roleplay actions, or parenthetical action descriptions in the visible reply.",
+    "Avoid text such as （レンジのボタンを押しながら）, （お弁当を渡しながら）, *hands it over*, or [he smiles].",
+    "Write only what the NPC would naturally say in chat.",
+    scene.npcId === "kimura"
+      ? "For Kimura, prefer casual shop-counter speech like 「はいよ、温めるね」 or 「じゃ、少し待ってて」 over formal service phrases like 「かしこまりました」."
+      : "",
+    `Possible beats are only background hints: ${scene.possibleBeats.join(" / ")}.`,
+    `Avoid: ${scene.avoid.join(" / ")}.`,
+  ].filter(Boolean).join("\n");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const {
@@ -176,6 +202,7 @@ export async function POST(req: NextRequest) {
       worldDescription,
       worldReaction,
       localDateContext: rawLocalDateContext,
+      activeSceneId,
     } = (await req.json()) as ChatRequestBody;
 
     if (!text) {
@@ -183,12 +210,14 @@ export async function POST(req: NextRequest) {
     }
 
     const localDateContext = resolveLocalDateContext(rawLocalDateContext, getLocalDateContext());
+    const scenePrompt = buildScenePrompt(activeSceneId);
     const sharedSafetyPrompt =
-      "Kotomachi is a fictional language town. Do not claim Kotomachi is located in a real city, district, station, or neighborhood like 下北沢, 渋谷, 新宿, 東京, or 京都. Do not invent real-world local facts as if happening around the NPC. If the user asks about real-world places, travel, culture, or geography, you may mention real place names as general knowledge or suggestions using cautious framing like \"旅行先としてなら\" or \"この街の外の話になりますが\". Do NOT claim real-time events, weather, crowds, or current local conditions unless the user provides them. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Seasonal culture hints are optional conversation material derived from the local month and season, not real-time events. Do not mention Christmas unless month is December or recent conversation supports it. Do not mention sakura unless spring/month supports it or recent conversation supports it. Do not mention autumn leaves unless autumn/month supports it or recent conversation supports it. Do not mention snow as current weather unless world state supports it. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり for Kotomachi locations. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation. Do not invent or assume specific past facts about the user, such as hobbies, preferences, or things the user said before. Do not use phrases like \"前に〜って言ってたよね\", \"この前〜って話してたよね\", or \"さっき〜言ってたけど\" unless that specific fact actually appears in the provided conversation history or memories. If referencing shared topics from this conversation, use open-ended phrasing: \"さっき言ってた[X]って、どうなった？\" or \"[X]のこと、もう少し聞いてもいい？\" instead of fabricating past details. Conversation rhythm: First respond to the user's latest message directly. Then, if natural, add one small scene-specific detail from your setting. If the conversation needs a continuation point, offer one low-pressure small opening. Do not force this into a rigid three-part structure. Do not ask multiple questions at once. Do not abruptly switch topics when the user's current topic is clear.";
+      "Kotomachi is a fictional language town. Do not claim Kotomachi is located in a real city, district, station, or neighborhood like 下北沢, 渋谷, 新宿, 東京, or 京都. Do not invent real-world local facts as if happening around the NPC. If the user asks about real-world places, travel, culture, or geography, you may mention real place names as general knowledge or suggestions using cautious framing like \"旅行先としてなら\" or \"この街の外の話になりますが\". Do NOT claim real-time events, weather, crowds, or current local conditions unless the user provides them. Treat the provided localDateContext as the only source of truth for date, month, weekday, weekend, time of day, and season. Do not invent another month, season, holiday, or seasonal event. Seasonal culture hints are optional conversation material derived from the local month and season, not real-time events. Do not mention Christmas unless month is December or recent conversation supports it. Do not mention sakura unless spring/month supports it or recent conversation supports it. Do not mention autumn leaves unless autumn/month supports it or recent conversation supports it. Do not mention snow as current weather unless world state supports it. Do not mention Christmas, New Year, sakura, autumn leaves, summer festival, rainy season, or similar seasonal events unless supported by localDateContext, world state, or recent conversation. If localDateContext says June, do not say November, December, Christmas, autumn leaves, or winter. Use generic place references like この街, 街区, 店のまわり, 近く, キャンパスのほう, 研究室のあたり for Kotomachi locations. Treat the provided worldDescription and worldReaction as the current page state. Do not contradict them. Do not invent a different weather condition, street mood, or atmosphere. Only mention weather, time, or atmosphere when supported by the provided localDateContext, the provided world state, or the recent conversation. Do not invent or assume specific past facts about the user, such as hobbies, preferences, or things the user said before. Do not use phrases like \"前に〜って言ってたよね\", \"この前〜って話してたよね\", or \"さっき〜言ってたけど\" unless that specific fact actually appears in the provided conversation history or memories. If referencing shared topics from this conversation, use open-ended phrasing: \"さっき言ってた[X]って、どうなった？\" or \"[X]のこと、もう少し聞いてもいい？\" instead of fabricating past details. Conversation rhythm: First respond to the user's latest message directly. Then, if natural, add one small scene-specific detail from your setting. If the conversation needs a continuation point, offer one low-pressure small opening. Do not force this into a rigid three-part structure. Do not ask multiple questions at once. Do not abruptly switch topics when the user's current topic is clear. Do not include stage directions, roleplay actions, or parenthetical action descriptions in the visible reply. Avoid text such as （レンジのボタンを押しながら）, （お弁当を渡しながら）, *hands it over*, or [he smiles]. Write only what the NPC would naturally say in chat.";
 
     const messages: ChatCompletionMessageParam[] = [
       { role: "system", content: buildSystemPrompt(npcId ?? "misaki", memories ?? [], conversationCount ?? 0, localDateContext, lifeArc, lifeArcState, crossMentions, worldDescription, worldReaction) },
       { role: "system", content: sharedSafetyPrompt },
+      ...(scenePrompt ? [{ role: "system" as const, content: scenePrompt }] : []),
       ...(history ?? []),
       { role: "user", content: text },
     ];

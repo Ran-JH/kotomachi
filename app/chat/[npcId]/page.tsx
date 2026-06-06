@@ -12,6 +12,11 @@ import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
 import { buildClientApiUrl } from "@/lib/client-api-url";
+import {
+  getConversationScene,
+  getConversationScenesForNpc,
+  type ConversationSceneId,
+} from "@/lib/conversation-scenes";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
@@ -74,7 +79,7 @@ interface ChatMessage {
   text: string;
   type: "text" | "voice";
   createdAt?: string;
-  source?: "welcome";
+  source?: "welcome" | "scene";
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   npcAudioUrl?: string | null;
@@ -104,6 +109,13 @@ function hashText(value: string): string {
     hash = (hash * 31 + value.charCodeAt(i)) | 0;
   }
   return Math.abs(hash).toString(36);
+}
+
+function sanitizeAssistantSceneText(text: string): string {
+  const stageDirectionPattern =
+    /[（(［\[](?=[^）)\]］]{0,40}(?:ながら|渡し|押し|見|笑|うなず|手|レンジ))[^）)\]］]*[）)\]］]\s*/g;
+
+  return text.replace(stageDirectionPattern, "").trim();
 }
 
 const REVIEW_FILLER_PATTERNS = [
@@ -256,6 +268,8 @@ export default function ChatPage() {
   const [topicIdeas, setTopicIdeas] = useState<string[] | null>(null);
   const [isTopicIdeasLoading, setIsTopicIdeasLoading] = useState(false);
   const [topicIdeasForceRefreshKey, setTopicIdeasForceRefreshKey] = useState<string | null>(null);
+  // Guided scenario v0.1：只保留当前页临时状态，不写入本地存储。
+  const [activeSceneId, setActiveSceneId] = useState<ConversationSceneId | null>(null);
   const copy = getUiCopy(uiLanguage);
   const savedExpressionCount = savedItems.filter((item) => item.type === "expression").length;
   const savedWordCount = savedItems.filter((item) => item.type === "word").length;
@@ -293,6 +307,8 @@ export default function ChatPage() {
   const starterAppliedRef = useRef(false);
   const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
   const searchParams = useSearchParams();
+  const availableScenes = useMemo(() => getConversationScenesForNpc(npcId), [npcId]);
+  const activeScene = useMemo(() => getConversationScene(activeSceneId), [activeSceneId]);
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -331,6 +347,9 @@ export default function ChatPage() {
     return () => window.removeEventListener("keydown", handleEsc);
   }, [isResetConfirmOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
+  useEffect(() => {
+    setActiveSceneId(null);
+  }, [npcId]);
   useEffect(() => {
     if (starterAppliedRef.current) return;
     const starter = searchParams.get("starter")?.trim();
@@ -620,7 +639,7 @@ export default function ChatPage() {
       const restored: ChatMessage[] = history.map((m, i) => ({
         id: `stored-${i}`, sender: m.role === "user" ? "user" : "assistant",
         text: m.content, type: "text" as const, createdAt: m.createdAt,
-        source: m.source === "welcome" ? "welcome" : undefined,
+        source: m.source === "welcome" || m.source === "scene" ? m.source : undefined,
       }));
       setMessages(restored);
       void triggerRevisitWelcome(npcId, storedMemories, history, wasSeenThisSession);
@@ -674,13 +693,16 @@ export default function ChatPage() {
     const localDateContext = getLocalDateContext();
     const worldContext = getWorldContext(localDateContext);
     try {
-      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId] }) });
+      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyForApi.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId], activeSceneId }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
+      // 场景对话偶尔会冒出括号动作描写，这里做一层保守清理，
+      // 既避免 UI 里像剧本，也避免 TTS 把动作朗读出来。
+      const assistantText = sanitizeAssistantSceneText(typeof data.text === "string" ? data.text : "");
       const useVoice = true;
       let npcAudioUrl: string | null = null;
-      if (useVoice) npcAudioUrl = await fetchTtsUrl(data.text);
-      const assistantMsg: ChatMessage = { id: `assistant-${Date.now()}`, sender: "assistant", text: data.text, type: useVoice ? "voice" : "text", createdAt: new Date().toISOString(), npcAudioUrl };
+      if (useVoice) npcAudioUrl = await fetchTtsUrl(assistantText);
+      const assistantMsg: ChatMessage = { id: `assistant-${Date.now()}`, sender: "assistant", text: assistantText, type: useVoice ? "voice" : "text", createdAt: new Date().toISOString(), npcAudioUrl };
       setMessages((prev) => {
         const next = [...prev, assistantMsg];
         saveChatHistory(npcId, next.map((m) => ({
@@ -721,6 +743,46 @@ export default function ChatPage() {
     setInputMode("text");
     setInputText((prev) => (prev.trim() ? `${prev}\n${prompt}` : prompt));
     setIsInputActionsOpen(false);
+    setIsTopicIdeasOpen(false);
+  };
+
+  const handleStartScene = (sceneId: ConversationSceneId) => {
+    const scene = getConversationScene(sceneId);
+    if (!scene) return;
+
+    topicIdeasCacheRef.current.clear();
+    setTopicIdeas(null);
+    setTopicIdeasForceRefreshKey(null);
+    setIsInputActionsOpen(false);
+    setIsTopicIdeasOpen(false);
+    setActiveSceneId(sceneId);
+
+    const openingMessage: ChatMessage = {
+      id: `scene-${scene.id}-${Date.now()}`,
+      sender: "assistant",
+      text: scene.npcOpening,
+      type: "text",
+      createdAt: new Date().toISOString(),
+      source: "scene",
+    };
+
+    setMessages((prev) => {
+      const next = [...prev, openingMessage];
+      saveChatHistory(npcId, next.map((message) => ({
+        role: message.sender === "user" ? "user" : "assistant",
+        content: message.text,
+        createdAt: message.createdAt,
+        source: message.source,
+      })));
+      return next;
+    });
+    saveLastChatTime(npcId);
+  };
+
+  const handleExitScene = () => {
+    setActiveSceneId(null);
+    setTopicIdeas(null);
+    setTopicIdeasForceRefreshKey(null);
     setIsTopicIdeasOpen(false);
   };
 
@@ -785,7 +847,7 @@ export default function ChatPage() {
         ? "Around Kotomachi"
         : copy.sidebar.residents;
   const userMessageCount = messages.filter((message) => message.sender === "user").length;
-  const showStarterPrompts = userMessageCount === 0;
+  const showStarterPrompts = userMessageCount === 0 && !activeScene;
   const showOnboardingHint = userMessageCount === 0 && !isOnboardingHintDismissed;
   const starterHeading = uiLanguage === "zh" ? "不知道怎么开始？" : "Not sure how to start?";
   const starterSubheading = uiLanguage === "zh" ? "可以这样开口" : "Try one of these";
@@ -800,7 +862,9 @@ export default function ChatPage() {
     ? "我会帮你把想法整理成自然日语。"
     : "Kotomachi helps turn your rough thoughts into natural Japanese.";
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
-  const topicIdeasTitle = uiLanguage === "zh" ? "找话题" : "Topic ideas";
+  const topicIdeasTitle = activeScene
+    ? (uiLanguage === "zh" ? "下一句怎么说" : "How to say the next line")
+    : (uiLanguage === "zh" ? "找话题" : "Topic ideas");
   const helpTitle = uiLanguage === "zh" ? "帮助" : "Help";
   const helpSubtitle = uiLanguage === "zh" ? "使用提示与安装说明" : "Guide & install help";
   const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
@@ -839,6 +903,19 @@ export default function ChatPage() {
   const topicIdeasLoadingLabel = uiLanguage === "zh" ? "正在想几句能接上的话…" : "Finding lines that fit…";
   const refreshTopicIdeasLabel = uiLanguage === "zh" ? "换一批" : "Another set";
   const fixedTopicIdeas = useMemo(() => visibleStarterPrompts, [visibleStarterPrompts]);
+  const latestSceneOpeningIndex = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message.sender === "assistant" && message.source === "scene") {
+        return i;
+      }
+    }
+    return -1;
+  }, [messages]);
+  const hasUserAfterLatestSceneOpening = useMemo(() => {
+    if (latestSceneOpeningIndex < 0) return false;
+    return messages.slice(latestSceneOpeningIndex + 1).some((message) => message.sender === "user");
+  }, [latestSceneOpeningIndex, messages]);
   const latestWelcomeIndex = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       const message = messages[i];
@@ -852,36 +929,53 @@ export default function ChatPage() {
     if (latestWelcomeIndex < 0) return userMessageCount > 0;
     return messages.slice(latestWelcomeIndex + 1).some((message) => message.sender === "user");
   }, [latestWelcomeIndex, messages, userMessageCount]);
+  const isSceneResponseMode = Boolean(activeScene);
   const isTopicIdeasOpeningMode =
-    userMessageCount === 0 || (latestWelcomeIndex >= 0 && !hasUserAfterLatestWelcome);
-  const topicIdeasSubtitle = isTopicIdeasOpeningMode
+    !isSceneResponseMode && (userMessageCount === 0 || (latestWelcomeIndex >= 0 && !hasUserAfterLatestWelcome));
+  const topicIdeasSubtitle = isSceneResponseMode
+    ? (uiLanguage === "zh"
+      ? (hasUserAfterLatestSceneOpening ? "结合这个小场景，给你几句可以直接接上的话" : "先用这几句把这个小场景接起来")
+      : (hasUserAfterLatestSceneOpening ? "Use the scene to pick a natural next line." : "Use these lines to get the scene moving." ))
+    : isTopicIdeasOpeningMode
     ? (uiLanguage === "zh"
       ? "还没开口时，可以先从这些起句开始"
       : "Use these opening lines if you haven't replied yet.")
     : (uiLanguage === "zh"
       ? "根据你们刚才的对话，帮你续一句"
       : "These lines are based on the current conversation.");
-  const topicIdeasModeLabel = isTopicIdeasOpeningMode
+  const topicIdeasModeLabel = isSceneResponseMode
+    ? (uiLanguage === "zh" ? "小场景接话" : "Scene reply options")
+    : isTopicIdeasOpeningMode
     ? (uiLanguage === "zh" ? "开场起句" : "Opening lines")
     : (uiLanguage === "zh" ? "按当前对话生成" : "Based on this chat");
   const recentTopicMessages = useMemo(
-    () =>
-      messages
+    () => {
+      const scenarioScopedMessages =
+        activeScene && latestSceneOpeningIndex >= 0
+          ? messages.slice(latestSceneOpeningIndex)
+          : messages;
+      return scenarioScopedMessages
         .filter((message) => message.sender === "user" || message.sender === "assistant")
         .slice(-6)
         .map((message) => ({
           role: message.sender === "user" ? "user" as const : "assistant" as const,
           content: message.text.trim(),
         }))
-        .filter((message) => message.content),
-    [messages],
+        .filter((message) => message.content);
+    },
+    [activeScene, latestSceneOpeningIndex, messages],
   );
   const topicIdeasCacheKey = useMemo(() => {
+    if (isSceneResponseMode) {
+      if (!activeScene) return "";
+      const source = recentTopicMessages.map((message) => `${message.role}:${message.content}`).join("\n");
+      return `scene:${npcId}:${activeScene.id}:${uiLanguage}:${recentTopicMessages.length}:${hashText(source)}`;
+    }
     if (isTopicIdeasOpeningMode || recentTopicMessages.length === 0) return "";
     const source = recentTopicMessages.map((message) => `${message.role}:${message.content}`).join("\n");
     return `${npcId}:${uiLanguage}:${recentTopicMessages.length}:${hashText(source)}`;
-  }, [isTopicIdeasOpeningMode, npcId, uiLanguage, recentTopicMessages]);
-  const displayedTopicIdeas = isTopicIdeasOpeningMode ? fixedTopicIdeas : (topicIdeas ?? []);
+  }, [activeScene, isSceneResponseMode, isTopicIdeasOpeningMode, npcId, uiLanguage, recentTopicMessages]);
+  const displayedTopicIdeas = (isTopicIdeasOpeningMode && !isSceneResponseMode) ? fixedTopicIdeas : (topicIdeas ?? []);
   const isRefreshingTopicIdeas = Boolean(topicIdeasCacheKey) && topicIdeasForceRefreshKey === topicIdeasCacheKey;
   const recentSummaryMessages = useMemo<SessionSummaryMessage[]>(() => {
     return messages
@@ -1017,6 +1111,70 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isTopicIdeasOpen) return;
+    if (isSceneResponseMode && activeScene) {
+      if (!topicIdeasCacheKey) {
+        setIsTopicIdeasLoading(false);
+        setTopicIdeas(activeScene.fallbackUserLines.slice(0, 4));
+        return;
+      }
+
+      const shouldForceRefresh = topicIdeasForceRefreshKey === topicIdeasCacheKey;
+      if (!shouldForceRefresh) {
+        const cachedIdeas = topicIdeasCacheRef.current.get(topicIdeasCacheKey);
+        if (cachedIdeas && cachedIdeas.length > 0) {
+          setTopicIdeas(cachedIdeas);
+          setIsTopicIdeasLoading(false);
+          return;
+        }
+      }
+
+      const controller = new AbortController();
+      const localDateContext = getLocalDateContext();
+      const worldContext = getWorldContext(localDateContext);
+      setTopicIdeas(null);
+      setIsTopicIdeasLoading(true);
+
+      void fetch(buildClientApiUrl("/api/topic-ideas"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npcId,
+          uiLanguage: uiLanguage === "en" ? "en" : "zh",
+          recentMessages: recentTopicMessages,
+          localDateContext,
+          worldDescription: worldContext.description,
+          worldReaction: worldContext.reactions[npcId] ?? "",
+          activeSceneId: activeScene.id,
+        }),
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) return null;
+          return (await response.json()) as { ideas?: Array<{ text?: string }> };
+        })
+        .then((data) => {
+          if (controller.signal.aborted) return;
+          const nextIdeas = (data?.ideas ?? [])
+            .map((item) => (typeof item?.text === "string" ? item.text.trim() : ""))
+            .filter(Boolean)
+            .slice(0, 4);
+          const resolvedIdeas = nextIdeas.length > 0 ? nextIdeas : activeScene.fallbackUserLines;
+          topicIdeasCacheRef.current.set(topicIdeasCacheKey, resolvedIdeas);
+          setTopicIdeas(resolvedIdeas);
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          setTopicIdeas(activeScene.fallbackUserLines);
+        })
+        .finally(() => {
+          if (controller.signal.aborted) return;
+          setIsTopicIdeasLoading(false);
+          setTopicIdeasForceRefreshKey((current) => (current === topicIdeasCacheKey ? null : current));
+        });
+
+      return () => controller.abort();
+    }
+
     if (isTopicIdeasOpeningMode) {
       setIsTopicIdeasLoading(false);
       setTopicIdeas(null);
@@ -1083,7 +1241,9 @@ export default function ChatPage() {
 
     return () => controller.abort();
   }, [
+    activeScene,
     isTopicIdeasOpen,
+    isSceneResponseMode,
     isTopicIdeasOpeningMode,
     npcId,
     uiLanguage,
@@ -1094,7 +1254,7 @@ export default function ChatPage() {
   ]);
 
   const handleRefreshTopicIdeas = () => {
-    if (isTopicIdeasOpeningMode || !topicIdeasCacheKey || isTopicIdeasLoading) return;
+    if ((isTopicIdeasOpeningMode && !isSceneResponseMode) || !topicIdeasCacheKey || isTopicIdeasLoading) return;
     // 只清当前上下文这一批 cache；其他 NPC 或其他上下文的建议继续保留。
     topicIdeasCacheRef.current.delete(topicIdeasCacheKey);
     setTopicIdeas(null);
@@ -1317,6 +1477,45 @@ export default function ChatPage() {
                     </button>
                   ))}
                 </div>
+                {!activeScene && availableScenes.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2.5">
+                    <p className="text-[12px] font-medium text-[#2D4A1F]">
+                      {uiLanguage === "zh" ? "试一个小场景" : "Try a small scene"}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-[#7A7060]">
+                      {uiLanguage === "zh" ? "先从便利店结账这种小动作开始" : "Start with one tiny convenience-store moment."}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {availableScenes.map((scene) => (
+                        <button
+                          key={scene.id}
+                          type="button"
+                          onClick={() => handleStartScene(scene.id)}
+                          className="rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-1.5 text-[12px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                        >
+                          {scene.shortLabel}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+            {activeScene && (
+              <section className="rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[12px] font-medium text-[#2D4A1F]">{activeScene.title}</p>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-[#7A7060]">{activeScene.setup}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExitScene}
+                    className="shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-2.5 py-1 text-[10px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                  >
+                    {uiLanguage === "zh" ? "回到随便聊" : "Back to free chat"}
+                  </button>
+                </div>
               </section>
             )}
             {messages.length === 0 && isTyping && (
@@ -1389,6 +1588,34 @@ export default function ChatPage() {
               </button>
               {isInputActionsOpen && (
                 <div className="absolute bottom-11 left-0 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
+                  {!activeScene && availableScenes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleStartScene(availableScenes[0].id)}
+                      className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                    >
+                      <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                        {uiLanguage === "zh" ? "试一个小场景" : "Try a small scene"}
+                      </span>
+                      <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                        {uiLanguage === "zh" ? "先从便利店结账这种小动作开始" : "Start with one tiny convenience-store moment."}
+                      </span>
+                    </button>
+                  )}
+                  {activeScene && (
+                    <button
+                      type="button"
+                      onClick={handleExitScene}
+                      className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                    >
+                      <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                        {uiLanguage === "zh" ? "回到随便聊" : "Back to free chat"}
+                      </span>
+                      <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                        {uiLanguage === "zh" ? "结束这个小场景，回到普通聊天" : "Leave the scene and return to free chat."}
+                      </span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsTopicIdeasOpen((prev) => !prev)}
@@ -1631,6 +1858,10 @@ export default function ChatPage() {
                 onClick={() => {
                   clearNpcChatData(npcId);
                   setMessages([]);
+                  setActiveSceneId(null);
+                  setTopicIdeas(null);
+                  setTopicIdeasForceRefreshKey(null);
+                  topicIdeasCacheRef.current.clear();
                   setMemories([]);
                   setIsResetConfirmOpen(false);
                   generatedInitialWelcomeForNpcRef.current.delete(npcId);
