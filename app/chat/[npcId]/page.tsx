@@ -331,6 +331,14 @@ export default function ChatPage() {
     () => activeScene?.responseOptionsJa ?? activeScene?.fallbackUserLines ?? [],
     [activeScene],
   );
+  const scenePickerSubtitles: Record<string, string> = {
+    kimura_bento_checkout: uiLanguage === "zh" ? "收银台对话" : "Counter chat",
+    kimura_find_item: uiLanguage === "zh" ? "问商品位置" : "Ask where it is",
+    kimura_oden_order: uiLanguage === "zh" ? "点几样小吃" : "Order a snack",
+    kimura_payment_method: uiLanguage === "zh" ? "确认怎么付款" : "Check payment",
+    kimura_discount_sticker: uiLanguage === "zh" ? "确认优惠贴纸" : "Check discount",
+    kimura_hot_snack: uiLanguage === "zh" ? "点热柜小吃" : "Hot snack order",
+  };
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -1665,10 +1673,10 @@ export default function ChatPage() {
                       className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
                     >
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                        {uiLanguage === "zh" ? "试一个小场景" : "Try a small scene"}
+                        {uiLanguage === "zh" ? "练一个生活场景" : "Practice a life scene"}
                       </span>
                       <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                        {uiLanguage === "zh" ? "先从很小的便利店情境开始" : "Start with one tiny convenience-store moment."}
+                        {uiLanguage === "zh" ? "用几句话处理一个简单的具体情景" : "Use a few lines for a simple real-life moment."}
                       </span>
                     </button>
                   )}
@@ -1680,10 +1688,7 @@ export default function ChatPage() {
                         className="w-full rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-[#FAF6EE]"
                       >
                         <span className="block text-[11px] text-[#7A7060]">
-                          {uiLanguage === "zh" ? "← 试一个小场景" : "← Try a small scene"}
-                        </span>
-                        <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                          {uiLanguage === "zh" ? "先从一个很小的便利店情境开始" : "Start with one tiny convenience-store moment."}
+                          {uiLanguage === "zh" ? "← 生活场景" : "← Life scenes"}
                         </span>
                       </button>
                       <div className="mt-2 space-y-1.5">
@@ -1698,7 +1703,7 @@ export default function ChatPage() {
                               {scene.shortLabel}
                             </span>
                             <span className="block mt-0.5 text-[10px] leading-relaxed text-[#7A7060]">
-                              {scene.setup}
+                              {scenePickerSubtitles[scene.id] ?? ""}
                             </span>
                           </button>
                         ))}
