@@ -336,10 +336,6 @@ export default function ChatPage() {
     if (uiLanguage === "en") return scene.titleEn ?? scene.title;
     return scene.titleZh ?? scene.title;
   };
-  const getSceneDisplaySubtitle = (scene: ConversationScene) => {
-    if (uiLanguage === "en") return scene.shortLabelEn ?? scene.shortLabel;
-    return scene.shortLabelZh ?? scene.shortLabel;
-  };
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -1702,9 +1698,6 @@ export default function ChatPage() {
                           >
                             <span className="block text-[12px] font-medium text-[#2D4A1F]">
                               {getSceneDisplayTitle(scene)}
-                            </span>
-                            <span className="block mt-0.5 text-[10px] leading-relaxed text-[#7A7060]">
-                              {getSceneDisplaySubtitle(scene)}
                             </span>
                           </button>
                         ))}
