@@ -15,7 +15,6 @@ import { buildClientApiUrl } from "@/lib/client-api-url";
 import {
   getConversationScene,
   getConversationScenesForNpc,
-  type ConversationScene,
   type ConversationSceneId,
 } from "@/lib/conversation-scenes";
 import { getUiCopy } from "@/lib/ui-copy";
@@ -332,7 +331,7 @@ export default function ChatPage() {
     () => activeScene?.responseOptionsJa ?? activeScene?.fallbackUserLines ?? [],
     [activeScene],
   );
-  const getSceneDisplayTitle = (scene: ConversationScene) => {
+  const getSceneDisplayTitle = (scene: { title: string; titleZh?: string; titleEn?: string }) => {
     if (uiLanguage === "en") return scene.titleEn ?? scene.title;
     return scene.titleZh ?? scene.title;
   };
