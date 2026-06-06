@@ -275,6 +275,7 @@ export default function ChatPage() {
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
+  const [isScenePickerOpen, setIsScenePickerOpen] = useState(false);
   const [isTopicIdeasOpen, setIsTopicIdeasOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -355,6 +356,10 @@ export default function ChatPage() {
     return () => window.removeEventListener("mousedown", handleOutside);
   }, [isInputActionsOpen]);
   useEffect(() => {
+    if (isInputActionsOpen) return;
+    setIsScenePickerOpen(false);
+  }, [isInputActionsOpen]);
+  useEffect(() => {
     if (!isInputActionsOpen) setIsTopicIdeasOpen(false);
   }, [isInputActionsOpen]);
   useEffect(() => {
@@ -371,6 +376,7 @@ export default function ChatPage() {
   useEffect(() => {
     setActiveSceneId(null);
     setLocalChatMarkers([]);
+    setIsScenePickerOpen(false);
   }, [npcId]);
   useEffect(() => {
     if (starterAppliedRef.current) return;
@@ -776,6 +782,7 @@ export default function ChatPage() {
     setTopicIdeas(null);
     setTopicIdeasForceRefreshKey(null);
     setIsInputActionsOpen(false);
+    setIsScenePickerOpen(false);
     setIsTopicIdeasOpen(false);
     setActiveSceneId(sceneId);
 
@@ -817,6 +824,15 @@ export default function ChatPage() {
     setTopicIdeas(null);
     setTopicIdeasForceRefreshKey(null);
     setIsTopicIdeasOpen(false);
+  };
+
+  const handleOpenScenePicker = () => {
+    setIsTopicIdeasOpen(false);
+    setIsScenePickerOpen(true);
+  };
+
+  const handleBackFromScenePicker = () => {
+    setIsScenePickerOpen(false);
   };
 
   const pickRecorderMimeType = () => {
@@ -1642,23 +1658,48 @@ export default function ChatPage() {
               </button>
               {isInputActionsOpen && (
                 <div className="absolute bottom-11 left-0 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
-                  {!activeScene && availableScenes.length > 0 && (
-                    <div className="rounded-lg px-3 py-2 text-left">
+                  {!activeScene && availableScenes.length > 0 && !isScenePickerOpen && (
+                    <button
+                      type="button"
+                      onClick={handleOpenScenePicker}
+                      className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                    >
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
                         {uiLanguage === "zh" ? "试一个小场景" : "Try a small scene"}
                       </span>
                       <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                        {uiLanguage === "zh" ? "先从一个很小的便利店情境开始" : "Start with one tiny convenience-store moment."}
+                        {uiLanguage === "zh" ? "先从很小的便利店情境开始" : "Start with one tiny convenience-store moment."}
                       </span>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+                    </button>
+                  )}
+                  {!activeScene && availableScenes.length > 0 && isScenePickerOpen && (
+                    <div className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2.5">
+                      <button
+                        type="button"
+                        onClick={handleBackFromScenePicker}
+                        className="w-full rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-[#FAF6EE]"
+                      >
+                        <span className="block text-[11px] text-[#7A7060]">
+                          {uiLanguage === "zh" ? "← 试一个小场景" : "← Try a small scene"}
+                        </span>
+                        <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                          {uiLanguage === "zh" ? "先从一个很小的便利店情境开始" : "Start with one tiny convenience-store moment."}
+                        </span>
+                      </button>
+                      <div className="mt-2 space-y-1.5">
                         {availableScenes.map((scene) => (
                           <button
                             key={scene.id}
                             type="button"
                             onClick={() => handleStartScene(scene.id)}
-                            className="rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-[11px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                            className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
                           >
-                            {scene.shortLabel}
+                            <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                              {scene.shortLabel}
+                            </span>
+                            <span className="block mt-0.5 text-[10px] leading-relaxed text-[#7A7060]">
+                              {scene.setup}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -1680,7 +1721,10 @@ export default function ChatPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => setIsTopicIdeasOpen((prev) => !prev)}
+                    onClick={() => {
+                      setIsScenePickerOpen(false);
+                      setIsTopicIdeasOpen((prev) => !prev);
+                    }}
                     className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
                   >
                     <span className="block text-[12px] font-medium text-[#2D4A1F]">{topicIdeasTitle}</span>
@@ -1741,6 +1785,7 @@ export default function ChatPage() {
                     onClick={() => {
                       if (!canCreateSummary || isSummaryGenerating) return;
                       void handleCreateSummary();
+                      setIsScenePickerOpen(false);
                       setIsInputActionsOpen(false);
                     }}
                     aria-disabled={isSummaryGenerating || !canCreateSummary}
@@ -1762,6 +1807,7 @@ export default function ChatPage() {
                   <button
                     type="button"
                     onClick={() => {
+                      setIsScenePickerOpen(false);
                       setIsInputActionsOpen(false);
                       setIsResetConfirmOpen(true);
                     }}
