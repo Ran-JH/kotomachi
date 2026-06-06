@@ -220,6 +220,91 @@ Scene dividers must be filtered out from:
 - Preserve NPC register within scenes.
 - Help panel: copy-only patches, no structural changes.
 
+## 5.2 Town Feeling Sources
+
+The "language town feeling" comes from multiple lightweight sources working together. These create the sense of a cohesive small world without requiring complex shared memory or world models.
+
+| Source | Owner / File | Role | Notes |
+|---|---|---|---|
+| World State | `lib/npc.ts` / `getWorldContext()` | Shared daily atmosphere | Soft global mood based on date seed |
+| Local Date Context | `lib/npc.ts` / `getLocalDateContext()` | Date / weekday / time / season truth | Hard facts only; single source of truth |
+| Seasonal Hints | chat / welcome / topic ideas prompts | Optional seasonal material | Not real-time events |
+| NPC Life Arc | `NPC_ARCS` | Light continuity | Not user memory; NPC's own small changes |
+| Cross Mentions | `crossMentions` / `neighborHint` | Light town texture | Occasional only; optional |
+| Home Card Lines | `HOME_CARD_LINES` | Homepage atmosphere | Scene-specific copy, rotates daily |
+| Scene Grouping | `lib/home-scenes.ts` | Homepage structure | Daily / campus grouping |
+| Guided Scenario | `lib/conversation-scenes.ts` | Scene-grounded openings | Should not turn NPCs into tools |
+
+### Cross-NPC Mention Matrix
+
+| Speaker NPC | Natural Mentions | Why It Works | Avoid |
+|---|---|---|---|
+| **Misaki** | 研究室の人がコーヒーを買いに来る、学生が放課後に座る、街が静かになる | カフェは街の交差点 | 居酒屋のメニューを頻繁に言う、他のNPCの行動を報道するように言う |
+| **Kimura** | 学生が放課後にお菓子を買う、夜勤後に街の灯りがまだついている、大将のところは夜になるとにぎやか | コンビニは日常の節目、学生と夜の生活をつなぐ | 他のNPCの私生活を過度に展開する、ユーザーが過去にどこに行ったかを捏造する |
+| **Taisho** | 一日の終わりの街、夜の明かりと常連、仕事帰りに寄ってくる人 | 居酒屋は夜の収束点 | 研究室の文献を無理に言う、人生相談師化する |
+| **Haruka** | カフェは文献を読むのに適している、コンビニのお菓子/飲み物、ラウンジとキャンパスの日常 | キャンパス生活は自然にカフェ、コンビニ、ラウンジをつなぐ | 留学カウンセラー化する、不自然な居酒屋の常連関係を言う |
+| **Aoi** | コンビニのお菓子、カフェ、放課後のラウンジ、最近みんなが話していること | 同級生のスモールトークは軽い日常をつなげる | 恋愛化する、しつこい、過去の記憶を捏造する |
+
+### World State Consistency Rules
+
+#### Shared Global State, Local Reaction
+
+On the same day, all NPCs share:
+- Date
+- Time-of-day
+- Season
+- Global town mood / world state
+
+But different NPCs/places can have different local reactions.
+
+**Example (not a contradiction):**
+- Aoi's lounge: lively after-school atmosphere
+- Misaki's cafe: still quiet and calm
+- Kimura: more students buying snacks
+
+**What to avoid (real contradictions):**
+- One place says rainy, another says sunny
+- Homepage says daytime, NPC says nighttime
+- World state has no weather but NPC invents rain/snow
+- Local date is weekday but NPC says weekend
+- Mentioning real-world place names like 下北沢 / 渋谷 / 東京
+- Treating seasonal hints as real-time events happening today
+
+### Guided Scenario and Town Feeling
+
+Guided Scenarios enhance entry but can risk turning NPCs into "functional tools". Town Feeling helps balance this risk.
+
+**Scene NPCs should remain character-like:**
+- Kimura's scenes: convenience store *person*, not a training robot
+- Misaki's scenes: cafe *chat*, not customer service flow
+- Taisho's scenes: izakaya *regular*, not ordering lesson
+- Haruka's scenes: senpai *advice*, not professor/consultant
+- Aoi's scenes: friend *small talk*, not social task
+
+### Cross Mention Prompt Rule
+
+```text
+Cross mentions should be rare, optional texture.
+Use them only when they naturally fit the current topic, world state, or scene.
+Do not force cross mentions into every reply.
+Do not interrupt an active Guided Scenario just to mention another NPC.
+Do not invent user history or private facts.
+```
+
+**中文规则：**
+- cross mention 是低频环境纹理
+- 不是剧情
+- 不是关系网
+- 不是 shared memory
+- 不应喧宾夺主
+
+### Minimal Implementation Plan
+
+1. **Docs**: Record town feeling source map and cross mention matrix (this document)
+2. **Prompt**: Later, if real tests show cross mentions are too rare, lightly strengthen `neighborHint`
+3. **QA**: Observe whether world state, local date, and scene context stay consistent in real use
+4. **No complex shared memory or world model**
+
 ## 6. NPC System Map
 
 | npcId | Scene | Relationship | Register | Key learning value | Drift risk | Key files touched when adding NPC |
