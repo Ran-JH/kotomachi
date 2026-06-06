@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -83,6 +83,13 @@ interface ChatMessage {
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   npcAudioUrl?: string | null;
+}
+
+interface LocalChatMarker {
+  id: string;
+  type: "scene-exit";
+  afterMessageId: string | null;
+  createdAt: string;
 }
 
 interface WelcomeResponse {
@@ -279,6 +286,7 @@ export default function ChatPage() {
   const [topicIdeasForceRefreshKey, setTopicIdeasForceRefreshKey] = useState<string | null>(null);
   // Guided scenario v0.1：只保留当前页临时状态，不写入本地存储。
   const [activeSceneId, setActiveSceneId] = useState<ConversationSceneId | null>(null);
+  const [localChatMarkers, setLocalChatMarkers] = useState<LocalChatMarker[]>([]);
   const copy = getUiCopy(uiLanguage);
   const savedExpressionCount = savedItems.filter((item) => item.type === "expression").length;
   const savedWordCount = savedItems.filter((item) => item.type === "word").length;
@@ -358,6 +366,7 @@ export default function ChatPage() {
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     setActiveSceneId(null);
+    setLocalChatMarkers([]);
   }, [npcId]);
   useEffect(() => {
     if (starterAppliedRef.current) return;
@@ -789,6 +798,17 @@ export default function ChatPage() {
   };
 
   const handleExitScene = () => {
+    const afterMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+
+    setLocalChatMarkers((prev) => [
+      ...prev,
+      {
+        id: `scene-exit-${Date.now()}`,
+        type: "scene-exit",
+        afterMessageId,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
     setActiveSceneId(null);
     setTopicIdeas(null);
     setTopicIdeasForceRefreshKey(null);
@@ -1551,6 +1571,26 @@ export default function ChatPage() {
                   isVoiceMessage={msg.sender === "assistant" || msg.type === "voice"}
                   onPlayNpcAudio={msg.sender === "assistant" ? () => { void fetchTtsUrl(msg.text).then((url) => { if (url) new Audio(url).play(); }); } : undefined}
                 />
+                {localChatMarkers
+                  .filter((marker) => marker.type === "scene-exit" && marker.afterMessageId === msg.id)
+                  .map((marker) => (
+                    <div key={marker.id} className="px-2 pt-1">
+                      <div className="flex items-center gap-3 text-[#7A7060]/70">
+                        <div className="h-px flex-1 bg-[rgba(40,35,26,0.08)]" />
+                        <div className="shrink-0 text-center">
+                          <p className="text-[11px] font-medium text-[#7A7060]">
+                            {uiLanguage === "zh" ? "回到随便聊" : "Back to free chat"}
+                          </p>
+                          <p className="mt-1 text-[10px] text-[#7A7060]/75">
+                            {uiLanguage === "zh"
+                              ? "小场景已结束，继续自由聊天。"
+                              : "The small scenario has ended. Keep chatting freely."}
+                          </p>
+                        </div>
+                        <div className="h-px flex-1 bg-[rgba(40,35,26,0.08)]" />
+                      </div>
+                    </div>
+                  ))}
               </div>
             ))}
             {isTyping && (
@@ -1868,6 +1908,7 @@ export default function ChatPage() {
                   clearNpcChatData(npcId);
                   setMessages([]);
                   setActiveSceneId(null);
+                  setLocalChatMarkers([]);
                   setTopicIdeas(null);
                   setTopicIdeasForceRefreshKey(null);
                   topicIdeasCacheRef.current.clear();

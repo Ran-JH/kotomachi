@@ -21,7 +21,7 @@ export const CONVERSATION_SCENES = {
     npcId: "kimura",
     title: "买便当结账",
     shortLabel: "买便当结账",
-    setup: "用户拿着便当来到便利店收银台，准备完成一个很短的结账对话。",
+    setup: "用户拿着便当来到便利店收银台，准备完成一段很短的结账对话。",
     userGoal: "顺利结账，并自然听懂或回应店员常见提问。",
     npcOpening: "こちらのお弁当、温めますか？",
     possibleBeats: ["是否加热", "是否需要袋子", "支付方式", "简短收尾"],
