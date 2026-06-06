@@ -4,7 +4,11 @@ type ConversationSceneConfig = {
   id: string;
   npcId: NpcId;
   title: string;
+  titleZh?: string;
+  titleEn?: string;
   shortLabel: string;
+  shortLabelZh?: string;
+  shortLabelEn?: string;
   setup: string;
   userGoal: string;
   npcOpening: string;
@@ -21,7 +25,11 @@ export const CONVERSATION_SCENES = {
     id: "kimura_bento_checkout",
     npcId: "kimura",
     title: "便当结账",
+    titleZh: "便当结账",
+    titleEn: "Bento checkout",
     shortLabel: "便当结账",
+    shortLabelZh: "收银台对话",
+    shortLabelEn: "Counter chat",
     setup: "用户拿着便当来到便利店收银台，准备完成一段很短的结账对话。",
     userGoal: "顺利结账，并自然听懂或回应店员常见提问。",
     npcOpening: "こちらのお弁当、温めますか？",
@@ -60,7 +68,11 @@ export const CONVERSATION_SCENES = {
     id: "kimura_find_item",
     npcId: "kimura",
     title: "找商品",
+    titleZh: "找商品",
+    titleEn: "Find an item",
     shortLabel: "找商品",
+    shortLabelZh: "问商品位置",
+    shortLabelEn: "Ask where it is",
     setup: "用户在便利店里找商品，但不确定摆放位置，想问店员。",
     userGoal: "询问商品位置，并听懂简单指引。",
     npcOpening: "何か探してる？ 声かけてくれたら案内するよ。",
@@ -95,7 +107,11 @@ export const CONVERSATION_SCENES = {
     id: "kimura_oden_order",
     npcId: "kimura",
     title: "点关东煮",
+    titleZh: "点关东煮",
+    titleEn: "Order oden",
     shortLabel: "点关东煮",
+    shortLabelZh: "点几样小吃",
+    shortLabelEn: "Order a snack",
     setup: "用户在收银台旁看到关东煮，想点几样。",
     userGoal: "点几样关东煮，并自然询问推荐。",
     npcOpening: "おでん、まだありますよ。どうします？",
@@ -129,8 +145,12 @@ export const CONVERSATION_SCENES = {
   kimura_payment_method: {
     id: "kimura_payment_method",
     npcId: "kimura",
-    title: "問支付方式",
-    shortLabel: "問支付方式",
+    title: "问支付方式",
+    titleZh: "问支付方式",
+    titleEn: "Ask how to pay",
+    shortLabel: "问支付方式",
+    shortLabelZh: "确认怎么付款",
+    shortLabelEn: "Check payment",
     setup: "用户在便利店结账时，想确认可以用哪种方式付款。",
     userGoal: "询问是否可以用卡、手机支付或现金付款。",
     npcOpening: "お支払い、どうします？",
@@ -169,8 +189,12 @@ export const CONVERSATION_SCENES = {
   kimura_discount_sticker: {
     id: "kimura_discount_sticker",
     npcId: "kimura",
-    title: "問打折",
-    shortLabel: "問打折",
+    title: "问打折",
+    titleZh: "问打折",
+    titleEn: "Ask about discounts",
+    shortLabel: "问打折",
+    shortLabelZh: "确认优惠贴纸",
+    shortLabelEn: "Check discount",
     setup: "用户看到便当或熟食上有优惠贴纸，想确认是否已经打折，或想问打折大概什么时候开始。",
     userGoal: "自然地询问商品是否打折、优惠贴纸是什么意思、什么时候可能会降价。",
     npcOpening: "あ、それ値引きシール貼ってあるやつだね。",
@@ -211,7 +235,11 @@ export const CONVERSATION_SCENES = {
     id: "kimura_hot_snack",
     npcId: "kimura",
     title: "买热柜小食",
+    titleZh: "买热柜小食",
+    titleEn: "Order a hot snack",
     shortLabel: "买热柜小食",
+    shortLabelZh: "点热柜小吃",
+    shortLabelEn: "Hot snack order",
     setup: "用户在收银台旁看到热柜里的炸物或小吃，想点一个。",
     userGoal: "自然地询问热柜小食、点一个、确认是否还有。",
     npcOpening: "レジ横のホットスナック、今ならまだありますよ。",

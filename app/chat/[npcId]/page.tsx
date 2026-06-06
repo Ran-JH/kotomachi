@@ -15,6 +15,7 @@ import { buildClientApiUrl } from "@/lib/client-api-url";
 import {
   getConversationScene,
   getConversationScenesForNpc,
+  type ConversationScene,
   type ConversationSceneId,
 } from "@/lib/conversation-scenes";
 import { getUiCopy } from "@/lib/ui-copy";
@@ -331,13 +332,13 @@ export default function ChatPage() {
     () => activeScene?.responseOptionsJa ?? activeScene?.fallbackUserLines ?? [],
     [activeScene],
   );
-  const scenePickerSubtitles: Record<string, string> = {
-    kimura_bento_checkout: uiLanguage === "zh" ? "收银台对话" : "Counter chat",
-    kimura_find_item: uiLanguage === "zh" ? "问商品位置" : "Ask where it is",
-    kimura_oden_order: uiLanguage === "zh" ? "点几样小吃" : "Order a snack",
-    kimura_payment_method: uiLanguage === "zh" ? "确认怎么付款" : "Check payment",
-    kimura_discount_sticker: uiLanguage === "zh" ? "确认优惠贴纸" : "Check discount",
-    kimura_hot_snack: uiLanguage === "zh" ? "点热柜小吃" : "Hot snack order",
+  const getSceneDisplayTitle = (scene: ConversationScene) => {
+    if (uiLanguage === "en") return scene.titleEn ?? scene.title;
+    return scene.titleZh ?? scene.title;
+  };
+  const getSceneDisplaySubtitle = (scene: ConversationScene) => {
+    if (uiLanguage === "en") return scene.shortLabelEn ?? scene.shortLabel;
+    return scene.shortLabelZh ?? scene.shortLabel;
   };
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
@@ -1700,10 +1701,10 @@ export default function ChatPage() {
                             className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
                           >
                             <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                              {scene.shortLabel}
+                              {getSceneDisplayTitle(scene)}
                             </span>
                             <span className="block mt-0.5 text-[10px] leading-relaxed text-[#7A7060]">
-                              {scenePickerSubtitles[scene.id] ?? ""}
+                              {getSceneDisplaySubtitle(scene)}
                             </span>
                           </button>
                         ))}
