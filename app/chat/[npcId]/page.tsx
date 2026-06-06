@@ -326,6 +326,10 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const availableScenes = useMemo(() => getConversationScenesForNpc(npcId), [npcId]);
   const activeScene = useMemo(() => getConversationScene(activeSceneId), [activeSceneId]);
+  const activeSceneResponseOptions = useMemo(
+    () => activeScene?.responseOptionsJa ?? activeScene?.fallbackUserLines ?? [],
+    [activeScene],
+  );
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -1143,7 +1147,7 @@ export default function ChatPage() {
     if (isSceneResponseMode && activeScene) {
       if (!topicIdeasCacheKey) {
         setIsTopicIdeasLoading(false);
-        setTopicIdeas(activeScene.fallbackUserLines.slice(0, 4));
+        setTopicIdeas(activeSceneResponseOptions.slice(0, 4));
         return;
       }
 
@@ -1187,13 +1191,13 @@ export default function ChatPage() {
             .map((item) => (typeof item?.text === "string" ? item.text.trim() : ""))
             .filter(Boolean)
             .slice(0, 4);
-          const resolvedIdeas = nextIdeas.length > 0 ? nextIdeas : activeScene.fallbackUserLines;
+          const resolvedIdeas = nextIdeas.length > 0 ? nextIdeas : activeSceneResponseOptions;
           topicIdeasCacheRef.current.set(topicIdeasCacheKey, resolvedIdeas);
           setTopicIdeas(resolvedIdeas);
         })
         .catch(() => {
           if (controller.signal.aborted) return;
-          setTopicIdeas(activeScene.fallbackUserLines);
+          setTopicIdeas(activeSceneResponseOptions);
         })
         .finally(() => {
           if (controller.signal.aborted) return;
@@ -1271,6 +1275,7 @@ export default function ChatPage() {
     return () => controller.abort();
   }, [
     activeScene,
+    activeSceneResponseOptions,
     isTopicIdeasOpen,
     isSceneResponseMode,
     isTopicIdeasOpeningMode,
@@ -1638,18 +1643,26 @@ export default function ChatPage() {
               {isInputActionsOpen && (
                 <div className="absolute bottom-11 left-0 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
                   {!activeScene && availableScenes.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handleStartScene(availableScenes[0].id)}
-                      className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
-                    >
+                    <div className="rounded-lg px-3 py-2 text-left">
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
                         {uiLanguage === "zh" ? "试一个小场景" : "Try a small scene"}
                       </span>
                       <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                        {uiLanguage === "zh" ? "先从便利店结账这种小动作开始" : "Start with one tiny convenience-store moment."}
+                        {uiLanguage === "zh" ? "先从一个很小的便利店情境开始" : "Start with one tiny convenience-store moment."}
                       </span>
-                    </button>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {availableScenes.map((scene) => (
+                          <button
+                            key={scene.id}
+                            type="button"
+                            onClick={() => handleStartScene(scene.id)}
+                            className="rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-[11px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                          >
+                            {scene.shortLabel}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   {activeScene && (
                     <button

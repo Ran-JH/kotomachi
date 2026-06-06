@@ -167,12 +167,15 @@ ${localDatePromptBlock}
 function buildScenePrompt(activeSceneId?: string): string | null {
   const scene = getConversationScene(activeSceneId);
   if (!scene) return null;
+  const responseOptions = scene.responseOptionsJa ?? scene.fallbackUserLines;
 
   return [
     `Current temporary guided scenario: ${scene.id}.`,
     `Scene title: ${scene.title}.`,
     `Scene setup: ${scene.setup}.`,
     `User goal: ${scene.userGoal}.`,
+    `Useful intents: ${scene.usefulIntents.join(" / ")}.`,
+    `Soft landing: ${scene.softLanding}.`,
     "Use this as soft context, not a task flow.",
     "If the user stays in the scene, continue one small exchange naturally.",
     "If the user drifts away, follow the drift and do not force the scene back.",
@@ -180,6 +183,7 @@ function buildScenePrompt(activeSceneId?: string): string | null {
     "Do not include stage directions, roleplay actions, or parenthetical action descriptions in the visible reply.",
     "Avoid text such as （レンジのボタンを押しながら）, （お弁当を渡しながら）, *hands it over*, or [he smiles].",
     "Write only what the NPC would naturally say in chat.",
+    `Scene response options for reference: ${responseOptions.join(" / ")}.`,
     scene.npcId === "kimura"
       ? "For Kimura, prefer casual shop-counter speech like 「はいよ、温めるね」 or 「じゃ、少し待ってて」 over formal service phrases like 「かしこまりました」."
       : "",

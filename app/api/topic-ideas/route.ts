@@ -139,7 +139,8 @@ const FALLBACK_IDEAS: Record<NpcId, string[]> = {
 function fallbackSceneIdeas(activeSceneId?: string): TopicIdeaItem[] | null {
   const scene = getConversationScene(activeSceneId);
   if (!scene) return null;
-  return scene.fallbackUserLines.slice(0, 4).map((text) => ({ text }));
+  const responseOptions = scene.responseOptionsJa ?? scene.fallbackUserLines;
+  return responseOptions.slice(0, 4).map((text) => ({ text }));
 }
 
 function buildScenePrompt(activeSceneId?: string): string {
@@ -156,6 +157,7 @@ function buildScenePrompt(activeSceneId?: string): string {
     `Useful intents: ${scene.usefulIntents.join(" / ")}.`,
     `Soft landing: ${scene.softLanding}.`,
     `Avoid: ${scene.avoid.join(" / ")}.`,
+    `Response options: ${(scene.responseOptionsJa ?? scene.fallbackUserLines).join(" / ")}.`,
     "Return short lines the user can directly say next in this scene.",
     "Do not turn this into a task checklist.",
   ].join("\n");
