@@ -167,6 +167,59 @@ Rules:
   - review card angle;
   - relationship-aware expression hints.
 
+## 5.1 Guided Scenario Flow
+
+```mermaid
+flowchart TD
+  SceneConfig["lib/conversation-scenes.ts"]
+  ChatPage["Chat page scene picker"]
+  ActiveScene["activeScene (UI state)"]
+  ChatAPI["/api/chat scene-aware prompt"]
+  TopicAPI["/api/topic-ideas as response options"]
+  ExitDivider["Exit divider (UI-only)"]
+  FreeChat["Return to free chat"]
+
+  SceneConfig --> ChatPage
+  ChatPage --> ActiveScene
+  ActiveScene --> ChatAPI
+  ActiveScene --> TopicAPI
+  ChatAPI --> ExitDivider
+  TopicAPI --> ExitDivider
+  ExitDivider --> FreeChat
+```
+
+### State Ownership
+
+| State | Owner | Persistence | Notes |
+|---|---|---|---|
+| `activeSceneId` | Chat page React state | None (session-local) | Cleared on start-over, NPC switch, or explicit exit |
+| `ConversationScene config` | `lib/conversation-scenes.ts` | Code | Scene definitions are static config |
+| `scene opening` | Scene config `npcOpening` | None | Inserted as assistant message, not from /api/welcome |
+| `scene divider` | UI-only marker | None | Filtered out from chat/topic/summary/TTS/review |
+| `responseOptionsJa` | Scene config | Code | Fallback / prompt examples for response options |
+
+### Scene Divider Filtering
+
+Scene dividers must be filtered out from:
+
+- `/api/chat` (not sent as message)
+- `/api/topic-ideas` (not in recentMessages)
+- `/api/session-summary` (not in evidence)
+- TTS (not played)
+- Review Card (not in content)
+- Expression Hints (not processed)
+- Word Explanation (not processed)
+
+### Maintenance Rules
+
+- Do not turn scenes into courses / tasks / scoring.
+- Scene is soft context, not hard state machine.
+- No completion / correctness check.
+- No stage directions / action descriptions in NPC replies.
+- No false memory claims.
+- Preserve NPC register within scenes.
+- Help panel: copy-only patches, no structural changes.
+
 ## 6. NPC System Map
 
 | npcId | Scene | Relationship | Register | Key learning value | Drift risk | Key files touched when adding NPC |

@@ -444,3 +444,76 @@ Kimura pilot 成功标准：
 - 是否需要一次性提示用户“可以划词查词 / 试小场景”？
 - 明确的退出按钮怎么设计更自然？
 - 退出入口应该是 chip、菜单项，还是聊天中的轻操作？
+
+---
+
+## 16. Current Coverage (Baseline Complete)
+
+Guided Scenarios 已从 Kimura pilot 扩展到 5 个 NPC，形成 baseline 能力。
+
+### Kimura / 木村：便利店场景（6 个）
+
+- 便当结账
+- 找商品
+- 点关东煮
+- 问支付方式
+- 问打折
+- 买热柜小食
+
+### Misaki / 美咲：咖啡馆场景（4 个）
+
+- 点咖啡
+- 问咖啡推荐
+- 点甜点
+- 找座位
+
+### Taisho / 大将：居酒屋场景（8 个）
+
+- 第一次进店
+- 先点一杯
+- 不喝酒时怎么说
+- 问今日推荐
+- 点一份小菜
+- 追加点单
+- 今天有点累
+- 结账
+
+### Haruka / 遥：校园 / 研究室场景（6 个）
+
+- 第一次进研究室
+- 请前辈帮忙看一下
+- 文献看不懂
+- ゼミ里简单发言
+- 发表前有点紧张
+- 课后确认没听懂
+
+### Aoi / 葵：同龄朋友 small talk 场景（6 个）
+
+- 问最近喜欢什么
+- 接住朋友推荐
+- 加入不熟的话题
+- 说想放空一下
+- 问下课后安排
+- 委婉说下次吧
+
+### Scene Types
+
+- **Life-service scenarios**：Kimura / Misaki / Taisho（便利店、咖啡馆、居酒屋）
+- **Campus / academic support scenarios**：Haruka（研究室、校园）
+- **Social micro-scenarios**：Aoi（同龄朋友 small talk moves）
+
+### Next Steps
+
+Guided Scenario is now a complete baseline capability. Next steps should focus on:
+
+- Real use testing and bad case fixes;
+- Prompt drift observation;
+- UI copy polish;
+- Demo path stabilization;
+- Targeted expansion based on real feedback, not blind addition.
+
+Do not add:
+- Scene library / "换一批";
+- Progress bars / completion tracking;
+- Scoring / correctness checking;
+- Course / task systems.

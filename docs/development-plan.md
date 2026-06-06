@@ -136,6 +136,21 @@ Kotomachi 当前处于 **MVP v1.x + 5 NPC + conversation rhythm v0 baseline + on
   - 已新增 `docs/system-map.md`；
   - 用于记录：product loop、world state flow、topic ideas/conversation seed flow、NPC integration checklist、learning asset flow、state ownership table、risk map；
   - 后续跨模块改动应先参考 system map。
+- [x] Guided Scenario baseline complete：
+  - Free Chat + Guided Scenario 双入口已形成；
+  - 5 个 NPC 均已有对应场景类型：
+    - Kimura：便利店场景（便当结账、找商品、点关东煮、问支付方式、问打折、买热柜小食）；
+    - Misaki：咖啡馆场景（点咖啡、问咖啡推荐、点甜点、找座位）；
+    - Taisho：居酒屋场景（第一次进店、先点一杯、不喝酒时怎么说、问今日推荐、点一份小菜、追加点单、今天有点累、结账）；
+    - Haruka：校园/研究室场景（第一次进研究室、请前辈帮忙看一下、文献看不懂、ゼミ里简单发言、发表前有点紧张、课后确认没听懂）；
+    - Aoi：同龄朋友 small talk 场景（问最近喜欢什么、接住朋友推荐、加入不熟的话题、说想放空一下、问下课后安排、委婉说下次吧）；
+  - 功能型小店 NPC 覆盖便利店/咖啡馆/居酒屋；
+  - Haruka 覆盖校园/研究室轻请教；
+  - Aoi 覆盖同龄朋友 small talk moves；
+  - activeScene 是临时软上下文，不写入 localStorage；
+  - 场景中 `+` 菜单从"找话题"变成"下一句怎么说"；
+  - 退出场景有 UI-only divider，不进入 chat/topic ideas/session summary/TTS/Review Card；
+  - 不做课程、不做任务、不做评分、不做通关。
 
 ---
 

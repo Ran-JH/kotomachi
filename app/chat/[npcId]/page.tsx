@@ -1,4 +1,4 @@
-﻿"use client";
+﻿﻿"use client";
 
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";

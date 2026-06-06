@@ -498,3 +498,39 @@ v0 先是文档和评估框架，不立刻实现新功能。
 - 没有变老师 / 顾问 / 恋爱 / 陪伴；
 - 用户即使只聊几句，也不觉得失败；
 - Review Card / Saved Items 是否能留下轻量收获。
+
+## 18. Relationship to Guided Scenarios
+
+Guided Scenarios 是 Conversation Rhythm 的一个具体实现形式，服务于：
+
+- 降低开口成本；
+- 提供具体生活小情境；
+- 帮助用户在特定场景中练习自然表达。
+
+### Free Chat vs Guided Scenario Rhythm
+
+```text
+Free Chat rhythm:
+  opening -> continuation -> soft landing
+
+Guided Scenario rhythm:
+  scene opening -> response options -> soft continuation -> free-chat exit
+```
+
+### Key Differences
+
+| Aspect | Free Chat | Guided Scenario |
+|---|---|---|
+| Entry | Normal welcome / revisit | Scene opening from config |
+| Topic Ideas | "找话题" / general continuation | "下一句怎么说" / response options |
+| Context | Conversation history + NPC state | activeScene + scene config |
+| Exit | Natural end / user leaves | "回到随便聊" / divider |
+
+### Shared Principles
+
+- No course / task / scoring;
+- No completion check;
+- No stage directions in NPC replies;
+- Preserve NPC register;
+- User can drift or exit at any time;
+- Review Card is soft landing for both modes.
