@@ -2,7 +2,7 @@ const MAX_MEMORIES = 10;
 
 /** 一次性迁移：将 komorebi_* 旧 key 的数据搬到 kotomachi_* */
 const MIGRATION_DONE_KEY = "kotomachi_migration_done";
-const NPC_IDS = ["kimura", "misaki", "taisho"];
+const NPC_IDS = ["kimura", "misaki", "taisho", "nana"];
 const KEY_SUFFIXES = ["facts", "last_time", "history", "count"];
 
 function migrateOldKeys(): void {

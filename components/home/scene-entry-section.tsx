@@ -11,6 +11,7 @@ const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
   kimura: { name: "木村", kana: "きむら", place: "コンビニ" },
   misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
+  nana: { name: "七海", kana: "ななみ", place: "まちの生活サポートラウンジ" },
 };
 
 // 这里提示的是“说话气质 / 关系距离”，不是任务标签，所以只写说话感觉。
@@ -20,6 +21,7 @@ const NPC_TONE_LABELS: Record<NpcId, { zh: string; en: string }> = {
   kimura: { zh: "随意口语", en: "Casual" },
   misaki: { zh: "轻丁寧", en: "Gentle polite" },
   taisho: { zh: "熟客口语", en: "Regular-customer casual" },
+  nana: { zh: "轻丁寧", en: "Light polite" },
 };
 
 interface SceneEntrySectionProps {
@@ -99,7 +101,9 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   const avatar = NPC_AVATARS[npcId];
   const homeCardLine = getNpcHomeCardLine(npcId);
   const toneLabel = uiLanguage === "zh" ? NPC_TONE_LABELS[npcId].zh : NPC_TONE_LABELS[npcId].en;
-  const metaLine = `${info.kana} · ${info.place} · ${toneLabel}`;
+  const metaLine = npcId === "nana"
+    ? "ななみ・生活サポート・軽丁寧"
+    : `${info.kana} · ${info.place} · ${toneLabel}`;
 
   return (
     <Link

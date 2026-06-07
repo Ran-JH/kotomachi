@@ -80,6 +80,18 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "最近、お酒を飲む機会が減りました。", category: "npc_flavor" },
     { text: "こういう夜に合うもの、何かありますか？", category: "npc_flavor" },
   ],
+  nana: [
+    { text: "日本に来たばかりなんですけど。", category: "npc_flavor" },
+    { text: "生活の小さなことでも、どう聞けばいいのか迷っています。", category: "npc_flavor" },
+    { text: "部屋を借りるとき、最初に何を聞けばいいですか。", category: "npc_flavor" },
+    { text: "役所でうまく説明できるか少し不安です。", category: "npc_flavor" },
+    { text: "この費用は何のためのお金か聞きたいです。", category: "npc_flavor" },
+    { text: "もう少しゆっくり説明してほしいです。", category: "npc_flavor" },
+    { text: "部屋を借りるときの初期費用って、どういう意味ですか。", category: "npc_flavor" },
+    { text: "ゴミの分別について聞きたいです。", category: "npc_flavor" },
+    { text: "窓口で何を言われているのか、よくわからなかったです。", category: "npc_flavor" },
+    { text: "何かを聞くとき、丁寧に言うにはどうすればいいですか。", category: "npc_flavor" },
+  ],
 };
 
 function deterministicIndex(seed: number, len: number, offset: number): number {
@@ -219,6 +231,17 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
         "今日って、どんな一日でしたか？",
         "最近、生活リズムは安定していますか？",
         "今いちばん気を抜ける時間っていつですか？",
+      ],
+      seed,
+    );
+  }
+
+  if (npcId === "nana") {
+    return pickBySeed(
+      [
+        "日本に来たばかりなんですけど。",
+        "生活の小さなことでも、どう聞けばいいのか迷っています。",
+        "部屋を借りるとき、最初に何を聞けばいいですか。",
       ],
       seed,
     );

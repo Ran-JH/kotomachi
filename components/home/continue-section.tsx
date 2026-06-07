@@ -12,6 +12,7 @@ const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
   kimura: { name: "木村", kana: "きむら", place: "コンビニ" },
   misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
+  nana: { name: "七海", kana: "ななみ", place: "まちの生活サポートラウンジ" },
 };
 
 interface ContinueSectionProps {

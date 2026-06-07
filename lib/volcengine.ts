@@ -87,6 +87,11 @@ function getNpcVoiceConfig(npcId: NpcId): {
       speedRatio: 0.9,
       pitchRatio: 0.92,
     },
+    nana: {
+      voiceType: process.env.VOLCENGINE_TTS_VOICE_NANA ?? "BV421_streaming",
+      speedRatio: 0.98,
+      pitchRatio: 1.0,
+    },
   };
   return defaults[npcId] ?? defaults.misaki;
 }

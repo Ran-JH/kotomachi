@@ -28,7 +28,7 @@ export const HOME_SCENES: HomeScene[] = [
       zh: "在熟悉的小店和街角，和街区里的人聊两句。",
       en: "Drop into familiar shops and corners for a short chat.",
     },
-    npcIds: ["kimura", "misaki", "taisho"],
+    npcIds: ["kimura", "misaki", "taisho", "nana"],
     status: "active",
   },
   {

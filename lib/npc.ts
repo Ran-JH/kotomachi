@@ -1,4 +1,4 @@
-export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho";
+export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana";
 
 export const NPC_NAMES: Record<NpcId, string> = {
   aoi: "葵 🎧",
@@ -6,6 +6,7 @@ export const NPC_NAMES: Record<NpcId, string> = {
   kimura: "木村 🏪",
   misaki: "美咲 ☕",
   taisho: "大将 🍺",
+  nana: "七海",
 };
 
 export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
@@ -14,6 +15,7 @@ export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
   kimura: "木村",
   misaki: "美咲",
   taisho: "大将",
+  nana: "七海",
 };
 
 export function getNpcDisplayName(npcId: NpcId): string {
@@ -26,6 +28,7 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   kimura: "/avatars/kimura_avatar.png",
   misaki: "/avatars/misaki_avatar.png",
   taisho: "/avatars/taisho_avatar.png",
+  nana: "/avatars/misaki_avatar.png",
 };
 
 interface ArcState {
@@ -360,6 +363,35 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
         "木村に昔話したら、案外ちゃんと聞いてたぞ。",
         "美咲は聞き上手だからな。",
         "遥や葵みたいな若い連中を見ると、街もまだ元気だと思う。",
+      ],
+    },
+  ],
+  nana: [
+    {
+      id: "life_onboarding_week",
+      description: "生活の小さな質問を受け止めている週",
+      states: [
+        {
+          label: "入口",
+          thoughts: [
+            "生活のことは、まず一言から聞いてみましょう。",
+            "短く聞ける形にすると、少し楽になります。",
+          ],
+        },
+        {
+          label: "整理",
+          thoughts: [
+            "部屋、役所、費用、分別。順番にほどいていきましょう。",
+            "質問の形を一緒に整えるだけでも十分です。",
+          ],
+        },
+        {
+          label: "安心",
+          thoughts: [
+            "丁寧に言えたら、それだけで少し安心ですね。",
+            "相手に確認したいことを、そのまま一文にしてみましょう。",
+          ],
+        },
       ],
     },
   ],
@@ -753,6 +785,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "雨の日は店の空気が少しやわらかくなる気がします。",
       kimura: "雨の日の通勤、ほんとにちょっと面倒なんだよね。",
       taisho: "雨の日は客足ゆっくりだけど、そのぶん話せる夜でもあるな。",
+      nana: "雨の日は、生活の用事も少しまとめて聞きたくなりますね。",
     },
   },
   {
@@ -766,6 +799,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "今日は冷たい一杯のほうが合いそうですね。",
       kimura: "暑すぎて、コンビニの冷ケースの前から動きたくない。",
       taisho: "こういう日は、冷えたビールがいちばんだろ。",
+      nana: "暑い日は、細かいことほど先に聞いておくと安心です。",
     },
   },
   {
@@ -779,6 +813,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "店も少し静かで、コーヒーの香りがよく残ります。",
       kimura: "今は少し落ち着いてて、逆にぼーっとする。",
       taisho: "こういう日は仕込みを丁寧にやるに限るな。",
+      nana: "静かな時間だと、生活の質問も落ち着いてできますね。",
     },
   },
   {
@@ -792,6 +827,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "こういう時間は、少しだけ人の流れが変わりますね。",
       kimura: "こういう時間帯は、コンビニもなんだかんだ動きます。",
       taisho: "こういうにぎやかな空気も、店らしくて悪くないな。",
+      nana: "夜でも、生活の小さなことは気軽に聞いて大丈夫です。",
     },
   },
   {
@@ -805,6 +841,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "こういう日は、熱いコーヒーがしっくりきます。",
       kimura: "やっと暑くなくなって助かる。",
       taisho: "秋は熱燗の話をしたくなるな。",
+      nana: "少し涼しい日は、新しい暮らしのことを整理しやすいですね。",
     },
   },
   {
@@ -818,6 +855,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "こういう日は、静かに過ごしたくなります。",
       kimura: "服が乾かないのが一番しんどい。",
       taisho: "梅雨どきは、店の灯りがちょっとありがたいんだよな。",
+      nana: "じめじめする日は、短く要点だけ聞くのが話しやすいです。",
     },
   },
 ];
@@ -833,7 +871,7 @@ export function getWorldContext(localDateContext: LocalDateContext = getLocalDat
 }
 
 export function isNpcId(id: string): id is NpcId {
-  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho";
+  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho" || id === "nana";
 }
 
 const HOME_CARD_LINES: Record<NpcId, string[]> = {
@@ -886,6 +924,9 @@ const HOME_CARD_LINES: Record<NpcId, string[]> = {
     "だらっと飲みながら話す夜も悪くないだろ。",
     "この天気だと、店のあったかさが分かるよな。",
     "昨日の続きでも、今日の話でもかまわんよ。",
+  ],
+  nana: [
+    "生活のこと、まず一言から聞いてみましょう。",
   ],
 };
 

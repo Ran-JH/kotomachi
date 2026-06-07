@@ -247,6 +247,7 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "kimura", name: "木村", subname: "きむら", location: "コンビニ" },
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
+  { id: "nana", name: "七海", subname: "ななみ", location: "まちの生活サポートラウンジ" },
 ];
 
 import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";
