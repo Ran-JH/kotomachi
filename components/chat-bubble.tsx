@@ -806,123 +806,128 @@ function FeedbackDrawer({
             <div className="py-10 text-center">
               <p className="text-xs text-[#7A7060] animate-pulse">{copy.feedback.creating}</p>
             </div>
-          ) : (
-            feedback &&
-            FEEDBACK_LEVEL_META.map((meta) => {
-              const level = feedback[meta.key];
-              const isTtsLoading = ttsLoadingKey === meta.key;
-              const isTtsPlaying = ttsPlayingKey === meta.key;
-              const isTtsActive = isTtsLoading || isTtsPlaying;
-              const isExpanded = expandedAnalysisKey === meta.key;
-              const levelLabels = copy.feedback.levels;
-              const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
-              const zhLabels: Record<FeedbackLevelKey, { label: string; subtitle: string }> = {
-                casual: { label: "亲近随和", subtitle: "カジュアル" },
-                business: { label: "普通自然", subtitle: "ふつう" },
-                formal: { label: "严肃正式", subtitle: "フォーマル" },
-              };
-              const displayLabels = uiLanguage === "zh" ? zhLabels[meta.key] : labels;
-              const analysisText = level.analysis.trim();
-              const analysisSections = parseFeedbackAnalysisSections(analysisText);
-              const detailText = analysisSections.details;
-              const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
+          ) : feedback ? (
+            FEEDBACK_LEVEL_META.filter(meta => feedback[meta.key].nativeSay.trim()).length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-xs text-[#7A7060]">{copy.feedback.error}</p>
+              </div>
+            ) : (
+              FEEDBACK_LEVEL_META.filter(meta => feedback[meta.key].nativeSay.trim()).map((meta) => {
+                const level = feedback[meta.key];
+                const isTtsLoading = ttsLoadingKey === meta.key;
+                const isTtsPlaying = ttsPlayingKey === meta.key;
+                const isTtsActive = isTtsLoading || isTtsPlaying;
+                const isExpanded = expandedAnalysisKey === meta.key;
+                const levelLabels = copy.feedback.levels;
+                const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
+                const zhLabels: Record<FeedbackLevelKey, { label: string; subtitle: string }> = {
+                  casual: { label: "亲近随和", subtitle: "カジュアル" },
+                  business: { label: "普通自然", subtitle: "ふつう" },
+                  formal: { label: "严肃正式", subtitle: "フォーマル" },
+                };
+                const displayLabels = uiLanguage === "zh" ? zhLabels[meta.key] : labels;
+                const analysisText = level.analysis.trim();
+                const analysisSections = parseFeedbackAnalysisSections(analysisText);
+                const detailText = analysisSections.details;
+                const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
 
-              return (
-                <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3.5 sm:px-4 py-3.5">
-                  <header className="flex items-center gap-2">
-                    <span className="h-8 w-1 shrink-0 rounded-full bg-[#C9A84C]/65" aria-hidden="true" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-[12px] font-semibold text-[#28231A]">{displayLabels.label}</h3>
-                      <p className="text-[9px] text-[#7A7060]/85">{displayLabels.subtitle}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleSaveExpression(meta.key)}
-                      className={`shrink-0 px-2 py-1 rounded-md border text-[9px] font-medium transition-colors whitespace-nowrap ${
-                        savedKeys[meta.key]
-                          ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
-                          : "border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
-                      }`}
-                    >
-                      {savedKeys[meta.key] ? copy.feedback.savedExpression : copy.feedback.saveExpression}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isTtsActive) {
-                          stopFeedbackAudio();
-                          return;
-                        }
-                        void playLevelSample(meta.key, level.nativeSay);
-                      }}
-                      aria-pressed={isTtsActive}
-                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] transition-colors whitespace-nowrap"
-                      title={isTtsActive ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.listen}
-                    >
-                      {isTtsLoading ? (
-                        <span className="animate-pulse">{uiLanguage === "zh" ? "播放中…" : "Playing…"}</span>
-                      ) : isTtsPlaying ? (
-                        <span>{uiLanguage === "zh" ? "停止" : "Stop"}</span>
-                      ) : (
-                        <>
-                          <VolumeIcon size={11} /> {copy.feedback.listen}
-                        </>
-                      )}
-                    </button>
-                  </header>
-                  <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/55 px-3 py-2.5">
-                    <span className="text-[9px] font-medium text-[#7A7060] tracking-wide">{copy.feedback.recommended}</span>
-                    <p className="font-ja mt-1 text-[15px] sm:text-[16px] font-medium text-[#2D4A1F] leading-[1.8] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                      {level.nativeSay}
-                    </p>
-                  </div>
-                  {ttsErrorKey === meta.key && (
-                    <p className="mt-1.5 px-1 text-[9px] text-[#9A6B2F]">
-                      {copy.feedback.listenFailure}
-                    </p>
-                  )}
-                  <div className="mt-2.5 space-y-2">
-                    {analysisSections.usage && (
-                      <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
-                        <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.usageLabel}</p>
-                        <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
-                          {analysisSections.usage}
-                        </p>
+                return (
+                  <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3.5 sm:px-4 py-3.5">
+                    <header className="flex items-center gap-2">
+                      <span className="h-8 w-1 shrink-0 rounded-full bg-[#C9A84C]/65" aria-hidden="true" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[12px] font-semibold text-[#28231A]">{displayLabels.label}</h3>
+                        <p className="text-[9px] text-[#7A7060]/85">{displayLabels.subtitle}</p>
                       </div>
-                    )}
-                    {analysisSections.reason && (
-                      <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
-                        <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.whyLabel}</p>
-                        <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
-                          {analysisSections.reason}
-                        </p>
-                      </div>
-                    )}
-                    {detailText && (
-                      <p
-                        ref={setAnalysisRef(meta.key)}
-                        className={`font-ui text-[10px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
-                          !isExpanded ? "max-h-[4.8em] overflow-hidden" : ""
-                        }`}
-                      >
-                        {detailText}
-                      </p>
-                    )}
-                    {detailText && hasOverflowingAnalysis && (
                       <button
                         type="button"
-                        aria-expanded={isExpanded}
-                        onClick={() => setExpandedAnalysisKey(isExpanded ? null : meta.key)}
-                        className="block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
+                        onClick={() => handleToggleSaveExpression(meta.key)}
+                        className={`shrink-0 px-2 py-1 rounded-md border text-[9px] font-medium transition-colors whitespace-nowrap ${
+                          savedKeys[meta.key]
+                            ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
+                            : "border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
+                        }`}
                       >
-                        {isExpanded ? copy.feedback.hideDetails : copy.feedback.showDetails}
+                        {savedKeys[meta.key] ? copy.feedback.savedExpression : copy.feedback.saveExpression}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isTtsActive) {
+                            stopFeedbackAudio();
+                            return;
+                          }
+                          void playLevelSample(meta.key, level.nativeSay);
+                        }}
+                        aria-pressed={isTtsActive}
+                        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] transition-colors whitespace-nowrap"
+                        title={isTtsActive ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.listen}
+                      >
+                        {isTtsLoading ? (
+                          <span className="animate-pulse">{uiLanguage === "zh" ? "播放中…" : "Playing…"}</span>
+                        ) : isTtsPlaying ? (
+                          <span>{uiLanguage === "zh" ? "停止" : "Stop"}</span>
+                        ) : (
+                          <>
+                            <VolumeIcon size={11} /> {copy.feedback.listen}
+                          </>
+                        )}
+                      </button>
+                    </header>
+                    <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/55 px-3 py-2.5">
+                      <span className="text-[9px] font-medium text-[#7A7060] tracking-wide">{copy.feedback.recommended}</span>
+                      <p className="font-ja mt-1 text-[15px] sm:text-[16px] font-medium text-[#2D4A1F] leading-[1.8] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                        {level.nativeSay}
+                      </p>
+                    </div>
+                    {ttsErrorKey === meta.key && (
+                      <p className="mt-1.5 px-1 text-[9px] text-[#9A6B2F]">
+                        {copy.feedback.listenFailure}
+                      </p>
                     )}
-                  </div>
-                </article>
-              );
-            })
-          )}
+                    <div className="mt-2.5 space-y-2">
+                      {analysisSections.usage && (
+                        <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
+                          <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.usageLabel}</p>
+                          <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
+                            {analysisSections.usage}
+                          </p>
+                        </div>
+                      )}
+                      {analysisSections.reason && (
+                        <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
+                          <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.whyLabel}</p>
+                          <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
+                            {analysisSections.reason}
+                          </p>
+                        </div>
+                      )}
+                      {detailText && (
+                        <p
+                          ref={setAnalysisRef(meta.key)}
+                          className={`font-ui text-[10px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
+                            !isExpanded ? "max-h-[4.8em] overflow-hidden" : ""
+                          }`}
+                        >
+                          {detailText}
+                        </p>
+                      )}
+                      {detailText && hasOverflowingAnalysis && (
+                        <button
+                          type="button"
+                          aria-expanded={isExpanded}
+                          onClick={() => setExpandedAnalysisKey(isExpanded ? null : meta.key)}
+                          className="block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
+                        >
+                          {isExpanded ? copy.feedback.hideDetails : copy.feedback.showDetails}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            )
+          ) : null}
         </div>
         <div className="shrink-0 h-[env(safe-area-inset-bottom)]" />
       </div>
@@ -976,20 +981,29 @@ export function ChatBubble({
 
   const recordExpressionHintOpened = useCallback((nextFeedback: FeedbackResponse): string => {
     const id = feedbackRecordId ?? createSummaryId("hint");
-    saveExpressionHintRecord({
-      schemaVersion: 1,
-      id,
-      userMessageId: messageId,
-      npcId,
-      originalText: text,
-      suggestions: {
-        casual: nextFeedback.casual.nativeSay,
-        normal: nextFeedback.business.nativeSay,
-        formal: nextFeedback.formal.nativeSay,
-      },
-      openedAt: new Date().toISOString(),
-      playedStyles: [],
-    });
+
+    const hasValidSuggestions =
+      nextFeedback.casual.nativeSay.trim() ||
+      nextFeedback.business.nativeSay.trim() ||
+      nextFeedback.formal.nativeSay.trim();
+
+    if (hasValidSuggestions) {
+      saveExpressionHintRecord({
+        schemaVersion: 1,
+        id,
+        userMessageId: messageId,
+        npcId,
+        originalText: text,
+        suggestions: {
+          casual: nextFeedback.casual.nativeSay,
+          normal: nextFeedback.business.nativeSay,
+          formal: nextFeedback.formal.nativeSay,
+        },
+        openedAt: new Date().toISOString(),
+        playedStyles: [],
+      });
+    }
+
     setFeedbackRecordId(id);
     return id;
   }, [feedbackRecordId, messageId, npcId, text]);

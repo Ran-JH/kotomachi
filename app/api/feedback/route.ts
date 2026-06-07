@@ -97,6 +97,22 @@ function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
   return { nativeSay, analysis };
 }
 
+/**
+ * 检测是否主要是英文内容
+ */
+function isPrimarilyEnglish(text: string): boolean {
+  const englishChars = (text.match(/[A-Za-z]/g) || []).length;
+  const japaneseChars = (text.match(/[ぁ-んァ-ヶ一-龠々ー]/g) || []).length;
+  const totalChars = text.length;
+
+  // 如果英文占比超过 60%，且日语字符很少，则认为是英文
+  if (totalChars === 0) return false;
+  if (japaneseChars === 0 && englishChars >= 2) return true;
+  if (englishChars > 0 && japaneseChars === 0) return true;
+  if (englishChars > japaneseChars * 2) return true;
+  return false;
+}
+
 function buildIntentFallback(userText: string): FeedbackResponse {
   const cleaned = cleanAsrArtifacts(userText);
 
@@ -189,11 +205,17 @@ function normalizeLevel(
   fallbackSay: string,
   fallbackAnalysis: string
 ): FeedbackLevel {
+  let nativeSay = typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
+    ? normalizeNativeSay(raw.nativeSay)
+    : fallbackSay;
+
+  // 安全检查：如果输出是英文或无效，设为空字符串（不展示）
+  if (isPrimarilyEnglish(nativeSay)) {
+    nativeSay = "";
+  }
+
   return {
-    nativeSay:
-      typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
-        ? normalizeNativeSay(raw.nativeSay)
-        : fallbackSay,
+    nativeSay,
     analysis: pickAnalysis(raw) || fallbackAnalysis,
   };
 }
@@ -263,6 +285,17 @@ function repairFeedbackResponse(response: FeedbackResponse, userText: string): F
         ? fallback.formal
         : response.formal,
   };
+}
+
+/**
+ * 检查响应是否有效（至少有一档有内容）
+ */
+function hasValidExpressions(response: FeedbackResponse): boolean {
+  return Boolean(
+    response.casual.nativeSay.trim() ||
+    response.business.nativeSay.trim() ||
+    response.formal.nativeSay.trim()
+  );
 }
 
 const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatGPT 一样克制、清晰，像朋友一样温和，绝不说教、不打击用户。
@@ -382,6 +415,11 @@ Language rules:
         analysis: localizeAnalysisText(repaired.formal.analysis, uiLanguage, "formal", userText),
       },
     };
+
+    // 如果三档都无效，返回错误状态
+    if (!hasValidExpressions(localized)) {
+      return NextResponse.json({ error: "无法生成有效的表达提示" }, { status: 400 });
+    }
 
     return NextResponse.json(localized);
   } catch (error) {
