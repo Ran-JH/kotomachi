@@ -79,9 +79,9 @@ Tone rules:
 
 ### Sample good welcomes
 
-1. `こんにちは。まちの生活サポートラウンジの七海です。生活中のことや、日本語での聞き方など、気軽に聞いてくださいね。`
-2. `はじめまして。刚来到日本的时候，很多人都会有些不安呢。今天有什么想问的吗？`
-3. `こんにちは。最初は紧张するかもしれないけど、ここでは小さな質問から気軽にどうぞ。`
+1. `こんにちは。まちの生活サポートラウンジの七海です。生活のことや日本語での聞き方など、気軽に聞いてくださいね。`
+2. `はじめまして。日本に来たばかりのときは不安になることも多いですよ。今日は何かお困りのことはありますか？`
+3. `こんにちは。最初は緊張するかもしれませんが、ここでは小さな質問から気軽にどうぞ。`
 
 ### Sample bad welcomes
 
@@ -91,7 +91,7 @@ Tone rules:
 2. `何を聞きたいですか。まず目的を明確にしてください。`
    - Why bad: bureaucratic and raises pressure.
 
-3. `もう全然日本語が堪能じゃないと生活中大変ですよ。まず从哪里から始めますか。`
+3. `もう全然日本語ができないと生活は大変ですよ。まずどこから始めますか。`
    - Why bad: discouraging and outside product tone.
 
 ## 5. Revisit Welcome
@@ -106,7 +106,7 @@ Tone rules:
 ### Sample good revisit welcomes
 
 1. `こんにちは。また来てくれてありがとうございます。今日はお部屋探しのこと？それとも役所のこと？`
-2. `こんにちは。先日は租房の質問だったけど、今日はどうしましょうか。`
+2. `こんにちは。先日はお部屋の質問だったけど、今日はどうしましょうか。`
 3. `こんにちは。少しずつ慣れてきたころですかね。今日はどんなことを話しましょうか。`
 
 ### Sample bad revisit welcomes
@@ -127,12 +127,12 @@ Tone rules:
 1. Moving to Japan and feeling uncertain
    - `日本に来たばかりなんですけど。`
    - `まだ何もかもよくわからなくて。`
-   - `生活中的一些小事も、どう聞いたらいいのか迷っています。`
+   - `生活の小さなことでも、どう聞けばいいのか迷っています。`
 
 2. Rental and housing questions
    - `部屋を借りるとき、最初に何を聞けばいいですか。`
    - `この費用って、どういう意味ですか。`
-   - `租房の初期費用について練習したいです。`
+   - `部屋を借りるときの初期費用について練習したいです。`
 
 3. City office procedures (役所)
    - `役所で手続きするとき、何を聞けばいいですか。`
@@ -153,14 +153,14 @@ Tone rules:
    - `知らない人に聞くときの自然な言い方を教えてほしいです。`
 
 7. Small everyday concerns
-   - `ゴミの分別ravaって、どう聞けばいいですか。`
-   - `手机和网络怎么办理呢。`
+   - `ゴミの分別について聞きたいです。`
+   - `携帯やインターネットの契約について聞きたいです。`
 
 ### Status-aware topic ideas
 
-- `日常生活中ちょっと不安なんだけど、どこから聞いたらいいかな。`
-- `最近、生活中的一些小问题遇到的比较多んです。`
-- `今日は生活の中の小さな質問なんだけど。`
+- `日常生活でちょっと不安なことがあって、どこから聞いたらいいか迷っています。`
+- `最近、生活の小さな問題が多かったです。`
+- `今日は生活の小さな質問をしたいです。`
 
 ### If user says very little
 
@@ -237,7 +237,7 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
     "敷金って、何のためのお金ですか。",
     "礼金って、絶対必要なんですか。",
     "全部でいくらくらいかかるんでしょうか。",
-    "外人だけど、契約できるの家ですか。"
+    "外国籍でも申し込めますか。"
   ],
   softLanding: "问完一两个费用后，Nana可以轻收：\"这些是最常见的初期费用。具体金额要以实际房源为准哦。\"",
   avoid: [
@@ -259,7 +259,7 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
   titleEn: "Asking about apartment conditions",
   setup: "用户准备去看房，想练习怎么自然地问车站距离、采光、噪音、家具、网络等条件。",
   userGoal: "能用地道日语在看房时确认各项条件。",
-  npcOpening: "看房的时候、確認したいことがいくつかありますよね。今日は何から練習しましょうか？",
+  npcOpening: "お部屋を見に行くとき、確認したいことがいくつかありますよね。今日は何から練習しましょうか？",
   possibleBeats: [
     "问车站距离",
     "问采光和噪音",
@@ -274,9 +274,9 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
   ],
   responseOptionsJa: [
     "駅からはどのくらいですか。",
-    "日当たりとか、噪音とか、確認したいんですけど。",
+    "日当たりや騒音について確認したいです。",
     "家具付きですか。",
-    "インターネットの導入状況ですけど。"
+    "インターネットは使えますか。"
   ],
   softLanding: "练习几项后轻收：\"看房时确认这些就够了，不用一次问完所有事情。\"",
   avoid: [
@@ -297,7 +297,7 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
   titleEn: "Practicing for city office procedures",
   setup: "用户刚搬来，要办住民登録和其他手续，想提前练习怎么说。",
   userGoal: "能用日语表达\"刚搬来\"、\"要办手续\"、\"需要什么材料\"。",
-  npcOpening: "役所って最初は紧张しますよね。何から練習しましょうか？",
+  npcOpening: "役所って最初は緊張しますよね。何から練習しましょうか？",
   possibleBeats: [
     "说刚搬来",
     "说要办手续",
@@ -311,10 +311,10 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
     "请求说慢一点"
   ],
   responseOptionsJa: [
-    "刚刚搬来这里，想办住民登録です。",
+    "最近こちらに引っ越してきたので、住民登録をしたいです。",
     "必要な書類を確認したいんですけど。",
-    "哪里の窓口に行けばいいですか。",
-    "もう少しゆっくり説明ってもらえますか。"
+    "どの窓口に行けばいいですか。",
+    "もう少しゆっくり説明してもらえますか。"
   ],
   softLanding: "练习完后轻收：\"这些是最基础的表达。具体要带什么，要以窗口或官方通知为准哦。\"",
   avoid: [
@@ -336,7 +336,7 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
   titleEn: "Asking someone to repeat or slow down",
   setup: "用户在窗口或生活中听不懂日语，想练习怎么礼貌地请对方再说一遍或慢一点。",
   userGoal: "能用多种方式礼貌地请求重复或放慢语速。",
-  npcOpening: "窓口で听不懂的时候，可以说很多种方式呢。今天想练哪种？",
+  npcOpening: "窓口で聞き取れないときは、いくつか言い方がありますよ。今日はどれを練習しましょうか？",
   possibleBeats: [
     "请再说一遍",
     "请说慢一点",
@@ -352,8 +352,8 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
   responseOptionsJa: [
     "すみません、もう一度お願いします。",
     "もう少しゆっくり言ってもいいですか。",
-    "今のこと、第二を確認してもいいですか。",
-    "まだ日本語が上手じゃないので、もう少し待ってください。"
+    "今の内容を確認してもいいですか。",
+    "まだ日本語を勉強中なので、もう少しゆっくり話してもらえますか。"
   ],
   softLanding: "练习完后轻收：\"这些话随时可以用，不用觉得不好意思。\"",
   avoid: [
@@ -367,13 +367,13 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
 ## 9. Free Chat Topics / Starter Prompts
 
 1. `日本に来たばかりなんですけど。`
-2. `生活中的一些小事も、どう聞いたらいいのか迷っています。`
+2. `生活の小さなことでも、どう聞けばいいのか迷っています。`
 3. `部屋を借りるとき、最初に何を聞けばいいですか。`
 4. `役所でうまく説明できるか少し不安です。`
 5. `この費用は何のためのお金か聞きたいです。`
 6. `もう少しゆっくり説明してほしいです。`
-7. `租房的初期費用って、どういう意味ですか。`
-8. `ゴミの分別ravaって、どう聞けばいいですか。`
+7. `部屋を借りるときの初期費用って、どういう意味ですか。`
+8. `ゴミの分別について聞きたいです。`
 9. `窓口で何を言われているのか、よくわからなかったです。`
 10. `何かを聞くとき、丁寧に言うにはどうすればいいですか。`
 
@@ -384,14 +384,14 @@ Nana helps users ask better questions in Japanese; she does not make legal, rent
   - `すみません、聞いてもいいですか`
   - `まだ日本に来たばかりなんです`
 - `Formal polite expressions`
-  - `ご確認したいんですけど`
+  - `確認したいのですが`
   - `詳しく教えていただけませんか`
-  - `もう少しゆっくり 말씀 부탁드립니다`
-  - `恐れ入りますが`
+  - `もう少しゆっくり説明していただけますか。`
+  - `すみませんが`
 - `Situation-specific vocabulary`
   - `敷金`、`礼金`、`仲介手数料`
   - `住民登録`、`在留カード`、`必要書類`
-  - `窓口`、`垃圾分类`、`契約`
+  - `窓口`、`ゴミの分別`、`契約`
 - `Useful grammar / phrase patterns`
   - `〜たいんですけど`
   - `〜てもいいですか`
