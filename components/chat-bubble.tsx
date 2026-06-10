@@ -1086,7 +1086,7 @@ export function ChatBubble({
     try {
       const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: text, uiLanguage: language }),
+        body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null }),
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
@@ -1112,7 +1112,7 @@ export function ChatBubble({
     try {
       const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: text, uiLanguage: language }),
+        body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null }),
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;

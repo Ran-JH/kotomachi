@@ -27,15 +27,27 @@ function cleanAsrArtifacts(value: string): string {
     .trim();
 }
 
+function isDecorativeCodePoint(codePoint: number): boolean {
+  return (
+    (codePoint >= 0x1f300 && codePoint <= 0x1faff) ||
+    (codePoint >= 0x2600 && codePoint <= 0x27bf)
+  );
+}
+
 function stripDecorations(value: string): string {
-  return value
-    .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
-    .replace(/[\u{2600}-\u{27BF}]/gu, "")
-    .replace(/[＊*_`#>]/g, "")
+  let result = "";
+  for (const char of value) {
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined) continue;
+    if (isDecorativeCodePoint(codePoint)) continue;
+    if (char === "\uFF0A" || char === "*" || char === "_" || char === "`" || char === "#" || char === ">") continue;
+    result += char;
+  }
+  return result
     .replace(/\[[^\]]*\]/g, "")
-    .replace(/［[^］]*］/g, "")
-    .replace(/（笑）|\(笑\)|www+|ｗｗｗ+/gi, "")
-    .replace(/[~〜～]{2,}/g, "〜")
+    .replace(/\uFF3B[^\uFF3D]*\uFF3D/g, "")
+    .replace(/(?:\uFF08\u7B11\uFF09|\(\u7B11\)|www+|[w\uFF57]{3,})/gi, "")
+    .replace(/[~\u301C\uFF5E]{2,}/g, "\u301C")
     .trim();
 }
 
@@ -107,6 +119,33 @@ function includesAny(value: string, words: string[]): boolean {
 
 function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
   return { nativeSay, analysis };
+}
+
+const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana"] as const;
+const VALID_NPC_ID_SET = new Set<string>(VALID_NPC_IDS);
+
+function parseNpcId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return VALID_NPC_ID_SET.has(value) ? value : null;
+}
+
+function getNpcExpressionContext(npcId: string | null): string {
+  switch (npcId) {
+    case "aoi":
+      return "Current conversation partner: Aoi, a same-age student friend. Keep casual suggestions friendly and natural, but not romantic, clingy, or overly intimate.";
+    case "haruka":
+      return "Current conversation partner: Haruka, a graduate-school senior. Suggestions should be lightly polite, academic-life friendly, and not professor-like.";
+    case "kimura":
+      return "Current conversation partner: Kimura, a friendly convenience-store staff member. Suggestions may lean toward everyday service-counter and casual neighborhood language.";
+    case "misaki":
+      return "Current conversation partner: Misaki, a calm cafe staff member. Suggestions should feel gentle, lightly polite, and suitable for a cafe conversation.";
+    case "taisho":
+      return "Current conversation partner: Taisho, an izakaya owner with a regular-customer distance. Suggestions may feel warm and familiar, but not preachy or like life advice.";
+    case "nana":
+      return "Current conversation partner: Nana, a life-support lounge helper for newcomers in Japan. Suggestions should help users ask everyday life questions clearly and politely, without legal, rental, immigration, medical, or financial conclusions.";
+    default:
+      return "No specific NPC context. Use general Japanese register guidance.";
+  }
 }
 
 const SAFE_HINT_LATIN_WORDS = new Set([
@@ -416,6 +455,17 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     userText = (body.userText ?? "").trim();
     uiLanguage = body.uiLanguage === "en" ? "en" : "zh";
+    const npcId = parseNpcId(body.npcId);
+    const npcExpressionContext = getNpcExpressionContext(npcId);
+    const systemPrompt = `${SYSTEM_PROMPT}
+
+NPC relationship context:
+${npcExpressionContext}
+
+Use this only to fine-tune nuance and naturalness. Do not change the user's intended meaning.
+Keep the existing three levels: casual, business/natural, formal.
+Do not add emoji, kaomoji, markdown, or action descriptions.
+Do not include English fragments from the original user input.`;
 
     if (!userText) {
       return NextResponse.json({ error: "文本不能为空" }, { status: 400 });
@@ -423,7 +473,7 @@ export async function POST(req: NextRequest) {
 
     const raw = await createChatCompletion(
       [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: `用户刚才说的日语（原句）：
