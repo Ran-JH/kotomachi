@@ -28,7 +28,7 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   kimura: "/avatars/kimura_avatar.png",
   misaki: "/avatars/misaki_avatar.png",
   taisho: "/avatars/taisho_avatar.png",
-  nana: "/avatars/misaki_avatar.png",
+  nana: "/avatars/nana_avatar.png",
 };
 
 interface ArcState {
