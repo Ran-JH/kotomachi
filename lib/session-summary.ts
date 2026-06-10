@@ -160,6 +160,86 @@ function trimText(value: string | undefined, maxLength: number): string | undefi
   return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}…` : trimmed;
 }
 
+const SAFE_HINT_LATIN_WORDS = new Set([
+  "LINE",
+  "SNS",
+  "AI",
+  "CAFE",
+  "JAPAN",
+  "TOKYO",
+  "OSAKA",
+  "APP",
+  "WEB",
+  "MAIL",
+  "NET",
+  "PC",
+  "TV",
+  "CD",
+  "DVD",
+  "OK",
+  "NG",
+]);
+
+function isJapaneseCharacterCode(code: number): boolean {
+  return (
+    (code >= 0x3040 && code <= 0x30ff) ||
+    (code >= 0x4e00 && code <= 0x9fff)
+  );
+}
+
+function isLatinCharacterCode(code: number): boolean {
+  return (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
+}
+
+function extractLatinWords(value: string): string[] {
+  const words: string[] = [];
+  let current = "";
+
+  for (const char of value) {
+    if (isLatinCharacterCode(char.charCodeAt(0))) {
+      current += char;
+      continue;
+    }
+
+    if (current) {
+      words.push(current);
+      current = "";
+    }
+  }
+
+  if (current) {
+    words.push(current);
+  }
+
+  return words;
+}
+
+export function isValidExpressionHintText(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+
+  let hasJapanese = false;
+  for (const char of trimmed) {
+    if (isJapaneseCharacterCode(char.charCodeAt(0))) {
+      hasJapanese = true;
+      break;
+    }
+  }
+  if (!hasJapanese) return false;
+
+  const latinWords = extractLatinWords(trimmed);
+  if (latinWords.length === 0) return true;
+  return latinWords.every((word) => SAFE_HINT_LATIN_WORDS.has(word.toUpperCase()));
+}
+
+export function isValidExpressionHintRecord(record: ExpressionHintRecord): boolean {
+  return (
+    isValidExpressionHintText(record.suggestions.casual ?? "") ||
+    isValidExpressionHintText(record.suggestions.normal ?? "") ||
+    isValidExpressionHintText(record.suggestions.formal ?? "")
+  );
+}
+
 function byCreatedDesc(a: { createdAt?: string }, b: { createdAt?: string }): number {
   return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
 }
@@ -267,12 +347,13 @@ export function saveLookupHistory(lookup: RecentLookup): void {
 
 export function loadRecentExpressionHints(npcId: NpcId, limit = 5): ExpressionHintRecord[] {
   return loadList<ExpressionHintRecord>(EXPRESSION_HINTS_KEY)
-    .filter((record) => record?.schemaVersion === 1 && record.npcId === npcId)
+    .filter((record) => record?.schemaVersion === 1 && record.npcId === npcId && isValidExpressionHintRecord(record))
     .sort(byOpenedDesc)
     .slice(0, limit);
 }
 
 export function saveExpressionHintRecord(record: ExpressionHintRecord): void {
+  if (!isValidExpressionHintRecord(record)) return;
   const sanitized: ExpressionHintRecord = {
     schemaVersion: 1,
     id: record.id,

@@ -97,6 +97,62 @@ function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
   return { nativeSay, analysis };
 }
 
+const SAFE_HINT_LATIN_WORDS = new Set([
+  "LINE",
+  "SNS",
+  "AI",
+  "CAFE",
+  "JAPAN",
+  "TOKYO",
+  "OSAKA",
+  "APP",
+  "WEB",
+  "MAIL",
+  "NET",
+  "PC",
+  "TV",
+  "CD",
+  "DVD",
+  "OK",
+  "NG",
+]);
+
+function hasUnsafeLatinWord(value: string): boolean {
+  let current = "";
+
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    const isLatin = (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
+    if (isLatin) {
+      current += char;
+      continue;
+    }
+
+    if (current) {
+      if (!SAFE_HINT_LATIN_WORDS.has(current.toUpperCase())) {
+        return true;
+      }
+      current = "";
+    }
+  }
+
+  if (current) {
+    return !SAFE_HINT_LATIN_WORDS.has(current.toUpperCase());
+  }
+
+  return false;
+}
+
+function isSafeHintExpression(value: string, originalText: string): boolean {
+  const normalized = normalizeNativeSay(value);
+  if (!normalized) return false;
+  if (isPrimarilyEnglish(normalized)) return false;
+  if (hasUnsafeLatinWord(normalized)) return false;
+  if (containsLongEnglishPhrase(normalized)) return false;
+  if (containsOriginalEnglishFragment(normalized, originalText)) return false;
+  return true;
+}
+
 /**
  * 检测是否主要是英文内容
  */
@@ -185,29 +241,25 @@ function buildIntentFallback(userText: string): FeedbackResponse {
   }
 
   return {
-    casual: feedbackLevel(
-      cleaned,
-      "【场合】カジュアル档应该保留原意，同时让句子更短、更像朋友之间会说的话。【原句】如果原句有停顿或重复，先整理成顺口表达，再看是否需要换句尾。",
-    ),
-    business: feedbackLevel(
-      cleaned.endsWith("です。") || cleaned.endsWith("ます。") ? cleaned : `${cleaned}です。`,
-      "【场合】普通自然档适合店员、同事、邻居等日常社交，重点是礼貌但不僵硬。【原句】原意应保留，只把语气整理得更清楚。",
-    ),
-    formal: feedbackLevel(
-      `恐れ入りますが、${cleaned}`,
-      "【场合】フォーマル档需要更完整的缓冲和敬语，适合上级、客户或书面场景。【原句】不是批改对错，而是把同一个意思换到更郑重的场合。",
-    ),
+    casual: feedbackLevel("", ""),
+    business: feedbackLevel("", ""),
+    formal: feedbackLevel("", ""),
   };
 }
 
 function normalizeLevel(
   raw: Partial<FeedbackLevel> | undefined,
   fallbackSay: string,
-  fallbackAnalysis: string
+  fallbackAnalysis: string,
+  originalText: string
 ): FeedbackLevel {
   let nativeSay = typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
     ? normalizeNativeSay(raw.nativeSay)
     : fallbackSay;
+
+  if (!isSafeHintExpression(nativeSay, originalText)) {
+    nativeSay = "";
+  }
 
   // 安全检查：如果输出是英文或无效，设为空字符串（不展示）
   if (isPrimarilyEnglish(nativeSay)) {
@@ -261,13 +313,12 @@ function buildFallbackResponse(userText: string): FeedbackResponse {
 
 function needsFallback(response: FeedbackResponse, userText: string): boolean {
   const values = [response.casual.nativeSay, response.business.nativeSay, response.formal.nativeSay];
-  const allSame = sameExpression(values[0], values[1]) && sameExpression(values[1], values[2]);
   const hasBadText = values.some((value) => 
     containsAsrArtifact(value) || 
     containsLongEnglishPhrase(value) || 
     containsOriginalEnglishFragment(value, userText)
   );
-  return allSame || hasBadText;
+  return hasBadText;
 }
 
 function repairFeedbackResponse(response: FeedbackResponse, userText: string): FeedbackResponse {
@@ -385,18 +436,21 @@ Language rules:
     const response: FeedbackResponse = {
       casual: normalizeLevel(
         parsed.casual,
-        userText,
-        "【场合】闲聊重在亲近感。【原句】你的句子能懂，换更软的说法会更像日本朋友。"
+        "",
+        "【场合】闲聊重在亲近感。【原句】你的句子能懂，换更软的说法会更像日本朋友。",
+        userText
       ),
       business: normalizeLevel(
         parsed.business,
-        userText,
-        "【场合】职场社交要礼貌得体。【原句】你的句子能懂，稍微调整语体会更自然。"
+        "",
+        "【场合】职场社交要礼貌得体。【原句】你的句子能懂，稍微调整语体会更自然。",
+        userText
       ),
       formal: normalizeLevel(
         parsed.formal,
-        userText,
-        "【场合】正式场合要稳重、完整。【原句】你的句子能懂，敬语和结构可以再讲究一点。"
+        "",
+        "【场合】正式场合要稳重、完整。【原句】你的句子能懂，敬语和结构可以再讲究一点。",
+        userText
       ),
     };
 
@@ -441,6 +495,6 @@ Language rules:
         analysis: localizeAnalysisText(fallback.formal.analysis, uiLanguage, "formal", userText),
       },
     };
-    return NextResponse.json(localizedFallback);
+    return NextResponse.json({ error: "表达提示生成失败" }, { status: 500 });
   }
 }

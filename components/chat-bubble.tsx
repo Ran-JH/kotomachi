@@ -11,6 +11,7 @@ import { NPC_AVATARS, type NpcId } from "@/lib/npc";
 import {
   createSummaryId,
   markExpressionHintPlayed,
+  isValidExpressionHintText,
   saveExpressionHintRecord,
   saveLookupHistory,
   type ExpressionHintStyle,
@@ -641,6 +642,11 @@ function FeedbackDrawer({
       return;
     }
 
+    if (!isValidExpressionHintText(nativeSay)) {
+      setTtsErrorKey(key);
+      return;
+    }
+
     onSuggestionPlayed?.(key);
     const sampleText = nativeSay.trim();
     if (!sampleText) {
@@ -716,6 +722,7 @@ function FeedbackDrawer({
   const handleToggleSaveExpression = (key: FeedbackLevelKey) => {
     if (!feedback) return;
     const level = feedback[key];
+    if (!isValidExpressionHintText(level.nativeSay)) return;
     const item: SavedExpression = {
       id: createSummaryId("saved-expr"),
       type: "expression",
@@ -944,6 +951,10 @@ function mapFeedbackKeyToStyle(key: FeedbackLevelKey): ExpressionHintStyle {
   return key === "business" ? "normal" : key;
 }
 
+function hasValidFeedbackSuggestions(feedback: FeedbackResponse): boolean {
+  return FEEDBACK_LEVEL_META.some((meta) => isValidExpressionHintText(feedback[meta.key].nativeSay));
+}
+
 export function ChatBubble({
   messageId, sender, text, npcId, uiLanguage = "zh", userAudioBlob, userAudioUrl, npcAudioUrl, onPlayNpcAudio, isVoiceMessage,
 }: ChatBubbleProps) {
@@ -980,29 +991,25 @@ export function ChatBubble({
   const hasUserRecording = sender === "user" && Boolean(userAudioUrl || userAudioBlob);
 
   const recordExpressionHintOpened = useCallback((nextFeedback: FeedbackResponse): string => {
-    const id = feedbackRecordId ?? createSummaryId("hint");
-
-    const hasValidSuggestions =
-      nextFeedback.casual.nativeSay.trim() ||
-      nextFeedback.business.nativeSay.trim() ||
-      nextFeedback.formal.nativeSay.trim();
-
-    if (hasValidSuggestions) {
-      saveExpressionHintRecord({
-        schemaVersion: 1,
-        id,
-        userMessageId: messageId,
-        npcId,
-        originalText: text,
-        suggestions: {
-          casual: nextFeedback.casual.nativeSay,
-          normal: nextFeedback.business.nativeSay,
-          formal: nextFeedback.formal.nativeSay,
-        },
-        openedAt: new Date().toISOString(),
-        playedStyles: [],
-      });
+    if (!hasValidFeedbackSuggestions(nextFeedback)) {
+      return "";
     }
+
+    const id = feedbackRecordId ?? createSummaryId("hint");
+    saveExpressionHintRecord({
+      schemaVersion: 1,
+      id,
+      userMessageId: messageId,
+      npcId,
+      originalText: text,
+      suggestions: {
+        casual: nextFeedback.casual.nativeSay,
+        normal: nextFeedback.business.nativeSay,
+        formal: nextFeedback.formal.nativeSay,
+      },
+      openedAt: new Date().toISOString(),
+      playedStyles: [],
+    });
 
     setFeedbackRecordId(id);
     return id;
@@ -1063,6 +1070,12 @@ export function ChatBubble({
     const cached = getCachedFeedback(npcId, messageId, text, language);
     if (cached) {
       const restored = fromCachedFeedback(cached);
+      if (!hasValidFeedbackSuggestions(restored)) {
+        removeCachedFeedback(npcId, messageId, text, language);
+        setFeedback(null);
+        setFeedbackError(true);
+        return;
+      }
       setFeedback(restored);
       setFeedbackError(false);
       recordExpressionHintOpened(restored);
@@ -1077,6 +1090,9 @@ export function ChatBubble({
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
+      if (!hasValidFeedbackSuggestions(nextFeedback)) {
+        throw new Error("invalid feedback");
+      }
       setFeedback(nextFeedback);
       setFeedbackError(false);
       setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
@@ -1084,20 +1100,13 @@ export function ChatBubble({
     } catch (err) {
       console.error(err);
       setFeedbackError(true);
-      const fallbackFeedback: FeedbackResponse = {
-        casual: { nativeSay: text, analysis: copy.feedback.fallback },
-        business: { nativeSay: text, analysis: copy.feedback.fallback },
-        formal: { nativeSay: text, analysis: copy.feedback.fallback },
-      };
-      setFeedback(fallbackFeedback);
-      recordExpressionHintOpened(fallbackFeedback);
+      setFeedback(null);
     } finally { setLoading(false); }
   };
 
   const handleRegenerateFeedback = async () => {
     const language = uiLanguage === "en" ? "en" : "zh";
     removeCachedFeedback(npcId, messageId, text, language);
-    setFeedback(null);
     setLoading(true);
     setFeedbackError(false);
     try {
@@ -1107,6 +1116,9 @@ export function ChatBubble({
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
+      if (!hasValidFeedbackSuggestions(nextFeedback)) {
+        throw new Error("invalid feedback");
+      }
       setFeedback(nextFeedback);
       setFeedbackError(false);
       setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
