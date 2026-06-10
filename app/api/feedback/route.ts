@@ -27,8 +27,20 @@ function cleanAsrArtifacts(value: string): string {
     .trim();
 }
 
+function stripDecorations(value: string): string {
+  return value
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
+    .replace(/[\u{2600}-\u{27BF}]/gu, "")
+    .replace(/[＊*_`#>]/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/［[^］]*］/g, "")
+    .replace(/（笑）|\(笑\)|www+|ｗｗｗ+/gi, "")
+    .replace(/[~〜～]{2,}/g, "〜")
+    .trim();
+}
+
 function normalizeNativeSay(value: string): string {
-  return cleanAsrArtifacts(value).replace(/^["「『]|["」』]$/g, "").trim();
+  return stripDecorations(cleanAsrArtifacts(value).replace(/^["「『]|["」』]$/g, ""));
 }
 
 function compactExpression(value: string): string {
@@ -356,7 +368,7 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 请严格只输出 JSON（不要 markdown 代码块），结构如下：
 {
   "casual": {
-    "nativeSay": "轻松闲聊场合的地道日文（偏タメ口或柔软丁寧語，可带适量 😊）",
+    "nativeSay": "轻松闲聊场合的地道日文（偏タメ口或柔软丁寧語）",
     "analysis": "用中国大白话写一段双层分析，必须包含两层意思，建议用【场合】和【原句】两个小标题引导：① 为什么在这个场合要这么说；② 用户原先的日文在这个场合里具体哪里不太行（语体、距离感、敬语、生硬度等）。语气温和，像陪练朋友。"
   },
   "business": {
@@ -378,7 +390,8 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 - 不要说「你错了」，不要考试批改口吻，改用「这里会有点…」「更自然的做法是…」
 - 不要写内部解释，例如「系统暂时可能生成完整建议」
 - 【关键】nativeSay 必须是完全自然的日语，绝对不要包含用户原句中的英文长片段（如 "i just feel", "these days", "warmer and damper"）或连续英文字母超过3个的非日语常用词
-- nativeSay 只能包含：日语假名、汉字、日语标点、表情符号，以及极少量日语中常用的英文缩写（如 LINE、SNS、AI、カフェ）
+- nativeSay 只能包含：日语假名、汉字、日语标点，以及极少量日语中常用的英文缩写（如 LINE、SNS、AI、カフェ）
+- nativeSay 不要包含 emoji、颜文字、markdown、括号动作描写；不要用 😅、😊、😂、w、www、（笑） 来表达情绪
 
 【重要】混合语言处理规则：
 - 用户的句子中经常混入英语或中文词汇，这是因为他们还不会对应的日语表达才用母语/英语替代的
