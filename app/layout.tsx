@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AlphaAccessGate } from "./alpha-access-gate";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Kotomachi",
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="ja">
       <body className="bg-[#F3EDE0] text-[#2D4A1F] min-h-screen antialiased">
         <AlphaAccessGate>{children}</AlphaAccessGate>
+        <Analytics />
       </body>
     </html>
   );
