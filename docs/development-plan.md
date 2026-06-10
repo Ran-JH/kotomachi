@@ -7,7 +7,7 @@
 
 ## 0. Current Status / 当前阶段
 
-Kotomachi 当前处于 **MVP v1.x + 5 NPC + conversation rhythm v0 baseline + ongoing polish** 阶段。
+Kotomachi 当前处于 **MVP v1.x + 6 NPC + conversation rhythm v0 baseline + ongoing polish** 阶段。
 
 - [x] 可以运行
 - [x] 可以自用
@@ -77,19 +77,20 @@ Kotomachi 当前处于 **MVP v1.x + 5 NPC + conversation rhythm v0 baseline + on
 
 ### 1.5 世界观与连续性
 
-- [x] 5 NPC：Misaki / Kimura / Taisho / Haruka / Aoi
+- [x] 6 NPC：Misaki / Kimura / Taisho / Haruka / Aoi / Nana
 - [x] NPC life arc system
 - [x] Shared world state
 - [x] Cross mentions
 - [x] Memory / familiarity 的轻量 LocalStorage 机制
 - [x] Avatar style spec v1：scene-object badge / 物件徽章方向
-- [x] 5 NPC baseline complete：
+- [x] 6 NPC baseline complete：
   - Misaki / 美咲：咖啡馆，轻丁寧，安静闲聊；
   - Kimura / 木村：便利店，随意口语，年轻熟人感；
   - Taisho / 大将：居酒屋，熟客口语，年长者寒暄；
   - Haruka / 遥：研究室 / 校园，轻丁寧，前辈请教；
   - Aoi / 葵：学生ラウンジ / サークル仲間，タメ口，同级朋友；
-- [x] 当前已覆盖日常、校园、朋友、前辈请教、下班后等核心关系语境场景。
+  - Nana / 七海：街区生活支援ラウンジ，生活落地支援，轻丁寧，帮助练习生活场景日语表达。
+- [x] 当前已覆盖日常、校园、朋友、前辈请教、下班后、生活落地等核心关系语境场景。
 
 ### 1.6 近期完成的质量强化
 
@@ -138,12 +139,13 @@ Kotomachi 当前处于 **MVP v1.x + 5 NPC + conversation rhythm v0 baseline + on
   - 后续跨模块改动应先参考 system map。
 - [x] Guided Scenario baseline complete：
   - Free Chat + Guided Scenario 双入口已形成；
-  - 5 个 NPC 均已有对应场景类型：
+  - 6 个 NPC 均已有对应场景类型：
     - Kimura：便利店场景（便当结账、找商品、点关东煮、问支付方式、问打折、买热柜小食）；
     - Misaki：咖啡馆场景（点咖啡、问咖啡推荐、点甜点、找座位）；
     - Taisho：居酒屋场景（第一次进店、先点一杯、不喝酒时怎么说、问今日推荐、点一份小菜、追加点单、今天有点累、结账）；
     - Haruka：校园/研究室场景（第一次进研究室、请前辈帮忙看一下、文献看不懂、ゼミ里简单发言、发表前有点紧张、课后确认没听懂）；
     - Aoi：同龄朋友 small talk 场景（问最近喜欢什么、接住朋友推荐、加入不熟的话题、说想放空一下、问下课后安排、委婉说下次吧）；
+    - Nana：街区生活支援场景（租房初期费用、看房问条件、役所手续、听不懂请再说一遍、手机/网络、垃圾分类、药局说明症状、银行/邮局窗口咨询）；
   - 功能型小店 NPC 覆盖便利店/咖啡馆/居酒屋；
   - Haruka 覆盖校园/研究室轻请教；
   - Aoi 覆盖同龄朋友 small talk moves；
@@ -187,8 +189,9 @@ Kotomachi 不应被写成：
 | Taisho / 大将 | 居酒屋 | 熟客口语，年长者寒暄 | 一天结束、吃喝、疲惫、夜晚闲聊 | 人生导师腔、说教 |
 | Haruka / 遥 | 研究室 / 校园 | 轻丁寧，前辈请教 | 研究室、发表、文献、留学前不安 | 老师腔、顾问腔 |
 | Aoi / 葵 | 学生ラウンジ / サークル仲間 | タメ口，同级朋友 | 兴趣、放课后、朋友语气、最近推荐 | 太黏、太恋爱、太二次元 |
+| Nana / 七海 | 街区生活支援ラウンジ | 轻丁寧，生活落地支援 | 生活落地表达、租房问费用、役所手续、手机网络、垃圾分类 | 行政顾问化、翻译工具化 |
 
-当前 5 个 NPC 已经足够覆盖一批核心关系语境。近期不继续快速堆 NPC 数量。
+**当前 6 个 NPC 已经足够覆盖一批核心关系语境。近期不继续快速堆 NPC 数量。**
 
 ---
 
@@ -211,6 +214,7 @@ Kotomachi 不应被写成：
 - Misaki 是否心理咨询腔；
 - Taisho 是否人生导师腔；
 - Kimura 是否太冷、太短、接不住话；
+- Nana 是否行政顾问化、翻译工具化；
 - topic ideas 是否真的能帮助用户接话；
 - welcome 是否自然、有边界、不刷屏；
 - Review Cards 是否在短对话后仍不尴尬；
@@ -487,7 +491,7 @@ Kotomachi 不走这些方向：
 - Review Cards 是否能在短对话后给出不尴尬的小复盘；
 - Topic ideas 是否能帮助用户继续说，而不是给泛泛话题；
 - Welcome 是否自然、有边界、不刷屏；
-- 5 个 NPC 是否保持各自关系语境和 register；
+- 6 个 NPC 是否保持各自关系语境和 register；
 - 移动端 / PWA 是否足够稳定用于使用。
 
 ---

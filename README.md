@@ -20,8 +20,8 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 - This is **not** an App Store / Play Store native release.
 - 可以通过 alpha access code gate 做小范围测试。
 - An alpha access code gate can be enabled for limited testing.
-- 当前状态：MVP v1.x 已可用，5 NPC 已接入，小范围 beta / polish 正在进行。
-- Current state: MVP v1.x is usable, five NPCs are available, and small beta / polish work is ongoing.
+- 当前状态：MVP v1.x 已可用，6 NPC 已接入，小范围 beta / polish 正在进行。
+- Current state: MVP v1.x is usable, six NPCs are available, and small beta / polish work is ongoing.
 
 ## 核心理念 / Core Ideas
 
@@ -40,10 +40,10 @@ Kotomachi is currently deployed as a **PWA-style mobile web app** for self-use a
 
 - **Hybrid homepage v1**：雨后街区 hero 氛围层 + scene grouping + horizontal NPC cards + continue last chat + daily inspiration。
 - **Hybrid homepage v1**: Rainy-street hero atmosphere layer with scene grouping, horizontal NPC cards, continue last chat, and daily inspiration sections.
-- **NPC chat**：五位街区角色——美咲（咖啡馆）、木村（便利店）、大将（居酒屋）、遥（研究室）、葵（学生ラウンジ）——覆盖不同关系语境和说话 register。
-- **NPC chat**: Five street people — Misaki (cafe), Kimura (convenience store), Taisho (izakaya), Haruka (lab/campus), and Aoi (student lounge) — covering different relationship contexts and speaking registers.
-- **Guided Scenarios**：Free Chat 之外的第二种开口方式。用户可以选择一个具体生活小场景（便利店结账、咖啡馆点单、居酒屋点菜、研究室打招呼等）开始对话。场景不是课程，不是任务，不评分，不通关。用户可以随时回到随便聊。
-- **Guided Scenarios**: A second entry mode alongside Free Chat. Users can choose a concrete life micro-scenario (convenience store checkout, cafe ordering, izakaya ordering, lab greeting, etc.) to start. Scenarios are not lessons, tasks, or scored. Users can return to free chat at any time.
+- **NPC chat**：六位街区角色——美咲（咖啡馆）、木村（便利店）、大将（居酒屋）、遥（研究室）、葵（学生ラウンジ）、七海（生活支援ラウンジ）——覆盖不同关系语境和说话 register。
+- **NPC chat**: Six street people — Misaki (cafe), Kimura (convenience store), Taisho (izakaya), Haruka (lab/campus), Aoi (student lounge), and Nana (life-support lounge) — covering different relationship contexts and speaking registers.
+- **Guided Scenarios**：Free Chat 之外的第二种开口方式。用户可以选择一个具体生活小场景（便利店结账、咖啡馆点单、居酒屋点菜、研究室打招呼、生活落地问租房/垃圾分类/手机网络等）开始对话。场景不是课程，不是任务，不评分，不通关。用户可以随时回到随便聊。
+- **Guided Scenarios**: A second entry mode alongside Free Chat. Users can choose a concrete life micro-scenario (convenience store checkout, cafe ordering, izakaya ordering, lab greeting, life-support topics like rental costs, garbage sorting, phone/internet, etc.) to start. Scenarios are not lessons, tasks, or scored. Users can return to free chat at any time.
 - **Expression hints**：每条用户消息都能看到三档语气建议（casual / neutral / formal），并支持播放和分析。
 - **Expression hints**: Three register levels (casual / neutral / formal) for each user message, with audio playback and analysis.
 - **Word explanation**：可选中或双击词语查看读音、释义、句子上下文和语感说明。

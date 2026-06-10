@@ -244,6 +244,7 @@ The "language town feeling" comes from multiple lightweight sources working toge
 | **Taisho** | 一日の終わりの街、夜の明かりと常連、仕事帰りに寄ってくる人 | 居酒屋は夜の収束点 | 研究室の文献を無理に言う、人生相談師化する |
 | **Haruka** | カフェは文献を読むのに適している、コンビニのお菓子/飲み物、ラウンジとキャンパスの日常 | キャンパス生活は自然にカフェ、コンビニ、ラウンジをつなぐ | 留学カウンセラー化する、不自然な居酒屋の常連関係を言う |
 | **Aoi** | コンビニのお菓子、カフェ、放課後のラウンジ、最近みんなが話していること | 同級生のスモールトークは軽い日常をつなげる | 恋愛化する、しつこい、過去の記憶を捏造する |
+| **Nana** | 役所や生活サポートカウンターのこと、生活の小さな不安 | 新規来日者が街の他の場所に触れる | 行政コンサルタント化する、ユーザーが過去にどこに行ったかを捏造する |
 
 ### World State Consistency Rules
 
@@ -280,6 +281,7 @@ Guided Scenarios enhance entry but can risk turning NPCs into "functional tools"
 - Taisho's scenes: izakaya *regular*, not ordering lesson
 - Haruka's scenes: senpai *advice*, not professor/consultant
 - Aoi's scenes: friend *small talk*, not social task
+- Nana's scenes: life-support *helper*, not admin consultant or translation tool
 
 ### Cross Mention Prompt Rule
 
@@ -314,6 +316,7 @@ Do not invent user history or private facts.
 | `taisho` | Izakaya | Regular / older shop owner | Regular-customer casual | End-of-day chat, food/drink, warm casual speech | Life coach / lecture | same |
 | `haruka` | Lab / campus | Senpai / askable senior | Gentle polite | Lab, seminar, literature, study-abroad uncertainty | Professor / consultant / teacher | same |
 | `aoi` | Student lounge / after-school | Same-age friend | Tameguchi | Hobbies, recommendations, friend-like casual speech | Romance, dependency, anime-like tone | same |
+| `nana` | Life-support lounge | Life newcomer support | Light polite | Life落地表达、租房、役所、手机网络、垃圾分类 | Admin consultant, translation tool | same |
 
 ### NPC Integration Checklist
 
