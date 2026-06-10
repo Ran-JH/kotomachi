@@ -214,6 +214,40 @@ function extractLatinWords(value: string): string[] {
   return words;
 }
 
+function isDecorativeEmojiCodePoint(code: number): boolean {
+  return (
+    (code >= 0x1f300 && code <= 0x1faff) ||
+    (code >= 0x2600 && code <= 0x27bf)
+  );
+}
+
+function hasExpressionDecoration(value: string): boolean {
+  if (
+    value.includes("（笑）") ||
+    value.includes("(笑)") ||
+    value.includes("www") ||
+    value.includes("ｗｗｗ")
+  ) {
+    return true;
+  }
+
+  if (/[＊*_`#>\[\]［］]/.test(value)) {
+    return true;
+  }
+
+  if ((value.includes("(") || value.includes("（")) && /[\^_・ω´｀;；:：=~\-]/.test(value)) {
+    return true;
+  }
+
+  for (const char of value) {
+    const code = char.codePointAt(0);
+    if (code === undefined) continue;
+    if (isDecorativeEmojiCodePoint(code)) return true;
+  }
+
+  return false;
+}
+
 export function isValidExpressionHintText(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
@@ -226,6 +260,7 @@ export function isValidExpressionHintText(value: string): boolean {
     }
   }
   if (!hasJapanese) return false;
+  if (hasExpressionDecoration(trimmed)) return false;
 
   const latinWords = extractLatinWords(trimmed);
   if (latinWords.length === 0) return true;
@@ -233,11 +268,13 @@ export function isValidExpressionHintText(value: string): boolean {
 }
 
 export function isValidExpressionHintRecord(record: ExpressionHintRecord): boolean {
-  return (
-    isValidExpressionHintText(record.suggestions.casual ?? "") ||
-    isValidExpressionHintText(record.suggestions.normal ?? "") ||
-    isValidExpressionHintText(record.suggestions.formal ?? "")
-  );
+  const suggestions = [
+    record.suggestions.casual,
+    record.suggestions.normal,
+    record.suggestions.formal,
+  ].filter((value): value is string => Boolean(value?.trim()));
+
+  return suggestions.length > 0 && suggestions.every((value) => isValidExpressionHintText(value));
 }
 
 function byCreatedDesc(a: { createdAt?: string }, b: { createdAt?: string }): number {
