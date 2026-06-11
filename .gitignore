@@ -42,3 +42,4 @@ docs/private/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+*.wav

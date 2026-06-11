@@ -1,3 +1,25 @@
+## Spike Result: Azure Pronunciation Assessment
+
+Voice Advice 的 Azure Pronunciation Assessment spike 已经在本地 route 中验证过，确实能够触发真实 Azure 调用。
+
+当前在 `ja-JP` 的短句测试里，可以拿到：
+
+- aggregate scores
+- recognizedText
+
+但当前测试没有拿到足够稳定、可操作的 word-level / syllable-level details，无法支撑 Kotomachi 想要的老师式、具体、词级反馈。
+
+结论如下：
+
+- aggregate scores 和 recognizedText-only 的信息量不足；
+- metadata-only / transcript-only / recognizedText-only 都不应包装成正式 Voice Advice；
+- Voice Advice UI 暂缓，不对普通用户开放；
+- 当前保留的是 disabled experimental route，而不是产品能力。
+
+Decision: keep the spike code disabled, do not expose Voice Advice in the product UI, and defer productization.
+
+未来只有在找到更可靠的日语发音评估 provider，或者把功能改成固定跟读 / listen-and-repeat 场景后，才重新评估 Voice Advice 的产品化。
+
 # Voice Advice v0
 
 ## 1. Purpose
