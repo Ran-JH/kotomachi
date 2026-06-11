@@ -43,6 +43,16 @@
 
 ## Current stage note
 
+### 2026-06-11 - STT mishearing confirmation became a better direction
+- Source: internal product planning / Voice Advice exploration
+- Feature area: speech input reliability / NPC prompt behavior
+- Observation: Voice Advice as pronunciation assessment was deferred, but the exploration surfaced a more Kotomachi-native idea: when STT is unreliable, NPCs can briefly confirm the intended meaning and continue the conversation naturally.
+- Diagnosis: this is conversation repair, not scoring, and it fits the low-pressure chat loop better than a feedback card.
+- Decision: track STT Mishearing Confirmation as a future NPC behavior and keep it separate from Voice Advice.
+- Public note: Kotomachi should handle speech uncertainty like a real chat partner, not like a pronunciation judge.
+- Severity: Low
+- Status: Planned
+
 ### 2026-06-02 - MVP stabilization and roadmap reset
 - Source: internal status update / public docs sync
 - Feature area: cross-project docs / roadmap
