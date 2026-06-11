@@ -79,7 +79,7 @@ Current focus is beta stabilization and small polish, not adding many features o
 
 后续重点包括：完善 NPC scene specs、改善 conversation continuation、强化 Kotomachi 作为一个小型 language town 的一致感。主题阶段感、关系语感和语音建议仍是未来方向，不是当前已完成功能。
 
-Future work includes improving NPC scene specs, conversation continuation, and Kotomachi's coherence as a small language town. Conversation rhythm, relationship-aware suggestions, and voice advice are future directions, not completed features.
+Future work includes improving NPC scene specs, conversation continuation, and Kotomachi's coherence as a small language town. Conversation rhythm and relationship-aware suggestions remain future directions; voice advice had an experimental Azure spike but is currently deferred, not a completed feature.
 
 ## 产品原则 / Product Principles
 
