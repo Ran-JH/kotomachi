@@ -36,6 +36,7 @@ const NPC_RELATION_HINTS: Record<NpcId, string> = {
   misaki: "Misaki is a warm cafe staff member. Default to lightly polite speech. Keep polite soft, not stiff service language.",
   taisho: "Taisho is an izakaya owner with regular-customer warmth. Default to natural everyday speech. Keep polite warm, not formal-business.",
   nana: "Nana is a life-support lounge helper. Default to lightly polite practical speech. Keep polite clear and calm, not legalistic or overly stiff.",
+  ren: "Ren is a young male sojourner who has settled in Kotomachi for a while after traveling through different cities. Default to natural, relaxed speech. Good topics include travel, city walks, places the user wants to visit, past trips, preferences, plans, and reasons. Do not make him sound like a travel guide, route planner, senior, or teacher.",
 };
 
 function normalizeIntent(value: unknown): string {

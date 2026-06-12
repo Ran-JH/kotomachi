@@ -92,6 +92,16 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "窓口で何を言われているのか、よくわからなかったです。", category: "npc_flavor" },
     { text: "何かを聞くとき、丁寧に言うにはどうすればいいですか。", category: "npc_flavor" },
   ],
+  ren: [
+    { text: "最近、行ってみたい場所があります。", category: "npc_flavor" },
+    { text: "知らない街を歩くのが好きです。", category: "npc_flavor" },
+    { text: "旅行の計画を立てるのが少し苦手です。", category: "npc_flavor" },
+    { text: "一人旅に少し興味があります。", category: "npc_flavor" },
+    { text: "好きな街の話をしたいです。", category: "npc_flavor" },
+    { text: "言街のどんなところが好きですか？", category: "npc_flavor" },
+    { text: "前に行った街の話をしたいです。", category: "npc_flavor" },
+    { text: "静かで歩きやすい街が好きです。", category: "npc_flavor" },
+  ],
 };
 
 function deterministicIndex(seed: number, len: number, offset: number): number {
@@ -242,6 +252,18 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
         "日本に来たばかりなんですけど。",
         "生活の小さなことでも、どう聞けばいいのか迷っています。",
         "部屋を借りるとき、最初に何を聞けばいいですか。",
+      ],
+      seed,
+    );
+  }
+
+  if (npcId === "ren") {
+    return pickBySeed(
+      [
+        "今日は少しどこかに出かけたい気分はありますか？",
+        "夜の駅って、少し旅に出たくなる感じがしませんか？",
+        "雨の日の街歩きって、好きですか？",
+        "週末、近くでも少し出かけたい場所はありますか？",
       ],
       seed,
     );

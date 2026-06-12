@@ -12,16 +12,29 @@ const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
   misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
   nana: { name: "七海", kana: "ななみ", place: "まちの生活サポートラウンジ" },
+  ren: { name: "蓮", kana: "れん", place: "言街駅前" },
 };
 
-// 这里提示的是“说话气质 / 关系距离”，不是任务标签，所以只写说话感觉。
+// 这里展示的是“说话感觉 / 关系距离”，不是功能标签。
 const NPC_TONE_LABELS: Record<NpcId, { zh: string; en: string }> = {
   aoi: { zh: "平语 / タメ口", en: "Informal / Tameguchi" },
-  haruka: { zh: "轻丁寧", en: "Gentle polite Japanese" },
+  haruka: { zh: "轻丁宁", en: "Gentle polite Japanese" },
   kimura: { zh: "随意口语", en: "Casual" },
-  misaki: { zh: "轻丁寧", en: "Gentle polite" },
+  misaki: { zh: "轻丁宁", en: "Gentle polite" },
   taisho: { zh: "熟客口语", en: "Regular-customer casual" },
-  nana: { zh: "轻丁寧", en: "Light polite" },
+  nana: { zh: "轻丁宁", en: "Light polite" },
+  ren: { zh: "旅居者", en: "Sojourner" },
+};
+
+// 首页卡片需要更短、更稳定的短句，避免个别 NPC 文案在小卡上显得拥挤。
+const NPC_HOME_CARD_OVERRIDES: Partial<Record<NpcId, { ja: string; en?: string }>> = {
+  nana: {
+    ja: "困ったときに、言街ラウンジで相談できる人。",
+  },
+  ren: {
+    ja: "旅の途中で、言街にしばらく住んでいる人。",
+    en: "A young sojourner who settled in Kotomachi for a while.",
+  },
 };
 
 interface SceneEntrySectionProps {
@@ -99,11 +112,16 @@ interface NpcMiniCardProps {
 function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   const info = NPC_INFO[npcId];
   const avatar = NPC_AVATARS[npcId];
-  const homeCardLine = getNpcHomeCardLine(npcId);
+  const homeCardOverride = NPC_HOME_CARD_OVERRIDES[npcId];
+  const homeCardLine =
+    uiLanguage === "en" && homeCardOverride?.en
+      ? homeCardOverride.en
+      : homeCardOverride?.ja ?? getNpcHomeCardLine(npcId, uiLanguage === "en" ? "en" : "ja");
   const toneLabel = uiLanguage === "zh" ? NPC_TONE_LABELS[npcId].zh : NPC_TONE_LABELS[npcId].en;
-  const metaLine = npcId === "nana"
-    ? "ななみ・生活サポート・軽丁寧"
-    : `${info.kana} · ${info.place} · ${toneLabel}`;
+  const metaLine =
+    npcId === "nana"
+      ? "ななみ · ラウンジ · 轻丁宁"
+      : `${info.kana} · ${info.place} · ${toneLabel}`;
 
   return (
     <Link
@@ -119,9 +137,9 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
       <span className="mb-0.5 text-[12px] font-medium text-[#28231A]">{info.name}</span>
       <span className="text-[11px] leading-relaxed text-[#7A7060]">{metaLine}</span>
 
-      <div className="mt-1 w-full px-1">
-        <span className="line-clamp-2 text-xs leading-relaxed text-[#6B8F5E]">
-          「{homeCardLine}」
+      <div className="mt-1 flex min-h-[2.9rem] w-full items-start px-1">
+        <span className="line-clamp-2 text-[11px] leading-5 text-[#6B8F5E]">
+          {homeCardLine}
         </span>
       </div>
 

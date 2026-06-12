@@ -82,6 +82,11 @@ function getNpcVoiceConfig(npcId: NpcId): {
       speedRatio: 1.12,
       pitchRatio: 1.0,
     },
+    ren: {
+      voiceType: process.env.VOLCENGINE_TTS_VOICE_KIMURA ?? "BV524_streaming",
+      speedRatio: 1.0,
+      pitchRatio: 1.0,
+    },
     taisho: {
       voiceType: process.env.VOLCENGINE_TTS_VOICE_TAISHO ?? "BV524_streaming",
       speedRatio: 0.9,

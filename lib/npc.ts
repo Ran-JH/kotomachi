@@ -1,4 +1,4 @@
-export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana";
+export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren";
 
 export const NPC_NAMES: Record<NpcId, string> = {
   aoi: "葵 🎧",
@@ -7,6 +7,7 @@ export const NPC_NAMES: Record<NpcId, string> = {
   misaki: "美咲 ☕",
   taisho: "大将 🍺",
   nana: "七海",
+  ren: "蓮 🧭",
 };
 
 export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
@@ -16,6 +17,7 @@ export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
   misaki: "美咲",
   taisho: "大将",
   nana: "七海",
+  ren: "蓮",
 };
 
 export function getNpcDisplayName(npcId: NpcId): string {
@@ -29,6 +31,8 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   misaki: "/avatars/misaki_avatar.png",
   taisho: "/avatars/taisho_avatar.png",
   nana: "/avatars/nana_avatar.png",
+  // TODO: replace with /avatars/ren_avatar.png
+  ren: "/avatars/kimura_avatar.png",
 };
 
 interface ArcState {
@@ -392,6 +396,125 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
             "一度に全部決めなくても、気になることから確認すれば大丈夫です。",
           ],
         },
+      ],
+    },
+  ],
+  ren: [
+    {
+      id: "just_staying_for_a_while",
+      description: "旅をしながらいろんな街に住んできたあと、言街にしばらく落ち着いている時期",
+      states: [
+        {
+          label: "落ち着く",
+          thoughts: [
+            "この街、歩いているだけで少し気分がほどけるんだよね。",
+            "しばらくいるつもりじゃなかったけど、意外と居心地がいい。",
+          ],
+        },
+        {
+          label: "ふと外に出たい",
+          thoughts: [
+            "静かな街にいると、逆に少し遠くにも行きたくなる。",
+            "今日は少しだけ、知らない道を歩きたい気分かも。",
+          ],
+        },
+        {
+          label: "比べたくなる",
+          thoughts: [
+            "街って、それぞれ歩く速さが違う気がする。",
+            "にぎやかな街もいいけど、落ち着く場所ってやっぱり別だよね。",
+          ],
+        },
+        {
+          label: "また戻ってきた感じ",
+          thoughts: [
+            "出かけても、戻ってくる場所があると少し安心する。",
+            "言街に戻ると、妙に呼吸しやすい感じがするんだ。",
+          ],
+        },
+      ],
+      crossMentions: [
+        "美咲さんのカフェ、窓際の席が落ち着くんだよね。",
+        "駅前のコンビニ、夜に寄ると少しだけ旅の帰りみたいな気分になる。",
+        "川沿いを歩くと、この街に残った理由が少し分かる気がする。",
+      ],
+    },
+    {
+      id: "short_trip_and_return",
+      description: "近くへ少し出かけて、また言街に戻ってくる時期",
+      states: [
+        {
+          label: "行ってみたい",
+          thoughts: [
+            "遠すぎなくても、少し違う街に行くだけで気分が変わる。",
+            "次はどこに寄ろうかなって考える時間、けっこう好きなんだ。",
+          ],
+        },
+        {
+          label: "計画はゆるめ",
+          thoughts: [
+            "きっちり決めるより、少し余白があるほうが好きかも。",
+            "予定を詰めすぎると、街を見る前に疲れちゃうんだよね。",
+          ],
+        },
+        {
+          label: "小さな面倒もある",
+          thoughts: [
+            "たまに道に迷うくらいなら、それもまあ旅っぽい。",
+            "出かけるのは好きだけど、準備だけは今でも少し苦手だな。",
+          ],
+        },
+        {
+          label: "戻ってひと息",
+          thoughts: [
+            "少し出かけたあとの静かな街って、前よりよく見える。",
+            "帰ってきてから話したくなることって意外とあるよね。",
+          ],
+        },
+      ],
+      crossMentions: [
+        "駅前って、夜になると少し旅に出たくなる空気があるよね。",
+        "大将の店みたいに、戻ってきて寄れる場所があるのは助かる。",
+        "guesthouse の共有スペースでぼんやりしてると、次の行き先を考えたくなる。",
+      ],
+    },
+    {
+      id: "becoming_part_of_the_street",
+      description: "言街での暮らしが少しずつ自分のものになってきた時期",
+      states: [
+        {
+          label: "街になじむ",
+          thoughts: [
+            "最初は通りすがりだったのに、今は歩く道にも少し慣れてきた。",
+            "戻ってくる場所って、急にできるものじゃないんだね。",
+          ],
+        },
+        {
+          label: "人の流れを見る",
+          thoughts: [
+            "駅前で人の流れを見てるだけでも、その街らしさって出るよね。",
+            "静かな街でも、ちゃんと動いてる感じが好きなんだ。",
+          ],
+        },
+        {
+          label: "また比べたくなる",
+          thoughts: [
+            "ほかの街に行くと、言街の静かさを思い出すことがある。",
+            "住む街と訪れる街って、やっぱり見え方が違うよね。",
+          ],
+        },
+        {
+          label: "気楽に話したい",
+          thoughts: [
+            "こういう街の話って、軽く話すくらいがちょうどいい。",
+            "好きな場所の理由って、話してるうちに分かることもあるよね。",
+          ],
+        },
+      ],
+      crossMentions: [
+        "川沿いは、時間によって空気が少し変わるのがいいんだ。",
+        "美咲さんの店も、雨の日はいつもより静かに感じる。",
+        "駅前を歩いてると、この街もちゃんと人が行き来してるんだなって思う。",
       ],
     },
   ],
@@ -780,6 +903,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "雨の降る日",
     ambientTexts: ["小雨の夜。", "遠くで傘を閉じる音がした。", "雨の匂いが少し濃い。"],
     reactions: {
+      ren: "雨の日の街って、歩く人が少なくて輪郭が見えやすいんだよね。",
       aoi: "雨の日って、学生ラウンジでだらっと話したくなるんだよね。",
       haruka: "雨の日は研究室も少し静かで、集中しやすいですね。",
       misaki: "雨の日は店の空気が少しやわらかくなる気がします。",
@@ -794,6 +918,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "蒸し暑い日",
     ambientTexts: ["空気がむっとしている。", "遠くで蝉が鳴いている。", "冷たい飲み物がほしくなる。"],
     reactions: {
+      ren: "暑い日は、遠くまで行くより近くをゆっくり歩くくらいがちょうどいいかも。",
       aoi: "この暑さだと、外より中でだらっとしたくなるかも。",
       haruka: "この暑さだと、研究室まで歩くだけで少し疲れますね。",
       misaki: "今日は冷たい一杯のほうが合いそうですね。",
@@ -808,6 +933,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "静かな昼下がり",
     ambientTexts: ["駅前がいつもより静か。", "遠くで電車の音だけがする。", "空気が少し平たい。"],
     reactions: {
+      ren: "こういう静かな時間だと、次に行きたい場所のことを考えやすいんだ。",
       aoi: "こういう静かな空気だと、ちょっと話しやすくない？",
       haruka: "こんな静かな空気だと、文献も少し読みやすいです。",
       misaki: "店も少し静かで、コーヒーの香りがよく残ります。",
@@ -822,6 +948,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "にぎやかな時間",
     ambientTexts: ["遠くで笑い声がした。", "夜風に食べ物の匂いが混じっている。", "駅前がいつもより明るい。"],
     reactions: {
+      ren: "夜の駅前って、少しだけどこかへ出たくなる感じがしない？",
       aoi: "こういうにぎやかな空気って、なんとなく誰かと話したくならない？",
       haruka: "少しにぎやかな空気でも、話せる場所はちゃんとありますよ。",
       misaki: "こういう時間は、少しだけ人の流れが変わりますね。",
@@ -836,6 +963,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "秋の気配",
     ambientTexts: ["風が少し冷たい。", "落ち葉が端にたまっている。", "空が高く見える。"],
     reactions: {
+      ren: "少し涼しい街って、歩くだけでも気分が変わるから好きなんだよね。",
       aoi: "秋って、なんか話しやすい空気になる気がする。",
       haruka: "秋になると、キャンパスを歩くだけでも少し落ち着きますね。",
       misaki: "こういう日は、熱いコーヒーがしっくりきます。",
@@ -850,6 +978,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "じめじめした日",
     ambientTexts: ["空気が重い。", "髪が少しまとまりにくい。", "街全体がゆっくりしている。"],
     reactions: {
+      ren: "こういう湿った空気の街も、歩いてみると意外と嫌いじゃないんだ。",
       aoi: "このじめっとした感じ、妙にだるくならない？",
       haruka: "梅雨の時期って、なんとなく肩も重くなりますよね。",
       misaki: "こういう日は、静かに過ごしたくなります。",
@@ -871,7 +1000,7 @@ export function getWorldContext(localDateContext: LocalDateContext = getLocalDat
 }
 
 export function isNpcId(id: string): id is NpcId {
-  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho" || id === "nana";
+  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho" || id === "nana" || id === "ren";
 }
 
 const HOME_CARD_LINES: Record<NpcId, string[]> = {
@@ -928,9 +1057,18 @@ const HOME_CARD_LINES: Record<NpcId, string[]> = {
   nana: [
     "生活のことで気になることがあれば、小さなことから一緒に整理しましょう。",
   ],
+  ren: [
+    "旅居到言街的年轻男性。常常出门，也常常回来，适合聊旅行、城市和想去的地方。",
+    "A young sojourner who settled in Kotomachi for a while. Good for talking about travel, cities, and places you want to visit.",
+  ],
 };
 
-export function getNpcHomeCardLine(npcId: NpcId): string {
+export function getNpcHomeCardLine(npcId: NpcId, language: "zh" | "en" | "ja" = "ja"): string {
+  // Ren 的首页说明按本 patch 需求固定为中/英文文案，不走其他 NPC 的日语轮播句。
+  if (npcId === "ren") {
+    return language === "en" ? HOME_CARD_LINES.ren[1] : HOME_CARD_LINES.ren[0];
+  }
+
   const today = new Date();
   const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
   const lines = HOME_CARD_LINES[npcId];

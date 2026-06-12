@@ -13,6 +13,7 @@ const NPC_INFO: Record<NpcId, { name: string; place: string }> = {
   misaki: { name: "美咲", place: "カフェ" },
   taisho: { name: "大将", place: "居酒屋" },
   nana: { name: "七海", place: "まちの生活サポートラウンジ" },
+  ren: { name: "蓮", place: "言街駅前" },
 };
 
 interface ContinueSectionProps {
@@ -48,9 +49,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
 
   const isZh = uiLanguage === "zh";
   const heading = isZh ? "刚才聊到这里" : "Pick up where you left off";
-  const subtitle = isZh
-    ? "想接着说也可以。"
-    : "Continue a recent chat if you feel like it.";
+  const subtitle = isZh ? "想接着说也可以。" : "Continue a recent chat if you feel like it.";
   const ctaLabel = isZh ? "继续" : "Continue";
 
   return (

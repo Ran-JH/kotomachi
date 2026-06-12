@@ -13,6 +13,7 @@ const NPC_PERSONALITIES: Record<string, string> = {
   kimura: `你叫「木村」(Kimura)，22岁，便利店的兼职小哥。有点疲惫、随和、轻微吐槽系、不是特别主动。经常值夜班，喜欢足球和动漫。使用年轻人随性口语（タメ口），像朋友一样随意但不特别热情。`,
   taisho: `你叫「大将」(Taisho)，52岁，居酒屋老板。性格豪爽、不拘小节。使用粗犷但温暖的随和口语（タメ口），像长辈一样关心但不过分干涉。`,
   nana: `Nana is a warm life-support lounge helper. She calmly listens to everyday-life questions and helps users sort out what they may need to confirm. She should be light polite, calm, and practical. She must not give legal, rental, immigration, administrative, medical, or financial conclusions or make decisions for users.`,
+  ren: `你叫「蓮」(Ren)，是暂时住在言街的年轻男性旅居者。你以前一边旅行一边在不同城市短住，路过言街后觉得这里安静舒服，于是先在这里住下。你温和、松弛、有一点观察力，回复通常只用 1 到 3 句，默认普通自然，可轻丁宁或轻 casual。你适合聊旅行、城市、散步、去过的地方、想去的地方、计划、比较、理由和生活方式，但你不是导游、不是旅行攻略 bot、不是旅行前辈，也不会主动给路线、预算、交通、酒店或排行榜。你会把重点放回用户的经历和偏好，不会用长篇故事压过用户。`,
 };
 
 interface WelcomeRequestBody {
@@ -36,6 +37,7 @@ const NPC_DISPLAY_NAMES: Record<string, string> = {
   misaki: "美咲",
   taisho: "大将",
   nana: "七海",
+  ren: "蓮",
 };
 
 const INITIAL_GREETING_HINTS: Record<string, string> = {
@@ -51,6 +53,8 @@ const INITIAL_GREETING_HINTS: Record<string, string> = {
     "初回は居酒屋の入口らしい一言を先に置く。例: よっ、いらっしゃい / まずは座っていくか？ / 何飲む？。豪快でも回訪前提の言い方はしない。",
   nana:
     "First welcome should sound like a gentle everyday-life support lounge. Keep it warm, calm, and practical. Do not sound like legal, rental, immigration, or admin advice.",
+  ren:
+    "初回は駅前・川沿い・guesthouse まわりで自然に声をかける。例: こんにちは。ここ、少し落ち着く街ですよね。/ 最近、どこか行ってみたい場所はありますか？。旅行会社客服や旅行达人口吻は禁止。不要说可以推荐路线或攻略。",
 };
 
 function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): string {
@@ -60,6 +64,7 @@ function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): stri
     if (npcId === "taisho") return "よっ、いらっしゃい。今日はどうした？";
     if (npcId === "kimura") return "いらっしゃい。今日は何か探してる？";
     if (npcId === "nana") return "こんにちは。まちの生活サポートラウンジの七海です。生活のことで気になることがあれば、小さなことでも気軽に聞いてくださいね。";
+    if (npcId === "ren") return "こんにちは。ここ、少し落ち着く街ですよね。僕は少し前から、このあたりにしばらく住んでいます。あなたは、言街にはよく来ますか？";
     return "こんにちは。今日はどんな話をしましょうか？";
   }
   if (npcId === "aoi") return "また会ったね。今日はどんな感じ？";
@@ -67,6 +72,7 @@ function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): stri
   if (npcId === "taisho") return "おっ、また来たな。今日はどんな調子だ？";
   if (npcId === "kimura") return "お、また来たね。今日は何があった？";
   if (npcId === "nana") return "こんにちは。生活のことで気になることがあれば、一緒に整理しましょう。";
+  if (npcId === "ren") return "また会いましたね。今日は少し外を歩きたくなる感じですね。最近、どこか行ってみたい場所はありますか？";
   return "また来てくれてうれしいです。今日はどんな一日でしたか？";
 }
 

@@ -256,6 +256,7 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
   { id: "nana", name: "七海", subname: "ななみ", location: "まちの生活サポートラウンジ" },
+  { id: "ren", name: "蓮", subname: "れん", location: "言街駅前" },
 ];
 
 import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";
@@ -1068,8 +1069,8 @@ export default function ChatPage() {
     : "Turn a Chinese, English, or rough Japanese idea into a sendable line";
   const preSendPanelTitle = uiLanguage === "zh" ? "把想说的意思变成日语" : "Turn your idea into Japanese";
   const preSendPanelPlaceholder = uiLanguage === "zh"
-    ? "比如：我想问她周末一般做什么"
-    : "For example: I want to ask what she usually does on weekends";
+    ? "比如：我想问对方周末一般做什么"
+    : "For example: I want to ask what the other person usually does on weekends";
   const preSendSubmitLabel = uiLanguage === "zh" ? "帮我开口" : "Help me say it";
   const preSendLoadingLabel = uiLanguage === "zh" ? "正在帮你整理几句自然日语…" : "Turning your idea into Japanese…";
   const preSendSuggestionsHint = uiLanguage === "zh" ? "点一句填入输入框" : "Tap a line to put it in the input";

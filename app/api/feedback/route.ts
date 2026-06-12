@@ -121,7 +121,7 @@ function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
   return { nativeSay, analysis };
 }
 
-const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana"] as const;
+const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren"] as const;
 const VALID_NPC_ID_SET = new Set<string>(VALID_NPC_IDS);
 
 function parseNpcId(value: unknown): string | null {
@@ -143,6 +143,8 @@ function getNpcExpressionContext(npcId: string | null): string {
       return "Current conversation partner: Taisho, an izakaya owner with a regular-customer distance. Suggestions may feel warm and familiar, but not preachy or like life advice.";
     case "nana":
       return "Current conversation partner: Nana, a life-support lounge helper for newcomers in Japan. Suggestions should help users ask everyday life questions clearly and politely, without legal, rental, immigration, medical, or financial conclusions.";
+    case "ren":
+      return "Current conversation partner: Ren, a lightly familiar sojourner staying in Kotomachi for a while. Suggestions should stay natural and low-pressure, fit travel, cities, walking, plans, preferences, comparisons, and reasons, avoid over-formality, and must not sound like travel-guide copy, route planning, budget advice, or a Japanese teacher.";
     default:
       return "No specific NPC context. Use general Japanese register guidance.";
   }
