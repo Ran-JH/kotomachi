@@ -1,423 +1,525 @@
 # Kotomachi System Map
 
-## 1. Purpose
+## Purpose
 
-This document is the high-level system map for Kotomachi / 言街.
+Kotomachi 的 `system-map` 现在同时承担 AI Navigation Map / codegraph-lite 的作用。
 
-It is used to:
+这个文档的目的不是替代代码，而是帮助 ChatGPT / Codex / Trae 在动手前快速判断：
 
-- record the main module relationships;
-- prevent existing feature dependencies from being forgotten;
-- help locate impact areas when adding NPCs, changing topic ideas, changing world state, or changing review cards;
-- serve as a context entry point for ChatGPT / Codex / Trae collaboration.
+- 哪个功能主要落在哪些文件；
+- 哪些 API route 负责什么；
+- 哪些 UI 入口对应哪些代码；
+- 哪些区域属于稳定区，不应顺手重写；
+- 不同任务应该先读哪一小组文件，而不是反复扫全仓。
 
-This is not a detailed feature spec. It is a navigation map for the current product system.
+它的目标是：
 
-## 2. Product Loop Overview
+- reduce repeated repo scanning;
+- help AI agents choose the smallest relevant file set;
+- make Codex / Trae prompts more precise;
+- keep product boundaries visible;
+- avoid accidental changes to stable systems.
+
+明确规则：
+
+```text
+This document is a navigation aid, not the source of truth.
+The actual code remains the source of truth.
+```
+
+## Product Loop Overview
 
 ```mermaid
 flowchart TD
   Home["Home"]
-  SceneEntry["Scene / NPC entry"]
-  Inspiration["Today Inspiration"]
-  Continue["Continue chat"]
-  Welcome["NPC welcome"]
+  Entry["NPC / Scene entry"]
+  Welcome["Welcome line"]
   Chat["Chat page"]
   UserInput["User input"]
-  NpcReply["NPC reply"]
-  LearningAids["Learning aids"]
-  Feedback["Expression Hints"]
+  ChatAPI["/api/chat"]
+  Reply["NPC reply"]
+  Aids["Learning aids"]
+  Hints["Expression Hints"]
   Explain["Word Explanation"]
-  TopicIdeas["Topic Ideas"]
+  Ideas["Topic Ideas / Response Options"]
   Voice["TTS / STT / self playback"]
   Review["Review Cards"]
-  Saved["Saved Items"]
 
-  Home --> SceneEntry
-  Home --> Inspiration
-  Home --> Continue
-  SceneEntry --> Welcome
-  Inspiration --> Chat
-  Continue --> Chat
+  Home --> Entry
+  Entry --> Welcome
   Welcome --> Chat
   Chat --> UserInput
-  UserInput --> NpcReply
-  NpcReply --> Chat
-  Chat --> LearningAids
-  LearningAids --> Feedback
-  LearningAids --> Explain
-  LearningAids --> TopicIdeas
-  LearningAids --> Voice
-  Feedback --> Saved
-  Explain --> Saved
+  UserInput --> ChatAPI
+  ChatAPI --> Reply
+  Reply --> Chat
+  Chat --> Aids
+  Aids --> Hints
+  Aids --> Explain
+  Aids --> Ideas
+  Aids --> Voice
   Chat --> Review
-  Saved --> Review
 ```
 
-## 3. Core Module Map
+## AI Navigation Map / Codegraph-lite
 
-| Module | User-facing role | Key files | Depends on | Risk / notes |
-|---|---|---|---|---|
-| Home page | Entry into the language town | `app/page.tsx`, `components/home/*` | `lib/npc.ts`, `lib/home-scenes.ts`, `lib/starter-prompts.ts`, LocalStorage recent chat | Homepage has hardcoded NPC info in multiple components. |
-| Chat page | LINE-style NPC conversation surface | `app/chat/[npcId]/page.tsx` | NPC config, memory, localStorage, API routes, UI copy | This is the main integration point; avoid turning it into a learning dashboard. |
-| NPC config | Names, avatars, life arcs, world state, card lines | `lib/npc.ts` | LocalStorage arc offset, date seed | Adding an NPC requires updates across several `Record<NpcId, ...>` maps. |
-| Starter prompts / topic pool | Opening mode prompts and homepage inspiration | `lib/starter-prompts.ts` | NPC state, world state, date seed | Fixed starter pool should not hardcode weather unless supported by current world state. |
-| Topic ideas API | Context-aware continuation suggestions | `app/api/topic-ideas/route.ts` | Recent messages, NPC scene hints, worldDescription / worldReaction | Client world state should be preferred; server `getWorldContext()` is fallback. |
-| Chat API | NPC pure-Japanese reply | `app/api/chat/route.ts` | NPC prompt branch, memories, life arc, cross mentions, world state | Register drift and proactive teaching are core risks. |
-| Welcome API | Initial / revisit greeting and fact extraction | `app/api/welcome/route.ts` | History, facts, recent assistant messages, life arc, world state | Must not repeat welcome or leak revisit tone into initial welcome. |
-| Word explanation API | On-demand word lookup | `app/api/explain/route.ts` | Selected text, source sentence, UI language | Feeds recent lookups and saved words. |
-| Expression hints | On-demand expression rewriting | `app/api/feedback/route.ts`, `components/chat-bubble.tsx` | User message, UI language, cache | Must stay auxiliary; not main-chat correction. |
-| Review card API | Soft landing after short chat | `app/api/session-summary/route.ts`, `lib/session-summary.ts` | Recent messages, non-Japanese spans, recent lookups, recent expression hints | Should summarize evidence, not grade or fabricate. |
-| Saved items | Saved words and expressions | `lib/saved-items.ts`, `components/saved-items-panel.tsx` | Word explanation, expression hints | Must survive start-over. |
-| World state / life arc | Street atmosphere and NPC continuity | `lib/npc.ts` | Date seed, optional local arc offset | Used by home, welcome, chat, topic ideas. |
-| localStorage | Browser-local memory and learning assets | `lib/memory.ts`, `lib/saved-items.ts`, `lib/session-summary.ts` | Browser availability | Schema compatibility matters; no account/database yet. |
-| PWA / assets | Mobile app-like usage and visual identity | `public/*`, avatar paths in `lib/npc.ts` | Browser/PWA cache behavior | `<img>` warnings and Edge PWA icon cache are known/deferred. |
-
-## 4. World State Flow
-
-```mermaid
-flowchart TD
-  LocalDate["lib/npc.ts:getLocalDateContext()"]
-  Seasonal["Seasonal cultural hints"]
-  World["lib/npc.ts:getWorldContext()"]
-  HomeHero["Home hero atmosphere"]
-  Inspiration["Homepage inspiration"]
-  ChatPage["Chat page"]
-  WelcomeAPI["/api/welcome"]
-  ChatAPI["/api/chat"]
-  TopicAPI["/api/topic-ideas"]
-  ServerDateFallback["Server getLocalDateContext fallback"]
-  ServerFallback["Server getWorldContext fallback"]
-
-  LocalDate --> HomeHero
-  LocalDate --> ChatPage
-  LocalDate --> Seasonal
-  Seasonal --> WelcomeAPI
-  Seasonal --> ChatAPI
-  Seasonal --> TopicAPI
-  World --> HomeHero
-  World --> Inspiration
-  World --> ChatPage
-  ChatPage -->|localDateContext + worldDescription / worldReaction| WelcomeAPI
-  ChatPage -->|localDateContext + worldDescription / worldReaction| ChatAPI
-  ChatPage -->|localDateContext + worldDescription / worldReaction| TopicAPI
-  ServerDateFallback -->|only if client local date missing| WelcomeAPI
-  ServerDateFallback -->|only if client local date missing| ChatAPI
-  ServerDateFallback -->|only if client local date missing| TopicAPI
-  ServerFallback -->|only if client world missing| TopicAPI
-```
-
-Current decisions:
-
-- Topic seeds are stable conversation skeletons.
-- Seasonal cultural hints are optional cultural material derived from local month / season.
-- World state is a weather / time / street atmosphere overlay.
-- Local date context is the source of truth for year / month / day / weekday / weekend / time-of-day hard facts.
-- Calendar facts such as weekday / weekend should not be randomized as atmosphere copy.
-- Month, season, holiday, and seasonal-event references must come from local date context or explicit world state support, not model invention.
-- Seasonal hints must not be asserted as real-time events unless world state or recent messages explicitly support them.
-- Topic ideas should prefer `worldDescription` / `worldReaction` passed from the current page.
-- Chat / welcome / topic ideas should prefer `localDateContext` passed from the current page.
-- Server-side `getWorldContext()` is only a fallback for topic ideas when client world state is missing.
-- Server-side `getLocalDateContext()` is only a fallback when client local date context is missing.
-- Avoid writing fixed starter pool items that hardcode rainy / sunny states.
-- Weather should be mentioned only when current world state or recent messages support it.
-- Chat / welcome / topic ideas prompts should not contradict the provided world state.
-- Chat / welcome / topic ideas prompts should not contradict the provided local date context.
-- Do not anchor Kotomachi itself to real-world place names. Real place names are allowed when the user explicitly asks about travel, geography, or culture. Use general-knowledge framing and avoid real-time claims.
-
-## 5. Topic Ideas / Conversation Seed Flow
-
-```mermaid
-flowchart TD
-  SeedLibrary["Future conversation seed library"]
-  FixedPool["Current fixed starter pool"]
-  Opening["Opening mode"]
-  RecentMessages["Recent messages"]
-  Continuation["Continuation mode"]
-  TopicAPI["/api/topic-ideas"]
-  UserLine["User opening line"]
-  Hint["Continuation hint"]
-  FutureHook["Future NPC hook"]
-  ReviewAngle["Review card angle"]
-  RegisterHints["Relationship-aware expression hints"]
-
-  SeedLibrary --> FixedPool
-  FixedPool --> Opening
-  Opening --> UserLine
-  RecentMessages --> Continuation
-  Continuation --> TopicAPI
-  SeedLibrary --> TopicAPI
-  TopicAPI --> Hint
-  SeedLibrary -.future.-> FutureHook
-  SeedLibrary -.future.-> ReviewAngle
-  SeedLibrary -.future.-> RegisterHints
-```
-
-Rules:
-
-- Fixed starter pool is for opening mode.
-- Context-aware topic ideas are for continuation mode.
-- The topic pool should evolve toward a conversation seed library.
-- Starter prompts are not the same as NPC hooks.
-- Seed directions can support:
-  - user opening line;
-  - continuation hint;
-  - future NPC hook;
-  - review card angle;
-  - relationship-aware expression hints.
-
-## 5.1 Guided Scenario Flow
-
-```mermaid
-flowchart TD
-  SceneConfig["lib/conversation-scenes.ts"]
-  ChatPage["Chat page scene picker"]
-  ActiveScene["activeScene (UI state)"]
-  ChatAPI["/api/chat scene-aware prompt"]
-  TopicAPI["/api/topic-ideas as response options"]
-  ExitDivider["Exit divider (UI-only)"]
-  FreeChat["Return to free chat"]
-
-  SceneConfig --> ChatPage
-  ChatPage --> ActiveScene
-  ActiveScene --> ChatAPI
-  ActiveScene --> TopicAPI
-  ChatAPI --> ExitDivider
-  TopicAPI --> ExitDivider
-  ExitDivider --> FreeChat
-```
-
-### State Ownership
-
-| State | Owner | Persistence | Notes |
-|---|---|---|---|
-| `activeSceneId` | Chat page React state | None (session-local) | Cleared on start-over, NPC switch, or explicit exit |
-| `ConversationScene config` | `lib/conversation-scenes.ts` | Code | Scene definitions are static config |
-| `scene opening` | Scene config `npcOpening` | None | Inserted as assistant message, not from /api/welcome |
-| `scene divider` | UI-only marker | None | Filtered out from chat/topic/summary/TTS/review |
-| `responseOptionsJa` | Scene config | Code | Fallback / prompt examples for response options |
-
-### Scene Divider Filtering
-
-Scene dividers must be filtered out from:
-
-- `/api/chat` (not sent as message)
-- `/api/topic-ideas` (not in recentMessages)
-- `/api/session-summary` (not in evidence)
-- TTS (not played)
-- Review Card (not in content)
-- Expression Hints (not processed)
-- Word Explanation (not processed)
-
-### Maintenance Rules
-
-- Do not turn scenes into courses / tasks / scoring.
-- Scene is soft context, not hard state machine.
-- No completion / correctness check.
-- No stage directions / action descriptions in NPC replies.
-- No false memory claims.
-- Preserve NPC register within scenes.
-- Help panel: copy-only patches, no structural changes.
-
-## 5.2 Town Feeling Sources
-
-The "language town feeling" comes from multiple lightweight sources working together. These create the sense of a cohesive small world without requiring complex shared memory or world models.
-
-| Source | Owner / File | Role | Notes |
-|---|---|---|---|
-| World State | `lib/npc.ts` / `getWorldContext()` | Shared daily atmosphere | Soft global mood based on date seed |
-| Local Date Context | `lib/npc.ts` / `getLocalDateContext()` | Date / weekday / time / season truth | Hard facts only; single source of truth |
-| Seasonal Hints | chat / welcome / topic ideas prompts | Optional seasonal material | Not real-time events |
-| NPC Life Arc | `NPC_ARCS` | Light continuity | Not user memory; NPC's own small changes |
-| Cross Mentions | `crossMentions` / `neighborHint` | Light town texture | Occasional only; optional |
-| Home Card Lines | `HOME_CARD_LINES` | Homepage atmosphere | Scene-specific copy, rotates daily |
-| Scene Grouping | `lib/home-scenes.ts` | Homepage structure | Daily / campus grouping |
-| Guided Scenario | `lib/conversation-scenes.ts` | Scene-grounded openings | Should not turn NPCs into tools |
-
-### Cross-NPC Mention Matrix
-
-| Speaker NPC | Natural Mentions | Why It Works | Avoid |
-|---|---|---|---|
-| **Misaki** | 研究室の人がコーヒーを買いに来る、学生が放課後に座る、街が静かになる | カフェは街の交差点 | 居酒屋のメニューを頻繁に言う、他のNPCの行動を報道するように言う |
-| **Kimura** | 学生が放課後にお菓子を買う、夜勤後に街の灯りがまだついている、大将のところは夜になるとにぎやか | コンビニは日常の節目、学生と夜の生活をつなぐ | 他のNPCの私生活を過度に展開する、ユーザーが過去にどこに行ったかを捏造する |
-| **Taisho** | 一日の終わりの街、夜の明かりと常連、仕事帰りに寄ってくる人 | 居酒屋は夜の収束点 | 研究室の文献を無理に言う、人生相談師化する |
-| **Haruka** | カフェは文献を読むのに適している、コンビニのお菓子/飲み物、ラウンジとキャンパスの日常 | キャンパス生活は自然にカフェ、コンビニ、ラウンジをつなぐ | 留学カウンセラー化する、不自然な居酒屋の常連関係を言う |
-| **Aoi** | コンビニのお菓子、カフェ、放課後のラウンジ、最近みんなが話していること | 同級生のスモールトークは軽い日常をつなげる | 恋愛化する、しつこい、過去の記憶を捏造する |
-| **Nana** | 役所や生活サポートカウンターのこと、生活の小さな不安 | 新規来日者が街の他の場所に触れる | 行政コンサルタント化する、ユーザーが過去にどこに行ったかを捏造する |
-
-### World State Consistency Rules
-
-#### Shared Global State, Local Reaction
-
-On the same day, all NPCs share:
-- Date
-- Time-of-day
-- Season
-- Global town mood / world state
-
-But different NPCs/places can have different local reactions.
-
-**Example (not a contradiction):**
-- Aoi's lounge: lively after-school atmosphere
-- Misaki's cafe: still quiet and calm
-- Kimura: more students buying snacks
-
-**What to avoid (real contradictions):**
-- One place says rainy, another says sunny
-- Homepage says daytime, NPC says nighttime
-- World state has no weather but NPC invents rain/snow
-- Local date is weekday but NPC says weekend
-- Mentioning real-world place names like 下北沢 / 渋谷 / 東京
-- Treating seasonal hints as real-time events happening today
-
-### Guided Scenario and Town Feeling
-
-Guided Scenarios enhance entry but can risk turning NPCs into "functional tools". Town Feeling helps balance this risk.
-
-**Scene NPCs should remain character-like:**
-- Kimura's scenes: convenience store *person*, not a training robot
-- Misaki's scenes: cafe *chat*, not customer service flow
-- Taisho's scenes: izakaya *regular*, not ordering lesson
-- Haruka's scenes: senpai *advice*, not professor/consultant
-- Aoi's scenes: friend *small talk*, not social task
-- Nana's scenes: life-support *helper*, not admin consultant or translation tool
-
-### Cross Mention Prompt Rule
+### Agent Usage Rules
 
 ```text
-Cross mentions should be rare, optional texture.
-Use them only when they naturally fit the current topic, world state, or scene.
-Do not force cross mentions into every reply.
-Do not interrupt an active Guided Scenario just to mention another NPC.
-Do not invent user history or private facts.
+Before editing, identify the feature area.
+Read only the primary files listed for that feature.
+Do not scan the whole repo unless the task explicitly requires cross-cutting review.
+Do not modify deferred zones.
+Report files read, files changed, risks, and manual checks.
 ```
 
-**中文规则：**
-- cross mention 是低频环境纹理
-- 不是剧情
-- 不是关系网
-- 不是 shared memory
-- 不应喧宾夺主
+### Feature -> File Map
 
-### Minimal Implementation Plan
+#### Home / Landing page
 
-1. **Docs**: Record town feeling source map and cross mention matrix (this document)
-2. **Prompt**: Later, if real tests show cross mentions are too rare, lightly strengthen `neighborHint`
-3. **QA**: Observe whether world state, local date, and scene context stay consistent in real use
-4. **No complex shared memory or world model**
-
-## 6. NPC System Map
-
-| npcId | Scene | Relationship | Register | Key learning value | Drift risk | Key files touched when adding NPC |
-|---|---|---|---|---|---|---|
-| `misaki` | Cafe | Light regular / gentle distance | Light polite | Quiet chat, cafe ordering, rest, light emotion | Teacher / counselor | `lib/npc.ts`, `lib/starter-prompts.ts`, home components, chat page, chat/welcome/topic APIs |
-| `kimura` | Convenience store / night shift | Young familiar counter chat | Casual | Convenience store, night shift, daily rhythm, light complaints | Too cold, too short, generic | same |
-| `taisho` | Izakaya | Regular / older shop owner | Regular-customer casual | End-of-day chat, food/drink, warm casual speech | Life coach / lecture | same |
-| `haruka` | Lab / campus | Senpai / askable senior | Gentle polite | Lab, seminar, literature, study-abroad uncertainty | Professor / consultant / teacher | same |
-| `aoi` | Student lounge / after-school | Same-age friend | Tameguchi | Hobbies, recommendations, friend-like casual speech | Romance, dependency, anime-like tone | same |
-| `nana` | Life-support lounge | Life newcomer support | Light polite | Life落地表达、租房、役所、手机网络、垃圾分类 | Admin consultant, translation tool | same |
-
-### NPC Integration Checklist
-
-When adding an NPC, check:
-
-- `lib/npc.ts`
-- `lib/starter-prompts.ts`
-- `lib/home-scenes.ts`
+Primary files:
+- `app/page.tsx`
 - `components/home/scene-entry-section.tsx`
 - `components/home/inspiration-section.tsx`
 - `components/home/continue-section.tsx`
+
+Supporting files:
+- `lib/home-scenes.ts`
+- `lib/home-continue.ts`
+- `lib/npc.ts`
+- `lib/starter-prompts.ts`
+
+Notes / risks:
+- Home 是产品入口，不应被改成 dashboard。
+- NPC 卡片、继续聊天、灵感入口都从这里出发。
+- Mainland access 与首页首屏资源通常先看这里。
+
+#### NPC profile / character data
+
+Primary files:
+- `lib/npc.ts`
+
+Supporting files:
+- `docs/npc-spec-*.md`
+- `lib/home-scenes.ts`
+- `lib/starter-prompts.ts`
+- `lib/conversation-scenes.ts`
+
+Notes / risks:
+- `lib/npc.ts` 是 NPC 基础配置中心：名字、头像、关系感、life arc、world state。
+- 新 NPC 通常不是只改一个表，而是要检查多个 `Record<NpcId, ...>`。
+- Nana 是现有稳定 NPC，不要顺手改定位。
+
+#### Chat page
+
+Primary files:
 - `app/chat/[npcId]/page.tsx`
-- `app/api/welcome/route.ts`
+
+Supporting files:
+- `components/chat-bubble.tsx`
+- `lib/memory.ts`
+- `lib/client-api-url.ts`
+- `lib/ui-copy.ts`
+- `lib/ui-language.ts`
+
+Notes / risks:
+- 这是主集成点，串起 welcome、chat、topic ideas、TTS、STT、review。
+- 不要把 chat page 变成教学控制台。
+
+#### Chat API
+
+Primary files:
+- `app/api/chat/route.ts`
+
+Supporting files:
+- `lib/llm.ts`
+- `lib/npc.ts`
+- `lib/conversation-scenes.ts`
+
+Notes / risks:
+- 核心职责是让 NPC 用自然日语继续对话。
+- 风险是 register drift、主动教学、虚构 shared memory、破坏场景软上下文。
+
+#### STT
+
+Primary files:
+- `app/api/stt/route.ts`
+
+Supporting files:
+- `lib/volcengine.ts`
+- `app/chat/[npcId]/page.tsx`
+
+Notes / risks:
+- Provider route，稳定区。
+- 不要把 STT 错误直接包装成用户语言错误。
+
+#### TTS
+
+Primary files:
+- `app/api/tts/route.ts`
+
+Supporting files:
+- `lib/volcengine.ts`
+- `lib/edge-tts.ts`
+- `lib/tts-text.ts`
+- `components/chat-bubble.tsx`
+- `app/chat/[npcId]/page.tsx`
+
+Notes / risks:
+- Provider route，稳定区。
+- `auto -> volc -> edge` 的 fallback 不要随手改坏。
+
+#### Expression Hints
+
+Primary files:
+- `app/api/feedback/route.ts`
+- `components/chat-bubble.tsx`
+
+Supporting files:
+- `app/chat/[npcId]/page.tsx`
+- `lib/feedback-types.ts`
+- `lib/expression-hint-cache.ts`
+- `lib/session-summary.ts`
+
+Notes / risks:
+- Stable system.
+- Do not reconnect `activeScene` unless explicitly requested.
+- Do not allow failed fallback hints to become saveable / playable / reviewable.
+- 用户可见日语不要混入 emoji、markdown、装饰文本。
+
+#### Topic Ideas / Response Options
+
+Primary files:
+- `app/api/topic-ideas/route.ts`
+
+Supporting files:
+- `app/chat/[npcId]/page.tsx`
+- `lib/starter-prompts.ts`
+- `lib/conversation-scenes.ts`
+- `lib/npc.ts`
+
+Notes / risks:
+- opening mode 和 continuation mode 不同，不要混成一个东西。
+- Guided Scenario 下它更像 response options，不是泛话题推荐。
+
+#### Guided Scenarios
+
+Primary files:
+- `lib/conversation-scenes.ts`
+- `app/chat/[npcId]/page.tsx`
+
+Supporting files:
 - `app/api/chat/route.ts`
 - `app/api/topic-ideas/route.ts`
+- `docs/guided-scenarios-v0.md`
+
+Notes / risks:
+- `activeSceneId` 是 soft context，不是任务状态机。
+- 不要做 completion、评分、课程化流程。
+- 不要为了场景改坏自由聊天。
+
+#### Review Cards / session summary
+
+Primary files:
 - `app/api/session-summary/route.ts`
-- saved items / review cards typing if needed
-- avatar path
-- homepage register label
-- experience log
-- docs / spec
+- `lib/session-summary.ts`
 
-Adding an NPC is not complete until it appears in scene entry, inspiration, continue/sidebar, welcome, chat, starters, topic ideas, and review/saved-compatible flows.
+Supporting files:
+- `components/chat-summary-list.tsx`
+- `components/chat-summary-detail.tsx`
+- `components/chat-bubble.tsx`
 
-## 7. Learning Asset Flow
+Notes / risks:
+- Stable extraction boundary.
+- Review 是 soft landing，不是 grading。
+- 只能总结真实 evidence，不能 fabricate。
 
-```mermaid
-flowchart TD
-  Messages["Chat messages"]
-  Feedback["Expression Hints"]
-  Explain["Word Explanation"]
-  Saved["Saved Items"]
-  Review["Review Cards"]
-  Reuse["Future reuse / relationship-aware suggestions"]
+#### Word explanation
 
-  Messages --> Feedback
-  Messages --> Explain
-  Feedback --> Saved
-  Explain --> Saved
-  Messages --> Review
-  Feedback --> Review
-  Explain --> Review
-  Saved --> Reuse
-  Review --> Reuse
-```
+Primary files:
+- `app/api/explain/route.ts`
+- `components/chat-bubble.tsx`
 
-Notes:
+Supporting files:
+- `lib/saved-items.ts`
 
-- Saved Items and Review Cards should not be deleted by start-over.
-- Start-over clears only current NPC chat and temporary memory.
-- Word Explanation feeds recent lookups and saved words.
-- Expression Hints feed possible saved expressions and recent hint signals.
-- Review Cards provide soft landing, not formal grading.
+Notes / risks:
+- 代码中的真实 route 是 `/api/explain`，不是 `/api/word-explanation`。
+- 这是按需查词，不应扩展成主动教学流。
 
-## 8. State Ownership Table
+#### Nana NPC
 
-| State / data | Source of truth | Used by | Storage | Notes |
-|---|---|---|---|---|
-| messages per NPC | `lib/memory.ts` helpers via chat page | Chat page, welcome, chat API, review cards | localStorage | Start-over clears current NPC chat. |
-| welcome timing / last visit | chat page marker helpers | Initial / revisit welcome | localStorage + sessionStorage | Revisit welcome threshold is currently 2 hours. |
-| local date context | browser local `Date`, server fallback | Home, welcome, chat, topic ideas | computed, no storage | Hard facts only: year/month/day/weekday/weekend/time of day. Do not randomize or let the model invent season/holiday facts. |
-| seasonal culture hints | derived from local date context | welcome, chat, topic ideas | computed, no storage | Optional cultural material only; not real-time events or local event claims. |
-| world state | `lib/npc.ts:getWorldContext()` | Home, chat page, welcome, chat, topic ideas | computed by date seed | Client-passed world state should drive APIs when available. |
-| NPC life arc | `lib/npc.ts:getNpcState()` | Home card lines, welcome, chat, topic ideas | computed + optional localStorage arc offset | Cross mentions come from arc config. |
-| starter prompts | `lib/starter-prompts.ts` | Chat starter chips, homepage inspiration, topic fallback | code constants | Opening mode only; future seed library source. |
-| topic ideas cache | chat page `topicIdeasCacheRef` | `+ -> 找话题` continuation mode | in-memory React ref | Cache key includes NPC, UI language, recent messages hash. |
-| saved items | `lib/saved-items.ts` | Saved panel, review signals, future reuse | localStorage | Should survive start-over. |
-| review cards | `lib/session-summary.ts` | Review panel, history, soft landing | localStorage | Should survive start-over; duplicate protection uses source fingerprint. |
-| UI language | `lib/ui-language.ts` | Home, chat, generated teaching text | localStorage | Japanese learning content remains Japanese where needed. |
-| PWA assets / avatar paths | `public/*`, `lib/npc.ts:NPC_AVATARS` | Home cards, chat sidebar, continue section | static assets + browser cache | Edge/PWA icon cache issues are known/deferred. |
+Primary files:
+- `lib/npc.ts`
 
-## 9. Current Risk Map
+Supporting files:
+- `docs/npc-spec-nana.md`
+- `lib/starter-prompts.ts`
+- `lib/conversation-scenes.ts`
+- `app/api/chat/route.ts`
+- `app/api/topic-ideas/route.ts`
 
-- World state client/server consistency.
-- Topic seed vs world-state overlay.
-- Opening mode vs continuation mode.
-- Fixed starter pool vs AI-generated topic ideas.
-- Welcome threshold / not repeating welcome.
-- NPC register drift.
-- Homepage hardcoded NPC info across multiple components.
-- localStorage compatibility.
-- Review Cards and Saved Items should survive start-over.
-- `<img>` warnings are known but currently deferred.
+Notes / risks:
+- Nana 是 life-support / newcomer-support NPC。
+- 不要把 Nana 改成行政工具、翻译工具或办事窗口机器人。
 
-## 10. Maintenance Rules
+#### Voice Advice disabled spike
 
-- Every new NPC must update the NPC integration checklist.
-- Every new API route must record which state it reads.
-- Every world state change must check welcome / chat / topic ideas / inspiration.
-- Do not randomize real calendar facts such as weekday / weekend into atmosphere copy unless they come from real current time.
-- Seasonal references must be derived from local date context or explicit world state / recent message support.
-- Seasonal hints cannot be asserted as happening events.
-- Do not anchor Kotomachi to real-world place names. Real place names are allowed when the user explicitly asks about travel, geography, or culture, but avoid real-time claims.
-- Every topic pool change must check opening fallback and topic ideas fallback.
-- Every localStorage schema change must check migration / compatibility.
-- Every homepage card structure change must check mobile and horizontal scroll.
-- Do not write future directions as completed capabilities.
+Primary files:
+- `app/api/voice-advice/route.ts`
+- `lib/voice-advice-types.ts`
 
-## 11. How to Use This Doc
+Supporting files:
+- `docs/voice-advice-v0.md`
 
-- Read this system map before starting a new cross-module task.
-- Reference the relevant section when prompting Codex / Trae / ChatGPT.
-- If a new dependency is discovered, update this system map.
-- Use this as a navigation map; go to the detailed spec files for exact behavior.
+Notes / risks:
+- Disabled experimental spike.
+- Must not be exposed in UI or production.
+- 不要把它并回 Expression Hints 或 Review Card 链路。
+
+#### Vercel Analytics
+
+Primary files:
+- `app/layout.tsx`
+
+Supporting files:
+- `package.json`
+
+Notes / risks:
+- Analytics 是可选脚本，不应影响主功能。
+- 大陆访问相关任务里通常只需确认它是否为非阻塞依赖。
+
+#### Mainland access / assets
+
+Primary files:
+- `app/page.tsx`
+- `app/layout.tsx`
+- `lib/npc.ts`
+- `public/`
+
+Supporting files:
+- `next.config.mjs`
+- `app/globals.css`
+
+Notes / risks:
+- 这类任务通常只读首页、头像、PWA 路径和静态资源引用。
+- 不要顺手改 chat logic、provider route、env 配置。
+
+### API Route Map
+
+#### `/api/chat`
+
+- Purpose: 生成 NPC 主聊天回复，保持自然日语和角色感。
+- Input / output: 输入用户文本、npcId、history、memories、localDateContext、world state、可选 `activeSceneId`；输出一条 NPC 文本回复。
+- Related features: Chat page, Guided Scenarios, world state, NPC life arc.
+- High-risk notes: 不要主动纠错；不要虚构过去对话；不要破坏 soft scene context。
+
+#### `/api/feedback`
+
+- Purpose: 生成 Expression Hints 三档表达及解释。
+- Input / output: 输入用户原句、npcId、UI language；输出 casual / business / formal 建议结构。
+- Related features: Expression Hints, saved expressions, session summary signals.
+- High-risk notes: 失败 fallback 不能进入可保存 / 可播放 / 可复盘链路。
+
+#### `/api/topic-ideas`
+
+- Purpose: 生成 continuation hints 或 scenario-aware response options。
+- Input / output: 输入 recent messages、npcId、world state、可选 `activeSceneId`；输出 idea 列表。
+- Related features: Topic Ideas, Guided Scenarios, homepage inspiration fallback.
+- High-risk notes: 不要把场景中的 response options 退化成泛话题推荐。
+
+#### `/api/stt`
+
+- Purpose: 识别用户录音，返回文本。
+- Input / output: 输入音频 `multipart/form-data`；输出 transcript 或错误信息。
+- Related features: Voice input, chat submit, future voice-side features.
+- High-risk notes: Provider route；不要把 provider 问题包装成语言教学判断。
+
+#### `/api/tts`
+
+- Purpose: 合成 NPC 或学习辅助语音。
+- Input / output: 输入文本和 `npcId`；输出 `audio/mpeg`。
+- Related features: NPC playback, Expression Hints playback, word explanation playback.
+- High-risk notes: Provider fallback 稳定区；不要随手改掉 `volc -> edge` 兜底逻辑。
+
+#### `/api/explain`
+
+- Purpose: 当前实际的 word explanation route。
+- Input / output: 输入选中文本、完整句子、UI language；输出词义、句内解释、细微语感信息。
+- Related features: Word explanation, saved words.
+- High-risk notes: 真实 route 名是 `/api/explain`；文档或任务里提到 `/api/word-explanation` 时要先对齐代码现状。
+
+#### `/api/session-summary`
+
+- Purpose: 生成 Review Cards / session summary。
+- Input / output: 输入最近消息和学习辅助 evidence；输出 summary card 数据。
+- Related features: Review Cards, chat summary list/detail, saved learning continuity.
+- High-risk notes: 只能用真实 evidence；不要变成考试评分或 fabricated study notes。
+
+#### `/api/voice-advice`
+
+- Purpose: Voice Advice spike route，用于验证 audio-aware speaking feedback 方向。
+- Input / output: 输入音频、可选 transcript / npcId / UI language；输出 voice advice 结构或禁用态错误。
+- Related features: Voice Advice spike only.
+- High-risk notes: `/api/voice-advice` is an experimental disabled spike and should not be exposed in UI or production.
+
+### UI Entry Map
+
+- Home page:
+  `app/page.tsx`
+- NPC selection / NPC cards:
+  `components/home/scene-entry-section.tsx`
+- Continue chat:
+  `components/home/continue-section.tsx`
+- Inspiration / starter entry:
+  `components/home/inspiration-section.tsx`
+- Chat page shell:
+  `app/chat/[npcId]/page.tsx`
+- User message bubble:
+  `components/chat-bubble.tsx`
+- NPC message bubble:
+  `components/chat-bubble.tsx`
+- `+` menu and learning aid actions:
+  `app/chat/[npcId]/page.tsx`, `components/chat-bubble.tsx`
+- Expression Hints panel:
+  `components/chat-bubble.tsx`
+- Topic Ideas / Response Options:
+  `app/chat/[npcId]/page.tsx`, `/api/topic-ideas`
+- Guided Scenario entry / exit:
+  `app/chat/[npcId]/page.tsx`, `lib/conversation-scenes.ts`
+- Review Card soft landing:
+  `components/chat-summary-list.tsx`, `components/chat-summary-detail.tsx`, `/api/session-summary`
+
+### Stable / Risky Zones
+
+#### Stable zones
+
+- Expression Hints fallback / validation / saveability logic
+- Guided Scenarios soft-context behavior
+- Review Card extraction boundaries
+- STT / TTS provider routes
+- custom domain / Vercel config assumptions
+
+#### Deferred zones
+
+- Voice Advice UI
+- Azure production env
+- quota system
+- login / database
+- activeScene-aware Expression Hints
+- large onboarding
+- domestic CDN / EdgeOne / 备案
+
+### Task Context Recipes
+
+#### 修改 NPC 文案 / 新 NPC
+
+Read:
+
+- `lib/npc.ts`
+- relevant `docs/npc-spec-*.md`
+- optionally `lib/conversation-scenes.ts`
+
+Do not read:
+
+- API routes unless behavior changes are requested.
+
+#### 修改 Guided Scenarios
+
+Read:
+
+- `docs/guided-scenarios-v0.md`
+- `lib/conversation-scenes.ts`
+- `app/api/topic-ideas/route.ts`
+- `app/api/chat/route.ts`
+- `app/chat/[npcId]/page.tsx`
+
+Do not touch:
+
+- Expression Hints unless explicitly requested.
+
+#### 修改 Expression Hints
+
+Read:
+
+- `app/api/feedback/route.ts`
+- `components/chat-bubble.tsx`
+- `app/chat/[npcId]/page.tsx`
+
+Warning:
+
+- Avoid `activeScene` coupling.
+- Avoid emoji / markdown / decorative text in user-facing Japanese.
+
+#### Mainland access / image optimization
+
+Read:
+
+- `app/page.tsx`
+- `app/layout.tsx`
+- `lib/npc.ts`
+- relevant `public/` assets
+
+Do not touch:
+
+- API routes
+- chat logic
+- package / env files
+
+#### Voice Advice
+
+Read:
+
+- `docs/voice-advice-v0.md`
+- `app/api/voice-advice/route.ts`
+- `lib/voice-advice-types.ts`
+
+Warning:
+
+- Disabled experimental spike.
+- Do not expose UI.
+- Do not configure production.
+
+#### Chat API behavior change
+
+Read:
+
+- `app/api/chat/route.ts`
+- `app/api/welcome/route.ts`
+- `lib/llm.ts`
+- `lib/npc.ts`
+- optionally `lib/conversation-scenes.ts`
+
+Warning:
+
+- Protect pure-Japanese NPC reply behavior.
+- Protect non-teacher boundary.
+
+#### Review Card / session summary
+
+Read:
+
+- `app/api/session-summary/route.ts`
+- `lib/session-summary.ts`
+- `components/chat-summary-list.tsx`
+- `components/chat-summary-detail.tsx`
+
+Warning:
+
+- Preserve soft landing behavior.
+- Do not turn summaries into grading or correction reports.
+
+## Current Risk Map
+
+- Chat page is still the highest coupling surface.
+- `lib/npc.ts` remains a central config hub; NPC changes are rarely single-file.
+- Guided Scenario, Topic Ideas, and Chat API share `activeScene` assumptions.
+- Expression Hints, Saved Items, and Review Cards have hidden downstream coupling.
+- Route naming mismatch exists at the doc/task language level: product language says "Word Explanation", actual route is `/api/explain`.
+- Voice Advice route exists in code but is intentionally disabled for product use.
+
+## Maintenance Rule
+
+- 每新增一个功能或大改一个功能，都应更新 `docs/system-map.md` 的对应条目。
+- 至少补充这四类信息：feature、primary files、supporting files、notes / risks。
+- 如果新增 route、UI 入口或稳定区边界，也应同步更新对应 map。
+- 这个文档保持轻量、实用、可快速定位，不写成重型架构文档。

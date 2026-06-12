@@ -82,6 +82,18 @@ Core product layers:
 - 不要把给用户看的项目文档默认写成全英文，除非用户明确要求英文版。
 - README 如果面向公开 GitHub 访客，可以中英文结合；内部 docs 默认中文优先。
 
+## System Map / AI Navigation Maintenance
+
+Kotomachi uses `docs/system-map.md` as a lightweight AI navigation map / codegraph-lite.
+
+Before making code changes, identify the relevant feature area and read the smallest related file set from `docs/system-map.md`. Do not scan the whole repository unless the task explicitly requires a cross-cutting review.
+
+Update `docs/system-map.md` when a change affects feature-to-file ownership, API route behavior, UI entry points, shared data flow, stable/risky zones, deferred features, or task context recipes.
+
+Do not duplicate the full system map inside this file. Keep the detailed navigation map in `docs/system-map.md`.
+
+In the final report, state whether `docs/system-map.md` was updated. If it was not updated after a structural change, briefly explain why it was not necessary.
+
 ## After Changes Reporting Format
 
 After making changes, report:
