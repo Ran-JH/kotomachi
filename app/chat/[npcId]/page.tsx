@@ -1590,10 +1590,12 @@ export default function ChatPage() {
                 {!activeScene && availableScenes.length > 0 && (
                   <div className="mt-3 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2.5">
                     <p className="text-[12px] font-medium text-[#2D4A1F]">
-                      {uiLanguage === "zh" ? "试一个小场景" : "Try a small scene"}
+                      {uiLanguage === "zh" ? "街角对话场景" : "Tiny conversation scenes"}
                     </p>
                     <p className="mt-0.5 text-[10px] text-[#7A7060]">
-                      {uiLanguage === "zh" ? "先从便利店结账这种小动作开始" : "Start with one tiny convenience-store moment."}
+                      {uiLanguage === "zh"
+                        ? "选一个小情境，NPC 先开场，你可以接一句。"
+                        : "Pick a small situation. The NPC starts, and you reply with one line."}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {availableScenes.map(({ sceneId, scene }) => (
@@ -1725,7 +1727,7 @@ export default function ChatPage() {
                       className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
                     >
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                        {uiLanguage === "zh" ? "练一个生活场景" : "Practice a life scene"}
+                        {uiLanguage === "zh" ? "街角对话场景" : "Tiny conversation scenes"}
                       </span>
                       <span className="block mt-0.5 text-[10px] text-[#7A7060]">
                         {uiLanguage === "zh" ? "用几句话处理一个简单的具体情景" : "Use a few lines for a simple real-life moment."}
@@ -1740,7 +1742,7 @@ export default function ChatPage() {
                         className="w-full rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-[#FAF6EE]"
                       >
                         <span className="block text-[11px] text-[#7A7060]">
-                          {uiLanguage === "zh" ? "← 生活场景" : "← Life scenes"}
+                          {uiLanguage === "zh" ? "← 街角对话场景" : "← Tiny conversation scenes"}
                         </span>
                       </button>
                       <div className="mt-2 space-y-1.5">

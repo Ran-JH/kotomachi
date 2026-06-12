@@ -51,12 +51,14 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
 
   const isZh = uiLanguage === "zh";
   const sceneTitle = isZh ? "今日街角小事" : "Tiny scene for today";
-  const sceneSubtitle = isZh ? "先从一个很小的场景说一句。" : "Start with one small line.";
-  const sceneCta = isZh ? "去说这一句" : "Try this line";
-  const starterTitle = isZh ? "随便聊一句" : "Free chat starters";
+  const sceneSubtitle = isZh
+    ? "进入一个街角对话场景，先说一句就好。"
+    : "Step into a tiny conversation scene and say just one line.";
+  const sceneCta = isZh ? "进入这个小场景" : "Enter this scene";
+  const starterTitle = isZh ? "随便聊一句" : "Free chat starter";
   const starterSubtitle = isZh
-    ? "不知道说什么时，可以先从这里开口。"
-    : "Use one of these when you want an easy way to begin.";
+    ? "没有固定场景，只是找个人轻轻开个话头。"
+    : "No fixed scene — just bring one line into a casual chat.";
 
   return (
     <section className="mx-auto w-full max-w-[1120px] px-4 py-4 md:px-5">
@@ -121,7 +123,7 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
             <div className="flex min-w-max gap-3 pr-1 md:gap-4">
               {ideas.map((item) => {
                 const name = getNpcDisplayName(item.npcId);
-                const ctaText = isZh ? `和 ${name} 聊这句` : `Talk with ${name}`;
+                const ctaText = isZh ? "带这句话去聊天" : "Start with this line";
 
                 return (
                   <Link
