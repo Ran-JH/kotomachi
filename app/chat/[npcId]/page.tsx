@@ -336,6 +336,17 @@ export default function ChatPage() {
     if (uiLanguage === "en") return scene.titleEn ?? scene.title;
     return scene.titleZh ?? scene.title;
   };
+  const getSceneMicroEpisodeCopy = (scene: {
+    id: string;
+    microEpisodeZh?: string;
+    microEpisodeEn?: string;
+    sampleUserLineJa?: string;
+  }) => ({
+    microEpisode: uiLanguage === "en"
+      ? scene.microEpisodeEn ?? scene.microEpisodeZh
+      : scene.microEpisodeZh,
+    sampleUserLineJa: scene.sampleUserLineJa,
+  });
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -1689,18 +1700,32 @@ export default function ChatPage() {
                         </span>
                       </button>
                       <div className="mt-2 space-y-1.5">
-                        {availableScenes.map((scene) => (
-                          <button
-                            key={scene.id}
-                            type="button"
-                            onClick={() => handleStartScene(scene.id)}
-                            className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
-                          >
-                            <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                              {getSceneDisplayTitle(scene)}
-                            </span>
-                          </button>
-                        ))}
+                        {availableScenes.map((scene) => {
+                          const microEpisodeCopy = getSceneMicroEpisodeCopy(scene);
+
+                          return (
+                            <button
+                              key={scene.id}
+                              type="button"
+                              onClick={() => handleStartScene(scene.id)}
+                              className="group w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                            >
+                              <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                                {getSceneDisplayTitle(scene)}
+                              </span>
+                              {microEpisodeCopy.sampleUserLineJa && (
+                                <span className="mt-0.5 block truncate text-[10px] leading-relaxed text-[#2D4A1F]/75">
+                                  「{microEpisodeCopy.sampleUserLineJa}」
+                                </span>
+                              )}
+                              {microEpisodeCopy.microEpisode && (
+                                <span className="mt-1 hidden text-[10px] leading-relaxed text-[#7A7060] md:group-hover:line-clamp-3 md:group-focus-visible:line-clamp-3">
+                                  {microEpisodeCopy.microEpisode}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

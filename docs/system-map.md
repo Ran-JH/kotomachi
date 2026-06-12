@@ -341,7 +341,7 @@ Notes / risks:
 - Related features: NPC playback, Expression Hints playback, word explanation playback.
 - High-risk notes: Provider fallback 稳定区；不要随手改掉 `volc -> edge` 兜底逻辑。
 
-#### `/api/explain`
+#### `/api/explain` (`/api/word-explanation` in task language)
 
 - Purpose: 当前实际的 word explanation route。
 - Input / output: 输入选中文本、完整句子、UI language；输出词义、句内解释、细微语感信息。
@@ -389,7 +389,7 @@ Notes / risks:
 - Review Card soft landing:
   `components/chat-summary-list.tsx`, `components/chat-summary-detail.tsx`, `/api/session-summary`
 
-### Stable / Risky Zones
+### Stable / Risky / Deferred Zones
 
 #### Stable zones
 
@@ -478,6 +478,7 @@ Warning:
 - Disabled experimental spike.
 - Do not expose UI.
 - Do not configure production.
+- Do not present recognizedText-only or aggregate-score-only feedback as real pronunciation advice.
 
 #### Chat API behavior change
 
