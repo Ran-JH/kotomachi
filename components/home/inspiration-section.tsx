@@ -11,7 +11,7 @@ import { getNpcDisplayName, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getStatusAwareTopicIdea } from "@/lib/starter-prompts";
 import { type UiLanguage } from "@/lib/ui-language";
 
-const FEATURED_SCENE_CANDIDATE_COUNT = 4;
+const ALL_FEATURED_SCENES_COUNT = 999;
 
 interface InspirationSectionProps {
   uiLanguage: UiLanguage;
@@ -55,7 +55,9 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
         idea: getStatusAwareTopicIdea(npcId),
       })),
     );
-    setFeaturedScenes(getFeaturedConversationScenes(FEATURED_SCENE_CANDIDATE_COUNT));
+    // 首页只展示 1 个 scene，但“换一个”应该能在整套街角对话场景里轮换，
+    // 这里直接取全量可用 scene，避免只在少数候选里打转。
+    setFeaturedScenes(getFeaturedConversationScenes(ALL_FEATURED_SCENES_COUNT));
     setFeaturedSceneIndex(0);
   }, []);
 
