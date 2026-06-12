@@ -66,8 +66,8 @@ function sanitizeSuggestionText(value: unknown): string {
   return value
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/^[`"'\u300c\u300d\u300e\u300f]+|[`"'\u300c\u300d\u300e\u300f]+$/gu, "")
-    .replace(/^[0-9\uFF10-\uFF19]+[.)\u3001\s-]*/u, "");
+    .replace(/^[`"'\u300c\u300d\u300e\u300f]+|[`"'\u300c\u300d\u300e\u300f]+$/g, "")
+    .replace(/^[0-9\uFF10-\uFF19]+[.)\u3001\s-]*/g, "");
 }
 
 function isTone(value: unknown): value is PreSendTone {
@@ -140,7 +140,8 @@ function buildPrompt(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as PreSendExpressionRequestBody;
-    const npcId: NpcId = isNpcId(body.npcId ?? "") ? body.npcId : "misaki";
+    const rawNpcId = body.npcId ?? "";
+    const npcId: NpcId = isNpcId(rawNpcId) ? rawNpcId : "misaki";
     const userIntent = normalizeIntent(body.userIntent);
 
     if (!userIntent) {
