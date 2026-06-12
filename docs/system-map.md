@@ -87,11 +87,16 @@ Supporting files:
 - `lib/home-continue.ts`
 - `lib/npc.ts`
 - `lib/starter-prompts.ts`
+- `lib/conversation-scenes.ts`
 
 Notes / risks:
 - Home 是产品入口，不应被改成 dashboard。
 - NPC 卡片、继续聊天、灵感入口都从这里出发。
 - Mainland access 与首页首屏资源通常先看这里。
+- **Home-level daily guided scene entry**：`InspirationSection` 包含两类开口入口：
+  - 「今日街角小事」：接入 Guided Scenario，点击后进入 `/chat/[npcId]?scene=sceneId`
+  - 「随便聊一句」：Free Chat starter，点击后进入 `/chat/[npcId]?starter=idea`
+- ContinueSection 已降权：只显示最近 1 个聊天，作为回访辅助入口。
 
 #### NPC profile / character data
 
@@ -120,10 +125,22 @@ Supporting files:
 - `lib/client-api-url.ts`
 - `lib/ui-copy.ts`
 - `lib/ui-language.ts`
+- `lib/conversation-scenes.ts`
 
 Notes / risks:
 - 这是主集成点，串起 welcome、chat、topic ideas、TTS、STT、review。
 - 不要把 chat page 变成教学控制台。
+- **Scene query handling**：
+  - 支持 `?scene=sceneId` query 参数
+  - 验证 sceneId 是否合法且属于当前 npcId
+  - 调用 `handleStartScene(sceneId)` 启动场景
+  - NPC 先开场（`npcOpening`）
+  - 输入框预填 `sampleUserLineJa`，不自动发送
+  - 使用 `router.replace()` 清除 URL 中的 scene query
+- **Welcome interaction**：
+  - 从 scene query 进入时，抑制 welcome（`suppressWelcomeForSceneRef`）
+  - scene opening 是本次进入的主开场
+  - 普通 free chat 进入仍可走 welcome / starter
 
 #### Chat API
 
@@ -206,6 +223,7 @@ Notes / risks:
 Primary files:
 - `lib/conversation-scenes.ts`
 - `app/chat/[npcId]/page.tsx`
+- `components/home/inspiration-section.tsx`
 
 Supporting files:
 - `app/api/chat/route.ts`
@@ -216,6 +234,11 @@ Notes / risks:
 - `activeSceneId` 是 soft context，不是任务状态机。
 - 不要做 completion、评分、课程化流程。
 - 不要为了场景改坏自由聊天。
+- **Home entry**：首页「今日街角小事」接入 Guided Scenario
+- **Scene query launch**：`/chat/[npcId]?scene=sceneId`
+- **NPC-first opening**：场景启动时 NPC 先开口
+- **sampleUserLineJa prefill**：输入框预填，不自动发送
+- **Featured scene selection**：`getFeaturedConversationScenes()` 每日选取
 
 #### Review Cards / session summary
 
@@ -368,10 +391,12 @@ Notes / risks:
   `app/page.tsx`
 - NPC selection / NPC cards:
   `components/home/scene-entry-section.tsx`
-- Continue chat:
+- Continue chat (lowered priority):
   `components/home/continue-section.tsx`
-- Inspiration / starter entry:
+- Inspiration / daily guided scene + Free Chat starter:
   `components/home/inspiration-section.tsx`
+  - 「今日街角小事」：接入 Guided Scenario，`/chat/[npcId]?scene=sceneId`
+  - 「随便聊一句」：Free Chat starter，`/chat/[npcId]?starter=idea`
 - Chat page shell:
   `app/chat/[npcId]/page.tsx`
 - User message bubble:
@@ -388,6 +413,59 @@ Notes / risks:
   `app/chat/[npcId]/page.tsx`, `lib/conversation-scenes.ts`
 - Review Card soft landing:
   `components/chat-summary-list.tsx`, `components/chat-summary-detail.tsx`, `/api/session-summary`
+
+### Topic / Starter Source Map
+
+- `lib/starter-prompts.ts`：
+  - Free Chat starter seeds
+  - `GLOBAL_STARTER_PROMPTS`：18 generic starter lines
+  - `NPC_STARTER_PROMPTS`：NPC-specific prompts (8-10 per NPC)
+  - `getStatusAwareTopicIdea(npcId)`：Dynamic selection based on life arc + world state
+  - `pickStarterPrompts(npcId, userMessageCount)`：Deterministic daily selection
+
+- `lib/conversation-scenes.ts`：
+  - Guided Scenario / street-corner conversation scene
+  - `CONVERSATION_SCENES`：All scene configurations
+  - `getConversationScene(sceneId)`：Get single scene
+  - `getConversationScenesForNpc(npcId)`：Get scenes for NPC
+  - `getFeaturedConversationScenes(count, now)`：Daily featured scene selection
+  - Fields: `microEpisodeZh/En`, `starterIntentZh/En`, `sampleUserLineJa`, `npcOpening`, `responseOptionsJa`
+
+- `app/api/topic-ideas/route.ts`：
+  - Chat 内动态建议
+  - `NPC_SCENE_HINTS`, `NPC_TOPIC_SEED_HINTS`, `NPC_REGISTER_HINTS`
+  - `fallbackSceneIdeas()`：使用 `scene.responseOptionsJa` when activeScene present
+  - Calls LLM for generation
+
+- `app/api/welcome/route.ts`：
+  - NPC 初次 / 再访欢迎
+  - `NPC_PERSONALITIES`：NPC character descriptions
+  - `INITIAL_GREETING_HINTS`：First welcome guidance
+  - `getFallbackWelcomeMessage()`：Backup welcome messages
+
+### Home Entry Flow
+
+```text
+Home (InspirationSection)
+├─ 今日街角小事 (Guided Scenario)
+│  ├─ getFeaturedConversationScenes() 每日选取
+│  ├─ 展示 microEpisode + sampleUserLineJa
+│  ├─ 点击 -> /chat/[npcId]?scene=sceneId
+│  └─ Chat page scene query handling
+│     ├─ 验证 sceneId
+│     ├─ handleStartScene(sceneId)
+│     ├─ NPC 先开场 (npcOpening)
+│     ├─ 输入框预填 sampleUserLineJa
+│     ├─ 不自动发送
+│     └─ router.replace() 清除 scene query
+│
+└─ 随便聊一句 (Free Chat starter)
+   ├─ getStatusAwareTopicIdea() 每日选取
+   ├─ 点击 -> /chat/[npcId]?starter=idea
+   └─ Chat page starter query handling
+      ├─ setInputText(starter)
+      └─ 不自动发送
+```
 
 ### Stable / Risky / Deferred Zones
 

@@ -34,8 +34,17 @@ Kotomachi 当前处于 **MVP v1.x + 6 NPC + conversation rhythm v0 baseline + on
 - [x] 雨后街区 hero 氛围层
 - [x] Scene grouping：按日常生活 / 校园生活组织入口
 - [x] Horizontal card scroll：支持后续 NPC / scene 扩展
-- [x] ContinueSection：继续上次聊天
+- [x] ContinueSection：继续上次聊天（已降权，只显示最近 1 个）
 - [x] InspirationSection：今日灵感 / starter prefill
+- [x] **Home-level daily guided scene entry**：
+  - 首页新增「今日街角小事」入口
+  - 接入 Guided Scenario
+  - 点击后进入 `/chat/[npcId]?scene=sceneId`
+  - 支持「换一个」切换今日场景
+- [x] **Free Chat starter retained as separate entry**：
+  - 首页「随便聊一句」入口
+  - 点击后进入 `/chat/[npcId]?starter=idea`
+  - 无固定场景，只是带一句话开聊
 - [x] 旧 heat-zone 热区交互退役
 
 ### 1.2 聊天与教学分层
@@ -149,10 +158,40 @@ Kotomachi 当前处于 **MVP v1.x + 6 NPC + conversation rhythm v0 baseline + on
   - 功能型小店 NPC 覆盖便利店/咖啡馆/居酒屋；
   - Haruka 覆盖校园/研究室轻请教；
   - Aoi 覆盖同龄朋友 small talk moves；
+  - Nana 覆盖街区生活支援场景；
   - activeScene 是临时软上下文，不写入 localStorage；
   - 场景中 `+` 菜单从"找话题"变成"下一句怎么说"；
   - 退出场景有 UI-only divider，不进入 chat/topic ideas/session summary/TTS/Review Card；
   - 不做课程、不做任务、不做评分、不做通关。
+- [x] **Home-level daily guided scene entry**：
+  - 首页新增「今日街角小事」入口
+  - 接入 Guided Scenario
+  - 点击后进入 `/chat/[npcId]?scene=sceneId`
+  - 支持「换一个」切换今日场景
+- [x] **Micro guide fields for scenes**：
+  - `microEpisodeZh/En`：情境描述，降低开口阻力
+  - `starterIntentZh/En`：用户意图说明
+  - `sampleUserLineJa`：可直接发送的日语
+  - 首页和聊天页展示这些字段
+- [x] **Scene query launch**：
+  - 聊天页支持 `?scene=sceneId` query 参数
+  - 自动启动对应 scene
+  - NPC 先开场
+  - 输入框预填 sample line
+  - 不自动发送
+- [x] **NPC-first + editable user-line prefill**：
+  - 场景启动时 NPC 先开口
+  - 输入框预填 `sampleUserLineJa`
+  - 用户可编辑后再发送
+- [x] **Prompt subtraction for more natural NPC behavior**：
+  - Nana 已修复老师化 / 顾问化 / 说明书化倾向
+  - Haruka 部分 scene opening 已更自然
+  - `/api/chat` 的 scene prompt 已精简
+  - 移除 `possibleBeats` 和 `usefulIntents` 的显性传递
+  - 强调"soft context, not a task flow"
+- [x] **ContinueSection lowered priority**：
+  - 只显示最近 1 个聊天
+  - 作为回访辅助入口，而不是首页主入口
 
 ---
 
@@ -256,7 +295,7 @@ Kotomachi 已经解决了一部分"敢开口"的问题，但当前仍存在**聊
 
 近期优先级：
 
-- 继续稳定 5 个 NPC 的真实使用体验；
+- 继续稳定 6 个 NPC 的真实使用体验；
 - 基于实际使用中的 bad case 做小修小补；
 - 小范围 polish prompt / copy / UI；
 - 保持 demo path 稳定可靠；
@@ -274,8 +313,43 @@ Kotomachi 已经解决了一部分"敢开口"的问题，但当前仍存在**聊
 - welcome 是否自然、有边界、不刷屏；
 - Review Cards 是否在短对话后仍不尴尬；
 - 查词 / 表达提示是否稳定。
+- **首页 daily scene 是否提高开口意愿**；
+- **sample line 是否真的降低第一句阻力**；
+- **NPC opening 是否自然**；
+- **Free Chat starter 是否仍有用**；
+- **ContinueSection 点击率是否低**。
 
-### 4.5 Next product expansion candidates
+### 4.5 Next phase recommendations
+
+**当前产品判断**：
+
+- 过度 prompt 约束会让 NPC 失去活人感；
+- 后续 prompt 工作应优先做"减法"，而不是继续堆规则；
+- 首页现在有两类开口入口：
+  - 有小情境：今日街角小事
+  - 无固定场景：随便聊一句
+
+**下一阶段建议**：
+
+- **先线上验收和真实使用**，不要立刻继续堆功能；
+- 重点观察：
+  - 首页 daily scene 是否提高开口意愿
+  - sample line 是否真的降低第一句阻力
+  - NPC opening 是否自然
+  - Free Chat starter 是否仍有用
+  - ContinueSection 点击率是否低
+- 基于真实反馈做小修小补，而不是预判问题
+
+**未来候选（暂不做）**：
+
+- Review Card next hook 回流；
+- 更轻量的 listen-and-repeat；
+- feedback / bad case log；
+- 首页入口点击埋点；
+- 进一步 scene copy polish；
+- 可能的新 NPC，但不要近期快速堆 NPC。
+
+### 4.6 Next product expansion candidates
 
 后续候选扩展方向（暂不做）：
 
