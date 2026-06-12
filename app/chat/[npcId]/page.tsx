@@ -473,7 +473,7 @@ export default function ChatPage() {
     if (inputText.trim()) return;
     setInputText(starter);
     starterAppliedRef.current = true;
-  }, [searchParams, inputText]);
+  }, [searchParams, inputText, sceneQueryEntry]);
   useEffect(() => {
     setUiLanguage(loadUiLanguage());
   }, []);
@@ -911,7 +911,7 @@ export default function ChatPage() {
     setIsPreSendPanelOpen(false);
   };
 
-  const handleStartScene = (sceneId: ConversationSceneId) => {
+  const handleStartScene = useCallback((sceneId: ConversationSceneId) => {
     const scene = getConversationScene(sceneId);
     if (!scene) return;
 
@@ -948,7 +948,7 @@ export default function ChatPage() {
       return next;
     });
     saveLastChatTime(npcId);
-  };
+  }, [npcId]);
 
   useEffect(() => {
     if (sceneQueryAppliedRef.current) return;
@@ -957,7 +957,7 @@ export default function ChatPage() {
     sceneQueryAppliedRef.current = true;
     handleStartScene(sceneQueryEntry.sceneId);
     router.replace(`/chat/${npcId}`);
-  }, [npcId, router, sceneQueryEntry]);
+  }, [npcId, router, sceneQueryEntry, handleStartScene]);
 
   const handleExitScene = () => {
     const afterMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
