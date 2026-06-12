@@ -197,7 +197,62 @@ Kotomachi 不应被写成：
 
 ## 4. Near-term Direction / 近期方向
 
-### 4.1 Product stabilization & polish
+### 4.1 Current Product Issue / 当前核心问题
+
+Kotomachi 已经解决了一部分"敢开口"的问题，但当前仍存在**聊天动机低 / 单个 NPC 聊不深 / 用户不知道今天说什么**的问题。这不是简单通过继续增加 NPC 就能解决的。
+
+当前阶段的核心问题不是基础能力缺失，而是 **opening motivation 不够强**：用户虽然可以选择 NPC、选择场景、查看今日灵感，但这些机制还没有完全组织成一个足够强的"我现在就知道可以说什么"的动机链条。
+
+下一阶段优先不是继续堆 NPC，而是增强：
+- 开口动机；
+- 第一句可行动性；
+- 场景情境感；
+- 上次聊天到下次聊天的回流；
+- 低压力的表达脚手架。
+
+### 4.2 Micro Episode for Guided Scenarios
+
+为现有 Guided Scenarios 增加 micro episode 层，**不改变 Guided Scenario 的原则，不做任务、评分、通关、进度**。
+
+新增概念：
+- `microEpisode`: string;      // 用户为什么会在这个场景里说话
+- `starterIntent`: string;     // 用户想表达的意图
+- `sampleUserLineJa`: string;  // 可直接发送的一句自然日语
+
+**解释**：
+- 当前 scenario title 更像"练什么"；
+- micro episode 要回答"为什么今天要说这一句"；
+- 目标是降低开口成本，而不是增加课程感。
+
+**示例**：
+- **Nana / 租房初期费用**：
+  - microEpisode：你刚看到一间房，月租还可以，但不确定礼金、押金、中介费加起来会不会很高。你想先问清楚初期费用。
+  - starterIntent：想问初期费用包括哪些项目。
+  - sampleUserLineJa：初期費用には、どんなものがありますか。
+- **Misaki / 咖啡推荐**：
+  - microEpisode：今天有点困，但不想喝太苦的咖啡。你想让美咲推荐一杯温和一点的。
+  - sampleUserLineJa：あまり苦くないコーヒーで、おすすめはありますか。
+- **Aoi / 加入不熟的话题**：
+  - microEpisode：朋友提到一个你不太熟的话题，但你有点感兴趣，想自然接住。
+  - sampleUserLineJa：それ、あんまり詳しくないけど、ちょっと気になる。
+
+### 4.3 Homepage "今日街角小事" Direction
+
+把当前"今日灵感"的未来增强方向记录为：
+- 不只是底部 inspiration cards；
+- 可以升级为更强的开口入口；
+- 每天从 topic seed / scenario seed / review hook 中选 2-3 个；
+- 卡片必须包含：
+  - NPC；
+  - micro situation；
+  - 一句可直接发送的日语；
+  - 进入对应 NPC 的 CTA。
+
+**建议命名**：今日街角小事 / 今天先说一句 / 今日のひとこと / A small thing to say today
+
+**原则**：这不是任务系统，不是打卡，不是每日挑战，只是低压力开口入口。
+
+### 4.4 Product stabilization & polish
 
 近期优先级：
 
@@ -220,18 +275,20 @@ Kotomachi 不应被写成：
 - Review Cards 是否在短对话后仍不尴尬；
 - 查词 / 表达提示是否稳定。
 
-### 4.2 Next product expansion candidates
+### 4.5 Next product expansion candidates
 
 后续候选扩展方向（暂不做）：
 
-- 新 NPC 内容扩展；
-- 旅行 / 职场 / 书店 / 图书馆等新场景；
-- feedback button；
-- lightweight learning preferences；
-- voice advice v1；
-- relationship-aware expression suggestions；
-- possible multilingual template expansion；
-- public demo / social sharing polish。
+- **"我想说……" pre-send expression support**：当前 Expression Hints 是用户说完之后的改写/三档建议；未来可以探索一个"说之前扶一把"的入口；用户输入中文/英文/日语碎片；系统根据当前 NPC、register、activeScene 生成 2-3 句自然日语；用户可一键发送或编辑；它和 Expression Hints 的区别是发生在发送之前。**注意**：不要改 Expression Hints 当前实现；不要接 activeScene 到 Expression Hints；这只是 future candidate；后续需要单独设计和风险评估。
+- **Review Card hook 回流**：让 Review Card 的 next hook 不只停留在总结面板里；后续可以回流到：Continue Last Chat、首页今日灵感/今日街角小事、聊天页顶部轻提示、"用这句话继续聊"按钮。**原则**：基于真实对话生成；不编造历史；不制造 false memory；不把它做成任务或 streak。
+- **新 NPC 内容扩展**；
+- **旅行 / 职场 / 书店 / 图书馆等新场景**；
+- **feedback button**；
+- **lightweight learning preferences**；
+- **voice advice v1**；
+- **relationship-aware expression suggestions**；
+- **possible multilingual template expansion**；
+- **public demo / social sharing polish**。
 
 ### 4.3 Deferred / 暂不做
 
@@ -439,6 +496,18 @@ Implementation sketch（未来）：
 - Voice Advice 已做过 Azure Pronunciation Assessment spike；本地可触发真实评估，但 `ja-JP` 测试结果主要只有 aggregate score / recognizedText，缺少足够稳定的词级细节，暂不作为产品功能开放。
 - STT Mishearing Confirmation / Conversation Repair 是另一条方向：它属于 NPC 的对话修复行为，不是 Voice Advice。
 
+**Listen-and-repeat 重新定义（低优先级 future candidate）**：
+- 不做自由语音评分；
+- 不假装提供老师级 pronunciation advice；
+- Azure Pronunciation Assessment spike 已证明自由短句下细粒度反馈不可靠；
+- 如果未来做，可以只做低压力 listen-and-repeat：
+  - 听推荐表达；
+  - 用户跟读；
+  - 回听自己的录音；
+  - 不评分；
+  - 不给细粒度错误定位；
+  - 只用于 Expression Hints / Saved Expressions / Review Card expressions / Scenario sample lines。
+
 长期阶段：
 
 - V0：用户能回听自己说的话；
@@ -457,6 +526,21 @@ Implementation sketch（未来）：
 - 先确认可理解性，再给建议。
 
 近期暂缓，不作为当前 sprint。
+
+### 6.3 Magical Realism NPC Candidate / 有趣型 NPC
+
+**记录为 future NPC expansion candidate，不要写成近期必做。**
+
+**判断**：
+- 现有 6 NPC 已覆盖主要生活 / 校园 / 朋友 / 支援关系场景；
+- 后续如果继续加 NPC，可以开始把 "interestingness / curiosity" 作为指标之一；
+- 但不能直接使用 Hogwarts / Harry Potter 等强 IP；
+- 可以做原创 Kotomachi magical realism 方向，例如：
+  - 雨天街角旧书店；
+  - 夜晚图书室；
+  - 神秘杂货店；
+  - 星見書房；
+  - 养着猫头鹰的稍微神秘但温和的店主 / 图书管理员。
 
 ---
 
