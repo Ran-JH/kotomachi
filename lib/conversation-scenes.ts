@@ -746,7 +746,7 @@ export const CONVERSATION_SCENES = {
     shortLabelEn: "Lab greeting",
     setup: "用户第一次进入研究室，不知道怎么自然打招呼。",
     userGoal: "自然地向前辈或研究室成员打招呼，并说明自己是第一次来。",
-    npcOpening: "初めて研究室に来るときって、少し緊張しますよね。まずは軽く挨拶できれば大丈夫です。",
+    npcOpening: "こんにちは。ここに来るのは初めてですか？今は少し静かなので、話しやすいかもしれません。",
     possibleBeats: ["说明第一次来", "向前辈打招呼", "询问坐哪里或在哪里等", "简单道谢"],
     usefulIntents: ["想说第一次来研究室", "想向前辈打招呼", "想问在哪里等", "想简单道谢"],
     responseOptionsJa: [
@@ -780,7 +780,7 @@ export const CONVERSATION_SCENES = {
     shortLabelEn: "Ask for help",
     setup: "用户想请前辈帮忙看一下资料、表达或准备内容，但不想显得太打扰。",
     userGoal: "自然地向前辈提出一个轻量请教请求。",
-    npcOpening: "先輩に聞くときは、少しだけ見てもらえるか、軽く聞くくらいで大丈夫ですよ。",
+    npcOpening: "その資料ですか？少しなら一緒に見られますよ。",
     possibleBeats: ["说明想请教", "请求看一下", "说明不会占太多时间", "表达感谢"],
     usefulIntents: ["想请教一个问题", "想请对方看一下", "想说不会花太多时间", "想道谢"],
     responseOptionsJa: [
@@ -814,7 +814,7 @@ export const CONVERSATION_SCENES = {
     shortLabelEn: "Paper question",
     setup: "用户读文献时卡住了，想自然地向前辈表达自己哪里不太懂。",
     userGoal: "表达文献有点难、想问从哪里读或怎么理解某部分。",
-    npcOpening: "文献って、最初はどこから読めばいいか迷いますよね。全部わからなくても大丈夫です。",
+    npcOpening: "その文献、少し難しそうですね。今どのあたりを見ていますか？",
     possibleBeats: ["说明文献有点难", "询问从哪里开始读", "说明某部分不懂", "请求前辈简单提示"],
     usefulIntents: ["想说文献有点难", "想问从哪里开始读", "想说某部分不懂", "想请前辈简单提示"],
     responseOptionsJa: [
@@ -848,7 +848,7 @@ export const CONVERSATION_SCENES = {
     shortLabelEn: "Seminar comment",
     setup: "用户想在ゼミ里说一句简单想法，但不知道怎么自然开口。",
     userGoal: "练习用轻丁寧的方式表达一个简单看法、疑问或补充。",
-    npcOpening: "ゼミでは、完璧な意見じゃなくても、一言だけ言えれば十分なこともありますよ。",
+    npcOpening: "さっきの話、少し気になるところがありましたか？",
     possibleBeats: ["表达一个简单看法", "提出一个问题", "补充一点", "承认自己还不确定"],
     usefulIntents: ["想说我觉得有意思", "想提出一个问题", "想补充一点", "想说自己还不确定"],
     responseOptionsJa: [
@@ -882,7 +882,7 @@ export const CONVERSATION_SCENES = {
     shortLabelEn: "Presentation nerves",
     setup: "用户发表前有点紧张，想向前辈轻轻说一下。",
     userGoal: "自然表达紧张、说明自己还没准备好，或请求一点轻量建议。",
-    npcOpening: "発表前って、少し緊張しますよね。まず一言目だけ決めておくと、少し楽になりますよ。",
+    npcOpening: "もうすぐ発表ですね。少し緊張していますか？",
     possibleBeats: ["表达有点紧张", "说明还没完全准备好", "请求轻量建议", "确认开场一句"],
     usefulIntents: ["想说有点紧张", "想说还没准备好", "想请前辈给一点建议", "想练开场一句"],
     responseOptionsJa: [
