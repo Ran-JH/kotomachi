@@ -336,6 +336,8 @@ export default function ChatPage() {
   const voiceHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summaryToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const preSendPanelRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const preSendTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const starterAppliedRef = useRef(false);
@@ -343,6 +345,7 @@ export default function ChatPage() {
   const suppressWelcomeForSceneRef = useRef(false);
   const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
   const preSendRequestVersionRef = useRef(0);
+  const shouldStickToBottomOnPreSendOpenRef = useRef(false);
   const searchParams = useSearchParams();
   const sceneQueryId = searchParams.get("scene")?.trim() ?? "";
   const sceneQueryEntry = useMemo(() => {
@@ -364,6 +367,7 @@ export default function ChatPage() {
     () => activeScene?.responseOptionsJa ?? activeScene?.fallbackUserLines ?? [],
     [activeScene],
   );
+  const [preSendPanelHeight, setPreSendPanelHeight] = useState(0);
   const getSceneDisplayTitle = (scene: { title: string; titleZh?: string; titleEn?: string }) => {
     if (uiLanguage === "en") return scene.titleEn ?? scene.title;
     return scene.titleZh ?? scene.title;
@@ -382,6 +386,26 @@ export default function ChatPage() {
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
   useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
+  useEffect(() => {
+    if (!isPreSendPanelOpen || !preSendPanelRef.current) {
+      setPreSendPanelHeight(0);
+      return;
+    }
+
+    const measureHeight = () => {
+      const nextHeight = preSendPanelRef.current?.offsetHeight ?? 0;
+      setPreSendPanelHeight(nextHeight);
+    };
+
+    measureHeight();
+    const frameId = window.requestAnimationFrame(measureHeight);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isPreSendPanelOpen, preSendIntent, preSendSuggestions, preSendError, isPreSendLoading, uiLanguage]);
+  useEffect(() => {
+    if (!isPreSendPanelOpen) return;
+    if (!shouldStickToBottomOnPreSendOpenRef.current) return;
+    scrollToBottom();
+  }, [isPreSendPanelOpen, preSendPanelHeight]);
   useEffect(() => {
     const audioUrls = userAudioUrlsRef.current;
     return () => { audioUrls.forEach((url) => URL.revokeObjectURL(url)); };
@@ -865,6 +889,13 @@ export default function ChatPage() {
   };
 
   const handleOpenPreSendPanel = () => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      shouldStickToBottomOnPreSendOpenRef.current = distanceFromBottom <= 96;
+    } else {
+      shouldStickToBottomOnPreSendOpenRef.current = true;
+    }
     setIsInputActionsOpen(false);
     setIsScenePickerOpen(false);
     setIsTopicIdeasOpen(false);
@@ -1483,7 +1514,7 @@ export default function ChatPage() {
         throw new Error(data.error ?? "pre-send failed");
       }
 
-      const toneOrder: PreSendTone[] = ["casual", "neutral", "polite"];
+      const toneOrder: PreSendTone[] = ["neutral", "casual", "polite"];
       const nextSuggestions = Array.isArray(data.suggestions)
         ? toneOrder.flatMap((tone) => {
             const matched = data.suggestions?.find((item) => item?.tone === tone);
@@ -1683,7 +1714,7 @@ export default function ChatPage() {
         )}
 
         {/* 聊天消息区域 — max-w-4xl 居中 */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
             {showStarterPrompts && (
               <section className="rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3.5">
@@ -1832,7 +1863,7 @@ export default function ChatPage() {
             </div>
           )}
           {isPreSendPanelOpen && (
-            <div className="max-w-5xl mx-auto px-4 pt-3 md:px-8">
+            <div ref={preSendPanelRef} className="max-w-5xl mx-auto px-4 pt-3 md:px-8">
               <section className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3 shadow-[0_6px_20px_rgba(40,35,26,0.08)]">
                 <div className="flex items-start justify-between gap-3">
                   <div>

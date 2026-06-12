@@ -27,7 +27,7 @@ type SuggestionResponse = {
   suggestions: SuggestionItem[];
 };
 
-const TONE_ORDER: PreSendTone[] = ["casual", "neutral", "polite"];
+const TONE_ORDER: PreSendTone[] = ["neutral", "casual", "polite"];
 
 const NPC_RELATION_HINTS: Record<NpcId, string> = {
   aoi: "Aoi is a same-age friend. Default to relaxed everyday speech. Keep polite usable, but not business-like.",
