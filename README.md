@@ -134,7 +134,7 @@ copy .env.example .env.local
 npm run dev
 ```
 
-打开： [http://localhost:3000](http://localhost:3000)
+打开： <http://localhost:3000>
 
 可选 build 检查：
 
@@ -150,24 +150,24 @@ npm run build
 
 ## 环境变量 / Environment Variables
 
-| 变量 / Variable | 用途 / Purpose | 是否必需 / Required |
-| --- | --- | --- |
-| `DEEPSEEK_API_KEY` | Primary LLM provider | Recommended |
-| `DEEPSEEK_MODEL` | Override default DeepSeek model | Optional |
-| `VOLCENGINE_ARK_API_KEY` | Volcengine Ark fallback provider | Recommended |
-| `VOLCENGINE_ARK_ENDPOINT_ID` | Volcengine Ark inference endpoint ID | Recommended |
-| `VOLCENGINE_ARK_BASE_URL` | Volcengine Ark OpenAI-compatible base URL | Optional |
-| `VOLCENGINE_ARK_MODEL` | Backup model when no endpoint ID | Optional |
-| `VOLCENGINE_SPEECH_APP_ID` | Volcengine speech app ID | For voice |
-| `VOLCENGINE_SPEECH_ACCESS_TOKEN` | Volcengine speech access token | For voice |
-| `VOLCENGINE_SPEECH_API_KEY` | Volcengine speech API key (compat) | Optional |
-| `VOLCENGINE_SPEECH_CLUSTER` | Volcengine speech cluster | Optional |
-| `VOLCENGINE_STT_LANGUAGES` | STT language priority, e.g. `ja,en,zh` | Optional |
-| `TTS_PROVIDER` | `auto` / `volcano` / `edge` | Optional |
-| `VOLCENGINE_TTS_VOICE_MISAKI` | Misaki voice | Optional |
-| `VOLCENGINE_TTS_VOICE_KIMURA` | Kimura voice | Optional |
-| `VOLCENGINE_TTS_VOICE_TAISHO` | Taisho voice | Optional |
-| `NEXT_PUBLIC_ALPHA_ACCESS_CODE` | Optional small-test access code gate (client-side) | Optional |
+| 变量 / Variable                    | 用途 / Purpose                                       | 是否必需 / Required |
+| -------------------------------- | -------------------------------------------------- | --------------- |
+| `DEEPSEEK_API_KEY`               | Primary LLM provider                               | Recommended     |
+| `DEEPSEEK_MODEL`                 | Override default DeepSeek model                    | Optional        |
+| `VOLCENGINE_ARK_API_KEY`         | Volcengine Ark fallback provider                   | Recommended     |
+| `VOLCENGINE_ARK_ENDPOINT_ID`     | Volcengine Ark inference endpoint ID               | Recommended     |
+| `VOLCENGINE_ARK_BASE_URL`        | Volcengine Ark OpenAI-compatible base URL          | Optional        |
+| `VOLCENGINE_ARK_MODEL`           | Backup model when no endpoint ID                   | Optional        |
+| `VOLCENGINE_SPEECH_APP_ID`       | Volcengine speech app ID                           | For voice       |
+| `VOLCENGINE_SPEECH_ACCESS_TOKEN` | Volcengine speech access token                     | For voice       |
+| `VOLCENGINE_SPEECH_API_KEY`      | Volcengine speech API key (compat)                 | Optional        |
+| `VOLCENGINE_SPEECH_CLUSTER`      | Volcengine speech cluster                          | Optional        |
+| `VOLCENGINE_STT_LANGUAGES`       | STT language priority, e.g. `ja,en,zh`             | Optional        |
+| `TTS_PROVIDER`                   | `auto` / `volcano` / `edge`                        | Optional        |
+| `VOLCENGINE_TTS_VOICE_MISAKI`    | Misaki voice                                       | Optional        |
+| `VOLCENGINE_TTS_VOICE_KIMURA`    | Kimura voice                                       | Optional        |
+| `VOLCENGINE_TTS_VOICE_TAISHO`    | Taisho voice                                       | Optional        |
+| `NEXT_PUBLIC_ALPHA_ACCESS_CODE`  | Optional small-test access code gate (client-side) | Optional        |
 
 ## 当前限制 / Current Limitations
 
@@ -194,3 +194,4 @@ npm run build
 - [Saved Learning Items Spec](docs/saved-learning-items-spec.md): 收藏系统设计规格。
 - [Experience Log](docs/experience-log.md): 产品观察、诊断、修复和评估案例。
 - [Prompt Eval Cases](docs/prompt-eval-cases.md): NPC 与反馈行为的手动回归案例。
+
