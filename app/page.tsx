@@ -82,8 +82,8 @@ export default function Home() {
         </div>
       </section>
 
-      <ContinueSection uiLanguage={uiLanguage} />
       <InspirationSection uiLanguage={uiLanguage} />
+      <ContinueSection uiLanguage={uiLanguage} />
 
       <div className="w-full h-6 md:h-10" />
     </main>
