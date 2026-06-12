@@ -1308,7 +1308,7 @@ export const CONVERSATION_SCENES = {
     sampleUserLineJa: "すみません、もう一度ゆっくり言っていただけますか。",
     setup: "Nana 正在说明窗口的基本流程，但刚才说得有点快，用户没有听清。",
     userGoal: "让对方重复或放慢语速，并确认自己听到的内容。",
-    npcOpening: "君の表情がちょっと困ってるみたいね、何かあったの？",
+    npcOpening: "受付が終わったら、この番号を持って待合スペースでお待ちください。あ、君の表情がちょっと困ってるみたいね、何かあったの？",
     possibleBeats: [
       "请再说一遍",
       "请说慢一点",
