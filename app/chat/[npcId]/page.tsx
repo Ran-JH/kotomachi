@@ -288,6 +288,11 @@ export default function ChatPage() {
   const [topicIdeas, setTopicIdeas] = useState<string[] | null>(null);
   const [isTopicIdeasLoading, setIsTopicIdeasLoading] = useState(false);
   const [topicIdeasForceRefreshKey, setTopicIdeasForceRefreshKey] = useState<string | null>(null);
+  const [isPreSendPanelOpen, setIsPreSendPanelOpen] = useState(false);
+  const [preSendIntent, setPreSendIntent] = useState("");
+  const [preSendSuggestions, setPreSendSuggestions] = useState<string[]>([]);
+  const [isPreSendLoading, setIsPreSendLoading] = useState(false);
+  const [preSendError, setPreSendError] = useState<string | null>(null);
   // Guided scenario v0.1：只保留当前页临时状态，不写入本地存储。
   const [activeSceneId, setActiveSceneId] = useState<ConversationSceneId | null>(null);
   const [localChatMarkers, setLocalChatMarkers] = useState<LocalChatMarker[]>([]);
@@ -329,6 +334,7 @@ export default function ChatPage() {
   const sceneQueryAppliedRef = useRef(false);
   const suppressWelcomeForSceneRef = useRef(false);
   const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
+  const preSendRequestVersionRef = useRef(0);
   const searchParams = useSearchParams();
   const sceneQueryId = searchParams.get("scene")?.trim() ?? "";
   const sceneQueryEntry = useMemo(() => {
@@ -414,6 +420,12 @@ export default function ChatPage() {
     setActiveSceneId(null);
     setLocalChatMarkers([]);
     setIsScenePickerOpen(false);
+    preSendRequestVersionRef.current += 1;
+    setIsPreSendPanelOpen(false);
+    setPreSendIntent("");
+    setPreSendSuggestions([]);
+    setPreSendError(null);
+    setIsPreSendLoading(false);
   }, [npcId]);
   useEffect(() => {
     if (!sceneQueryEntry) return;
@@ -788,6 +800,8 @@ export default function ChatPage() {
         return next;
       });
       saveLastChatTime(npcId);
+      resetPreSendHelper();
+      setIsPreSendPanelOpen(false);
     } catch (err) {
       const errorText = err instanceof Error ? err.message : "";
       const isNetworkError = /failed to fetch|networkerror|load failed|err_connection_refused/i.test(errorText);
@@ -818,6 +832,36 @@ export default function ChatPage() {
     setInputText((prev) => (prev.trim() ? `${prev}\n${prompt}` : prompt));
     setIsInputActionsOpen(false);
     setIsTopicIdeasOpen(false);
+  };
+
+  const resetPreSendHelper = () => {
+    // 每次重置都让旧请求失效，避免关闭面板后旧响应把候选重新写回来。
+    preSendRequestVersionRef.current += 1;
+    setPreSendIntent("");
+    setPreSendSuggestions([]);
+    setPreSendError(null);
+    setIsPreSendLoading(false);
+  };
+
+  const handleClosePreSendPanel = () => {
+    resetPreSendHelper();
+    setIsPreSendPanelOpen(false);
+  };
+
+  const handleOpenPreSendPanel = () => {
+    setIsInputActionsOpen(false);
+    setIsScenePickerOpen(false);
+    setIsTopicIdeasOpen(false);
+    resetPreSendHelper();
+    setIsPreSendPanelOpen(true);
+  };
+
+  const handlePickPreSendSuggestion = (suggestion: string) => {
+    setVoiceHint(null);
+    setInputMode("text");
+    setInputText(suggestion);
+    resetPreSendHelper();
+    setIsPreSendPanelOpen(false);
   };
 
   const handleStartScene = (sceneId: ConversationSceneId) => {
@@ -971,6 +1015,18 @@ export default function ChatPage() {
     ? "我会帮你把想法整理成自然日语。"
     : "Kotomachi helps turn your rough thoughts into natural Japanese.";
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
+  const preSendMenuTitle = uiLanguage === "zh" ? "我想说……" : "I want to say…";
+  const preSendMenuSubtitle = uiLanguage === "zh"
+    ? "把中文、英文或日语碎片变成可发送的日语"
+    : "Turn a Chinese, English, or rough Japanese idea into a sendable line";
+  const preSendPanelTitle = uiLanguage === "zh" ? "把想说的意思变成日语" : "Turn your idea into Japanese";
+  const preSendPanelPlaceholder = uiLanguage === "zh"
+    ? "比如：我想问她周末一般做什么"
+    : "For example: I want to ask what she usually does on weekends";
+  const preSendSubmitLabel = uiLanguage === "zh" ? "帮我开口" : "Help me say it";
+  const preSendLoadingLabel = uiLanguage === "zh" ? "正在帮你整理几句自然日语…" : "Turning your idea into Japanese…";
+  const preSendSuggestionsHint = uiLanguage === "zh" ? "点一句填入输入框" : "Tap a line to put it in the input";
+  const preSendErrorLabel = uiLanguage === "zh" ? "暂时没生成出来，稍后再试。" : "Could not generate a line right now. Please try again.";
   const topicIdeasTitle = activeScene
     ? (uiLanguage === "zh" ? "下一句怎么说" : "How to say the next line")
     : (uiLanguage === "zh" ? "找话题" : "Topic ideas");
@@ -1371,6 +1427,52 @@ export default function ChatPage() {
     setTopicIdeasForceRefreshKey(topicIdeasCacheKey);
   };
 
+  const handleGeneratePreSendSuggestions = async () => {
+    const userIntent = preSendIntent.trim();
+    if (!userIntent || isPreSendLoading) return;
+
+    const requestVersion = preSendRequestVersionRef.current + 1;
+    preSendRequestVersionRef.current = requestVersion;
+    setPreSendError(null);
+    setPreSendSuggestions([]);
+    setIsPreSendLoading(true);
+
+    try {
+      const response = await fetch(buildClientApiUrl("/api/pre-send-expression"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npcId,
+          userIntent,
+          activeSceneId,
+          // 这里复用当前聊天上下文；如果正在 scene 内，会自然带上 scene 相关的最近对话。
+          recentMessages: recentTopicMessages,
+        }),
+      });
+      const data = (await response.json()) as { suggestions?: string[]; error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "pre-send failed");
+      }
+
+      const nextSuggestions = Array.isArray(data.suggestions)
+        ? data.suggestions.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean).slice(0, 3)
+        : [];
+
+      if (nextSuggestions.length === 0) {
+        throw new Error("empty suggestions");
+      }
+
+      if (preSendRequestVersionRef.current !== requestVersion) return;
+      setPreSendSuggestions(nextSuggestions);
+    } catch {
+      if (preSendRequestVersionRef.current !== requestVersion) return;
+      setPreSendError(preSendErrorLabel);
+    } finally {
+      if (preSendRequestVersionRef.current !== requestVersion) return;
+      setIsPreSendLoading(false);
+    }
+  };
+
   const renderSummaryDetail = () => (
     <ChatSummaryDetail
       cards={allSummaryCards}
@@ -1695,6 +1797,69 @@ export default function ChatPage() {
               </p>
             </div>
           )}
+          {isPreSendPanelOpen && (
+            <div className="max-w-5xl mx-auto px-4 pt-3 md:px-8">
+              <section className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3 shadow-[0_6px_20px_rgba(40,35,26,0.08)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[13px] font-medium text-[#2D4A1F]">{preSendPanelTitle}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClosePreSendPanel}
+                    className="rounded-md px-2 py-1 text-[11px] text-[#7A7060] transition-colors hover:bg-[#F3EDE0] hover:text-[#28231A]"
+                  >
+                    {copy.common.close}
+                  </button>
+                </div>
+
+                <div className="mt-3">
+                  <textarea
+                    value={preSendIntent}
+                    onChange={(event) => {
+                      setPreSendError(null);
+                      setPreSendIntent(event.target.value);
+                    }}
+                    placeholder={preSendPanelPlaceholder}
+                    rows={2}
+                    className="w-full resize-y rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-2.5 text-[13px] leading-relaxed text-[#28231A] outline-none transition-colors placeholder:text-[#7A7060]/60 focus:border-[#C9A84C]/55 focus:bg-[#F6F0E3] focus:ring-2 focus:ring-[#C9A84C]/15"
+                    disabled={isPreSendLoading}
+                  />
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { void handleGeneratePreSendSuggestions(); }}
+                    disabled={isPreSendLoading || !preSendIntent.trim()}
+                    className="inline-flex items-center rounded-xl bg-[#2D4A1F] px-4 py-2 text-[12px] font-medium text-[#F3EDE0] transition-all duration-150 hover:bg-[#2D4A1F]/88 disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70"
+                  >
+                    {isPreSendLoading ? preSendLoadingLabel : preSendSubmitLabel}
+                  </button>
+                  {(preSendSuggestions.length > 0 || preSendError) && (
+                    <p className="text-[10px] text-[#7A7060]">
+                      {preSendError ? preSendError : preSendSuggestionsHint}
+                    </p>
+                  )}
+                </div>
+
+                {preSendSuggestions.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {preSendSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => handlePickPreSendSuggestion(suggestion)}
+                        className="max-w-full rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3 py-2 text-left text-[12px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                      >
+                        <span className="block break-words">{suggestion}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
           <div className="max-w-5xl mx-auto px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-8 flex items-center gap-3 rounded-t-2xl">
             <button
               type="button"
@@ -1720,6 +1885,18 @@ export default function ChatPage() {
               </button>
               {isInputActionsOpen && (
                 <div className="absolute bottom-11 left-0 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
+                  <button
+                    type="button"
+                    onClick={handleOpenPreSendPanel}
+                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                  >
+                    <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                      {preSendMenuTitle}
+                    </span>
+                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                      {preSendMenuSubtitle}
+                    </span>
+                  </button>
                   {!activeScene && availableScenes.length > 0 && !isScenePickerOpen && (
                     <button
                       type="button"
@@ -1899,7 +2076,10 @@ export default function ChatPage() {
                 <textarea
                   ref={textInputRef}
                   value={inputText}
-                  onChange={(e) => { setVoiceHint(null); setInputText(e.target.value); }}
+                  onChange={(e) => {
+                    setVoiceHint(null);
+                    setInputText(e.target.value);
+                  }}
                   onKeyDown={handleInputKeyDown}
                   onCompositionStart={() => setIsInputComposing(true)}
                   onCompositionEnd={() => setIsInputComposing(false)}
@@ -2039,6 +2219,8 @@ export default function ChatPage() {
                   setActiveSceneId(null);
                   setLocalChatMarkers([]);
                   setTopicIdeas(null);
+                  resetPreSendHelper();
+                  setIsPreSendPanelOpen(false);
                   setTopicIdeasForceRefreshKey(null);
                   topicIdeasCacheRef.current.clear();
                   setMemories([]);
