@@ -1672,7 +1672,8 @@ export const CONVERSATION_SCENES = {
 } as const satisfies Record<string, ConversationSceneConfig>;
 
 export type ConversationSceneId = keyof typeof CONVERSATION_SCENES;
-export type ConversationScene = (typeof CONVERSATION_SCENES)[ConversationSceneId];
+// 用稳定的配置类型导出场景形状，避免巨大字面量 union 在部分页面里被错误推窄。
+export type ConversationScene = ConversationSceneConfig;
 
 export function isConversationSceneId(value: string): value is ConversationSceneId {
   return value in CONVERSATION_SCENES;
@@ -1687,4 +1688,40 @@ export function getConversationScene(
 
 export function getConversationScenesForNpc(npcId: NpcId): ConversationScene[] {
   return Object.values(CONVERSATION_SCENES).filter((scene) => scene.npcId === npcId);
+}
+
+function hasFeaturedSceneFields(scene: ConversationScene): boolean {
+  return Boolean(
+    scene.id
+      && scene.npcId
+      && scene.sampleUserLineJa
+      && (scene.microEpisodeZh || scene.microEpisodeEn),
+  );
+}
+
+function getFeaturedSceneDaySeed(date: Date): number {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return year * 10000 + month * 100 + day;
+}
+
+export function getFeaturedConversationScenes(
+  count = 1,
+  now = new Date(),
+): ConversationScene[] {
+  if (count <= 0) return [];
+
+  const eligibleScenes = Object.values(CONVERSATION_SCENES)
+    .filter(hasFeaturedSceneFields)
+    .sort((left, right) => left.id.localeCompare(right.id));
+
+  if (eligibleScenes.length === 0) return [];
+
+  const startIndex = getFeaturedSceneDaySeed(now) % eligibleScenes.length;
+  const sceneCount = Math.min(count, eligibleScenes.length);
+
+  return Array.from({ length: sceneCount }, (_, offset) => {
+    return eligibleScenes[(startIndex + offset) % eligibleScenes.length];
+  });
 }

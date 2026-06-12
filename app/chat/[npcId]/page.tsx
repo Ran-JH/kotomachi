@@ -1,6 +1,6 @@
 ﻿﻿"use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
@@ -15,6 +15,7 @@ import { buildClientApiUrl } from "@/lib/client-api-url";
 import {
   getConversationScene,
   getConversationScenesForNpc,
+  isConversationSceneId,
   type ConversationSceneId,
 } from "@/lib/conversation-scenes";
 import { getUiCopy } from "@/lib/ui-copy";
@@ -254,6 +255,7 @@ import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-promp
 
 export default function ChatPage() {
   const params = useParams();
+  const router = useRouter();
   const rawNpcId = params.npcId as string;
   const npcId: NpcId = isNpcId(rawNpcId) ? rawNpcId : "misaki";
 
@@ -324,9 +326,25 @@ export default function ChatPage() {
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const starterAppliedRef = useRef(false);
+  const sceneQueryAppliedRef = useRef(false);
+  const suppressWelcomeForSceneRef = useRef(false);
   const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
   const searchParams = useSearchParams();
-  const availableScenes = useMemo(() => getConversationScenesForNpc(npcId), [npcId]);
+  const sceneQueryId = searchParams.get("scene")?.trim() ?? "";
+  const sceneQueryEntry = useMemo(() => {
+    if (!sceneQueryId) return null;
+    if (!isConversationSceneId(sceneQueryId)) return null;
+    const scene = getConversationScene(sceneQueryId);
+    if (!scene || scene.npcId !== npcId) return null;
+    return { sceneId: sceneQueryId, scene };
+  }, [npcId, sceneQueryId]);
+  const availableScenes = useMemo<Array<{ sceneId: ConversationSceneId; scene: NonNullable<typeof activeScene> }>>(
+    () => getConversationScenesForNpc(npcId).flatMap((scene) => {
+      if (!isConversationSceneId(scene.id)) return [];
+      return [{ sceneId: scene.id, scene }];
+    }),
+    [npcId],
+  );
   const activeScene = useMemo(() => getConversationScene(activeSceneId), [activeSceneId]);
   const activeSceneResponseOptions = useMemo(
     () => activeScene?.responseOptionsJa ?? activeScene?.fallbackUserLines ?? [],
@@ -390,12 +408,22 @@ export default function ChatPage() {
   }, [isResetConfirmOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
+    starterAppliedRef.current = false;
+    sceneQueryAppliedRef.current = false;
+    suppressWelcomeForSceneRef.current = false;
     setActiveSceneId(null);
     setLocalChatMarkers([]);
     setIsScenePickerOpen(false);
   }, [npcId]);
   useEffect(() => {
+    if (!sceneQueryEntry) return;
+    // 只要这次入口带着合法 scene query，就整次进入都抑制 welcome，
+    // 避免先欢迎、再场景开场的双开口。
+    suppressWelcomeForSceneRef.current = true;
+  }, [sceneQueryEntry]);
+  useEffect(() => {
     if (starterAppliedRef.current) return;
+    if (sceneQueryEntry || sceneQueryAppliedRef.current) return;
     const starter = searchParams.get("starter")?.trim();
     if (!starter) return;
     if (inputText.trim()) return;
@@ -686,11 +714,13 @@ export default function ChatPage() {
         source: m.source === "welcome" || m.source === "scene" ? m.source : undefined,
       }));
       setMessages(restored);
+      if (suppressWelcomeForSceneRef.current) return;
       void triggerRevisitWelcome(npcId, storedMemories, history, wasSeenThisSession);
       return;
     }
 
     setMessages([]);
+    if (suppressWelcomeForSceneRef.current) return;
     void triggerInitialWelcome(npcId, storedMemories);
   }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
 
@@ -828,6 +858,15 @@ export default function ChatPage() {
     });
     saveLastChatTime(npcId);
   };
+
+  useEffect(() => {
+    if (sceneQueryAppliedRef.current) return;
+    if (!sceneQueryEntry) return;
+
+    sceneQueryAppliedRef.current = true;
+    handleStartScene(sceneQueryEntry.sceneId);
+    router.replace(`/chat/${npcId}`);
+  }, [npcId, router, sceneQueryEntry]);
 
   const handleExitScene = () => {
     const afterMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
@@ -1557,11 +1596,11 @@ export default function ChatPage() {
                       {uiLanguage === "zh" ? "先从便利店结账这种小动作开始" : "Start with one tiny convenience-store moment."}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {availableScenes.map((scene) => (
+                      {availableScenes.map(({ sceneId, scene }) => (
                         <button
-                          key={scene.id}
+                          key={sceneId}
                           type="button"
-                          onClick={() => handleStartScene(scene.id)}
+                          onClick={() => handleStartScene(sceneId)}
                           className="rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-1.5 text-[12px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
                         >
                           {scene.shortLabel}
@@ -1705,14 +1744,14 @@ export default function ChatPage() {
                         </span>
                       </button>
                       <div className="mt-2 space-y-1.5">
-                        {availableScenes.map((scene) => {
+                        {availableScenes.map(({ sceneId, scene }) => {
                           const microEpisodeCopy = getSceneMicroEpisodeCopy(scene);
 
                           return (
                             <button
-                              key={scene.id}
+                              key={sceneId}
                               type="button"
-                              onClick={() => handleStartScene(scene.id)}
+                              onClick={() => handleStartScene(sceneId)}
                               className="group w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
                             >
                               <span className="block text-[12px] font-medium text-[#2D4A1F]">
