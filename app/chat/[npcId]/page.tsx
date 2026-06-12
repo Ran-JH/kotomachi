@@ -93,6 +93,13 @@ interface LocalChatMarker {
   createdAt: string;
 }
 
+type PreSendTone = "neutral" | "casual" | "polite";
+
+type PreSendSuggestion = {
+  tone: PreSendTone;
+  text: string;
+};
+
 interface WelcomeResponse {
   extractedFacts?: string[];
   welcomeMessage?: string;
@@ -290,7 +297,7 @@ export default function ChatPage() {
   const [topicIdeasForceRefreshKey, setTopicIdeasForceRefreshKey] = useState<string | null>(null);
   const [isPreSendPanelOpen, setIsPreSendPanelOpen] = useState(false);
   const [preSendIntent, setPreSendIntent] = useState("");
-  const [preSendSuggestions, setPreSendSuggestions] = useState<string[]>([]);
+  const [preSendSuggestions, setPreSendSuggestions] = useState<PreSendSuggestion[]>([]);
   const [isPreSendLoading, setIsPreSendLoading] = useState(false);
   const [preSendError, setPreSendError] = useState<string | null>(null);
   // Guided scenario v0.1：只保留当前页临时状态，不写入本地存储。
@@ -330,6 +337,7 @@ export default function ChatPage() {
   const summaryToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputActionsRef = useRef<HTMLDivElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const preSendTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const starterAppliedRef = useRef(false);
   const sceneQueryAppliedRef = useRef(false);
   const suppressWelcomeForSceneRef = useRef(false);
@@ -486,6 +494,14 @@ export default function ChatPage() {
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
     el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [inputText, inputMode]);
+  useEffect(() => {
+    if (!preSendTextareaRef.current) return;
+    const el = preSendTextareaRef.current;
+    el.style.height = "auto";
+    const maxHeight = 24 * 4;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [preSendIntent, isPreSendPanelOpen]);
 
   const handleLanguageChange = (language: UiLanguage) => {
     setUiLanguage(language);
@@ -1027,6 +1043,16 @@ export default function ChatPage() {
   const preSendLoadingLabel = uiLanguage === "zh" ? "正在帮你整理几句自然日语…" : "Turning your idea into Japanese…";
   const preSendSuggestionsHint = uiLanguage === "zh" ? "点一句填入输入框" : "Tap a line to put it in the input";
   const preSendErrorLabel = uiLanguage === "zh" ? "暂时没生成出来，稍后再试。" : "Could not generate a line right now. Please try again.";
+  const getPreSendToneLabel = (tone: PreSendTone) => {
+    if (uiLanguage === "en") {
+      if (tone === "neutral") return "Neutral";
+      if (tone === "casual") return "Casual";
+      return "Polite";
+    }
+    if (tone === "neutral") return "普通自然";
+    if (tone === "casual") return "亲近随和";
+    return "严肃正式";
+  };
   const topicIdeasTitle = activeScene
     ? (uiLanguage === "zh" ? "下一句怎么说" : "How to say the next line")
     : (uiLanguage === "zh" ? "找话题" : "Topic ideas");
@@ -1449,13 +1475,21 @@ export default function ChatPage() {
           recentMessages: recentTopicMessages,
         }),
       });
-      const data = (await response.json()) as { suggestions?: string[]; error?: string };
+      const data = (await response.json()) as {
+        suggestions?: Array<{ tone?: PreSendTone; text?: string }>;
+        error?: string;
+      };
       if (!response.ok) {
         throw new Error(data.error ?? "pre-send failed");
       }
 
+      const toneOrder: PreSendTone[] = ["casual", "neutral", "polite"];
       const nextSuggestions = Array.isArray(data.suggestions)
-        ? data.suggestions.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean).slice(0, 3)
+        ? toneOrder.flatMap((tone) => {
+            const matched = data.suggestions?.find((item) => item?.tone === tone);
+            const text = typeof matched?.text === "string" ? matched.text.trim() : "";
+            return text ? [{ tone, text }] : [];
+          })
         : [];
 
       if (nextSuggestions.length === 0) {
@@ -1815,14 +1849,15 @@ export default function ChatPage() {
 
                 <div className="mt-3">
                   <textarea
+                    ref={preSendTextareaRef}
                     value={preSendIntent}
                     onChange={(event) => {
                       setPreSendError(null);
                       setPreSendIntent(event.target.value);
                     }}
                     placeholder={preSendPanelPlaceholder}
-                    rows={2}
-                    className="w-full resize-y rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-2.5 text-[13px] leading-relaxed text-[#28231A] outline-none transition-colors placeholder:text-[#7A7060]/60 focus:border-[#C9A84C]/55 focus:bg-[#F6F0E3] focus:ring-2 focus:ring-[#C9A84C]/15"
+                    rows={1}
+                    className="w-full resize-none rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-2 text-[13px] leading-6 text-[#28231A] outline-none transition-colors placeholder:text-[#7A7060]/60 focus:border-[#C9A84C]/55 focus:bg-[#F6F0E3] focus:ring-2 focus:ring-[#C9A84C]/15"
                     disabled={isPreSendLoading}
                   />
                 </div>
@@ -1844,15 +1879,18 @@ export default function ChatPage() {
                 </div>
 
                 {preSendSuggestions.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 space-y-2">
                     {preSendSuggestions.map((suggestion) => (
                       <button
-                        key={suggestion}
+                        key={`${suggestion.tone}-${suggestion.text}`}
                         type="button"
-                        onClick={() => handlePickPreSendSuggestion(suggestion)}
-                        className="max-w-full rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3 py-2 text-left text-[12px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
+                        onClick={() => handlePickPreSendSuggestion(suggestion.text)}
+                        className="w-full rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3 py-2.5 text-left text-[12px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
                       >
-                        <span className="block break-words">{suggestion}</span>
+                        <span className="inline-flex rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2 py-0.5 text-[10px] font-medium text-[#7A7060]">
+                          {getPreSendToneLabel(suggestion.tone)}
+                        </span>
+                        <span className="mt-1.5 block break-words">{suggestion.text}</span>
                       </button>
                     ))}
                   </div>
