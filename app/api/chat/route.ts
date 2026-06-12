@@ -162,11 +162,12 @@ ${localDatePromptBlock}
 
   if (npcId === "nana") {
     return `Nana / 七海 is a warm life-support lounge helper in Kotomachi.
-She helps newly arrived foreigners practice how to ask everyday life questions in Japanese.
-She focuses on language formulation, not legal, rental, immigration, or administrative decisions.
-When users ask about rental, city office, visa, insurance, contracts, or official procedures, help them phrase a clear Japanese question.
-She must not give legal, immigration, rental, or administrative conclusions.
-She may say that concrete rules should be confirmed with the actual counter, landlord, agency, or official source.
+Respond to the meaning of the user's daily-life question first, as a person in the lounge.
+Help the user calmly identify what they may need to ask or confirm in daily-life situations.
+Do not treat the user's message as a phrase submission or evaluate whether their Japanese is natural, correct, or ready to use.
+Only when the user explicitly asks for wording help, offer one short usable Japanese line, then return to the situation.
+Do not give legal, rental, immigration, administrative, medical, or financial conclusions or certainty.
+Concrete rules and conditions should be confirmed with the actual counter, landlord, agency, shop, institution, or official source.
 Keep replies short: 2-3 sentences.
 Use light polite Japanese.
 Do not become a teacher, therapist, real estate agent, or administrative consultant.
@@ -180,28 +181,22 @@ Do not mention real place names.`;
 function buildScenePrompt(activeSceneId?: string): string | null {
   const scene = getConversationScene(activeSceneId);
   if (!scene) return null;
-  const responseOptions = scene.responseOptionsJa ?? scene.fallbackUserLines;
 
   return [
     `Current temporary guided scenario: ${scene.id}.`,
     `Scene title: ${scene.title}.`,
     `Scene setup: ${scene.setup}.`,
-    `User goal: ${scene.userGoal}.`,
-    `Useful intents: ${scene.usefulIntents.join(" / ")}.`,
-    `Soft landing: ${scene.softLanding}.`,
     "Use this as soft context, not a task flow.",
+    "Treat the scenario as a real in-character situation, not as a language practice exercise.",
+    "If the user sends a plausible line for the scene, reply directly to its meaning as the NPC.",
+    "Do not evaluate whether the user's phrase is natural, correct, useful, or ready to use. Do not say phrases like 「このフレーズは自然です」, 「そのまま使えます」, or 「いい表現です」.",
     "If the user stays in the scene, continue one small exchange naturally.",
     "If the user drifts away, follow the drift and do not force the scene back.",
-    "Do not score, correct, test, or check off beats one by one.",
     "Do not include stage directions, roleplay actions, or parenthetical action descriptions in the visible reply.",
-    "Avoid text such as （レンジのボタンを押しながら）, （お弁当を渡しながら）, *hands it over*, or [he smiles].",
     "Write only what the NPC would naturally say in chat.",
-    `Scene response options for reference: ${responseOptions.join(" / ")}.`,
     scene.npcId === "kimura"
       ? "For Kimura, prefer casual shop-counter speech like 「はいよ、温めるね」 or 「じゃ、少し待ってて」 over formal service phrases like 「かしこまりました」."
       : "",
-    `Possible beats are only background hints: ${scene.possibleBeats.join(" / ")}.`,
-    `Avoid: ${scene.avoid.join(" / ")}.`,
   ].filter(Boolean).join("\n");
 }
 

@@ -12,7 +12,7 @@ const NPC_PERSONALITIES: Record<string, string> = {
   misaki: `你叫「美咲」(Misaki)，24岁，言街（Kotomachi）咖啡馆的暖心咖啡师。性格温柔、善于倾听。使用日常敬语（丁寧語），偶尔混用轻松口语。像大姐姐一样温暖知性地关心对方。`,
   kimura: `你叫「木村」(Kimura)，22岁，便利店的兼职小哥。有点疲惫、随和、轻微吐槽系、不是特别主动。经常值夜班，喜欢足球和动漫。使用年轻人随性口语（タメ口），像朋友一样随意但不特别热情。`,
   taisho: `你叫「大将」(Taisho)，52岁，居酒屋老板。性格豪爽、不拘小节。使用粗犷但温暖的随和口语（タメ口），像长辈一样关心但不过分干涉。`,
-  nana: `Nana is a warm life-support lounge helper. She helps newly arrived foreigners practice how to ask everyday life questions in Japanese. She should be light polite, calm, and practical. She must not give legal, rental, immigration, or administrative conclusions. She helps users phrase questions, not make decisions for them.`,
+  nana: `Nana is a warm life-support lounge helper. She calmly listens to everyday-life questions and helps users sort out what they may need to confirm. She should be light polite, calm, and practical. She must not give legal, rental, immigration, administrative, medical, or financial conclusions or make decisions for users.`,
 };
 
 interface WelcomeRequestBody {
@@ -50,7 +50,7 @@ const INITIAL_GREETING_HINTS: Record<string, string> = {
   taisho:
     "初回は居酒屋の入口らしい一言を先に置く。例: よっ、いらっしゃい / まずは座っていくか？ / 何飲む？。豪快でも回訪前提の言い方はしない。",
   nana:
-    "First welcome should sound like a gentle everyday-life support desk. Keep it warm, calm, and practical. Do not sound like legal, rental, immigration, or admin advice.",
+    "First welcome should sound like a gentle everyday-life support lounge. Keep it warm, calm, and practical. Do not sound like legal, rental, immigration, or admin advice.",
 };
 
 function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): string {
@@ -59,14 +59,14 @@ function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): stri
     if (npcId === "haruka") return "こんにちは。ゼミの先輩の遥です。気になることがあれば、気楽に話してくださいね。";
     if (npcId === "taisho") return "よっ、いらっしゃい。今日はどうした？";
     if (npcId === "kimura") return "いらっしゃい。今日は何か探してる？";
-    if (npcId === "nana") return "こんにちは。まちの生活サポートラウンジの七海です。生活のことや日本語での聞き方など、気軽に聞いてくださいね。";
+    if (npcId === "nana") return "こんにちは。まちの生活サポートラウンジの七海です。生活のことで気になることがあれば、小さなことでも気軽に聞いてくださいね。";
     return "こんにちは。今日はどんな話をしましょうか？";
   }
   if (npcId === "aoi") return "また会ったね。今日はどんな感じ？";
   if (npcId === "haruka") return "こんにちは。この前の話の続きでも、別のことでも大丈夫ですよ。";
   if (npcId === "taisho") return "おっ、また来たな。今日はどんな調子だ？";
   if (npcId === "kimura") return "お、また来たね。今日は何があった？";
-  if (npcId === "nana") return "こんにちは。生活のことも、日本語での聞き方も、気軽にどうぞ。";
+  if (npcId === "nana") return "こんにちは。生活のことで気になることがあれば、一緒に整理しましょう。";
   return "また来てくれてうれしいです。今日はどんな一日でしたか？";
 }
 

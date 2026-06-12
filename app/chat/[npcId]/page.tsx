@@ -801,6 +801,11 @@ export default function ChatPage() {
     setIsScenePickerOpen(false);
     setIsTopicIdeasOpen(false);
     setActiveSceneId(sceneId);
+    // 场景仍由 NPC 先开口；sample line 只作为可编辑草稿预填，且不覆盖用户已有输入。
+    const sampleUserLineJa = "sampleUserLineJa" in scene ? scene.sampleUserLineJa : undefined;
+    if (sampleUserLineJa) {
+      setInputText((current) => (current.trim() ? current : sampleUserLineJa));
+    }
 
     const openingMessage: ChatMessage = {
       id: `scene-${scene.id}-${Date.now()}`,
