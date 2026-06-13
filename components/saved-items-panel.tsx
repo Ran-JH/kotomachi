@@ -40,6 +40,18 @@ function formatSavedTime(value: string, locale: "zh-CN" | "en-US"): string {
   }).format(date);
 }
 
+function formatReviewDate(value: string, locale: "zh-CN" | "en-US"): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
   if (isNpcId(npcId)) {
     return getNpcDisplayName(npcId);
@@ -243,6 +255,9 @@ function WordReviewCard({
         sourceSentenceFallback: "No source sentence yet",
         from: "From",
         saved: "Saved",
+        firstReview: "First review",
+        reviewedTimes: (count: number) => `Reviewed ${count} times`,
+        lastReviewed: (value: string) => `Last reviewed: ${value}`,
         previous: "Previous",
         next: "Next",
         finishRound: "Finish round",
@@ -258,6 +273,9 @@ function WordReviewCard({
         sourceSentenceFallback: "暂无出处原句",
         from: "来自",
         saved: "保存于",
+        firstReview: "第一次复习",
+        reviewedTimes: (count: number) => `已复习 ${count} 次`,
+        lastReviewed: (value: string) => `上次看过：${value}`,
         previous: "上一个",
         next: "下一个",
         finishRound: "完成本轮",
@@ -270,6 +288,11 @@ function WordReviewCard({
   const sentenceMeaning = item.sentenceMeaning?.trim();
   const sourceSentence = item.example?.trim();
   const hasDetailedNote = Boolean(nuanceExplanation || sentenceMeaning);
+  const reviewCount = item.reviewCount ?? 0;
+  const reviewSummary = reviewCount > 0 ? labels.reviewedTimes(reviewCount) : labels.firstReview;
+  const lastReviewedText = item.lastReviewedAt
+    ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
+    : null;
 
   return (
     <div className="space-y-4">
@@ -294,9 +317,19 @@ function WordReviewCard({
 
       <div className="overflow-hidden rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] p-4 sm:p-5">
         <div className="border-b border-[rgba(40,35,26,0.08)] pb-4">
-          <p className="font-ja break-words text-[24px] font-semibold leading-tight text-[#2D4A1F] sm:text-[28px]">
-            {item.word}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="font-ja break-words text-[24px] font-semibold leading-tight text-[#2D4A1F] sm:text-[28px]">
+              {item.word}
+            </p>
+            <span className="inline-flex shrink-0 items-center rounded-full bg-[#2D4A1F]/10 px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
+              {reviewSummary}
+            </span>
+          </div>
+          {lastReviewedText && (
+            <p className="mt-2 text-[11px] leading-relaxed text-[#7A7060]">
+              {lastReviewedText}
+            </p>
+          )}
         </div>
 
         <div className="mt-4 grid gap-4">
@@ -419,9 +452,6 @@ export function SavedItemsPanel({
     ? "No saved words yet. Select a word during chat and save it after looking it up."
     : "还没有保存的单词。聊天时划词查词后，可以把想复习的词保存下来。";
   const completionTitle = isEn ? "Round complete" : "这轮看完了";
-  const completionText = isEn
-    ? "You took a quick look at your saved words."
-    : "刚刚顺手复习了这些保存过的词。";
   const reviewAgainLabel = isEn ? "Review again" : "再看一轮";
   const backToSavedLabel = isEn ? "Back to saved items" : "返回收藏";
 
@@ -432,6 +462,9 @@ export function SavedItemsPanel({
   const [reviewComplete, setReviewComplete] = useState(false);
   const [reviewedInSession, setReviewedInSession] = useState<string[]>([]);
   const [reviewSessionWords, setReviewSessionWords] = useState<SavedWord[]>([]);
+  const completionText = isEn
+    ? `You reviewed ${reviewQueueIds.length} saved words.`
+    : `刚刚复习了 ${reviewQueueIds.length} 个保存过的词。`;
 
   const filtered =
     filter === "all"
