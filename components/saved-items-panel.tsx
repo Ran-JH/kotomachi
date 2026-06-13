@@ -6,12 +6,15 @@ import {
   type SavedItem,
   type SavedWord,
 } from "@/lib/saved-items";
+import type { NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
 import { getNpcDisplayName, isNpcId } from "@/lib/npc";
 import { TrashIcon } from "@/components/ui-icons";
 
 type FilterType = "all" | "expression" | "word";
 type WordCardMode = "queue" | "detail";
+type WordReviewFilter = "all" | "unreviewed" | "reviewed" | "withNotes";
+type WordSort = "newest" | "oldest" | "reviewAsc" | "reviewDesc";
 
 interface SavedItemsPanelProps {
   copy: UiCopy;
@@ -26,6 +29,16 @@ const LEVEL_LABELS: Record<string, string> = {
   polite: "フォーマル",
   summary_upgrade: "ステップアップ",
 };
+
+const WORD_NPC_FILTER_IDS: NpcId[] = [
+  "kimura",
+  "misaki",
+  "taisho",
+  "haruka",
+  "aoi",
+  "nana",
+  "ren",
+];
 
 function formatSavedTime(value: string, locale: "zh-CN" | "en-US"): string {
   const date = new Date(value);
@@ -56,10 +69,33 @@ function formatReviewDate(value: string, locale: "zh-CN" | "en-US"): string {
 
 function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
   if (isNpcId(npcId)) {
+    if (isEn) {
+      switch (npcId) {
+        case "kimura":
+          return "Kimura";
+        case "misaki":
+          return "Misaki";
+        case "taisho":
+          return "Taisho";
+        case "haruka":
+          return "Haruka";
+        case "aoi":
+          return "Aoi";
+        case "nana":
+          return "Nana";
+        case "ren":
+          return "Ren";
+      }
+    }
+
     return getNpcDisplayName(npcId);
   }
 
   return isEn ? "Kotomachi" : "言街";
+}
+
+function getNpcFilterLabel(npcId: NpcId, isEn: boolean): string {
+  return getWordReviewNpcLabel(npcId, isEn);
 }
 
 function toTimestamp(value?: string): number {
@@ -180,6 +216,33 @@ function getWordCardLabels(isEn: boolean) {
         next: "下一个",
         finishRound: "完成本轮",
       };
+}
+
+function sortWordItems(words: SavedWord[], wordSort: WordSort): SavedWord[] {
+  return words.slice().sort((a, b) => {
+    const aCreatedAt = toTimestamp(a.createdAt);
+    const bCreatedAt = toTimestamp(b.createdAt);
+    const aReviewCount = a.reviewCount ?? 0;
+    const bReviewCount = b.reviewCount ?? 0;
+
+    switch (wordSort) {
+      case "oldest":
+        return aCreatedAt - bCreatedAt;
+      case "reviewAsc":
+        if (aReviewCount !== bReviewCount) {
+          return aReviewCount - bReviewCount;
+        }
+        return bCreatedAt - aCreatedAt;
+      case "reviewDesc":
+        if (aReviewCount !== bReviewCount) {
+          return bReviewCount - aReviewCount;
+        }
+        return bCreatedAt - aCreatedAt;
+      case "newest":
+      default:
+        return bCreatedAt - aCreatedAt;
+    }
+  });
 }
 
 function ExpressionCard({
@@ -637,6 +700,11 @@ export function SavedItemsPanel({
   const savedWordsEmptyLabel = isEn
     ? "No saved words yet. Select a word during chat and save it after looking it up."
     : "还没有保存的单词。聊天时划词查词后，可以把想复习的词保存下来。";
+  const noFilteredWordsLabel = isEn
+    ? "No words match these filters. Try another filter."
+    : "没有符合条件的词。可以换一个筛选条件看看。";
+  const wordCountLabel = (shown: number, total: number) =>
+    isEn ? `Showing ${shown} of ${total} words` : `显示 ${shown} / ${total} 个词`;
   const completionTitle = isEn ? "Round complete" : "这轮看完了";
   const reviewAgainLabel = isEn ? "Review again" : "再看一轮";
   const backToSavedLabel = isEn ? "Back to saved items" : "返回收藏";
@@ -651,6 +719,35 @@ export function SavedItemsPanel({
         reviewedBefore: "再次复习",
         withNotes: "有笔记",
       };
+  const wordReviewFilterLabels: Record<WordReviewFilter, string> = isEn
+    ? {
+        all: "All",
+        unreviewed: "Not reviewed",
+        reviewed: "Reviewed",
+        withNotes: "With notes",
+      }
+    : {
+        all: "全部",
+        unreviewed: "未复习",
+        reviewed: "已复习",
+        withNotes: "有笔记",
+      };
+  const npcFilterAllLabel = isEn ? "All NPCs" : "全部 NPC";
+  const sortLabel = isEn ? "Sort" : "排序";
+  const npcLabel = isEn ? "NPC" : "NPC";
+  const wordSortLabels: Record<WordSort, string> = isEn
+    ? {
+        newest: "Newest saved",
+        oldest: "Oldest saved",
+        reviewAsc: "Fewest reviews",
+        reviewDesc: "Most reviews",
+      }
+    : {
+        newest: "最近保存",
+        oldest: "最早保存",
+        reviewAsc: "复习次数少到多",
+        reviewDesc: "复习次数多到少",
+      };
 
   const [panelItems, setPanelItems] = useState<SavedItem[]>(items);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -664,6 +761,9 @@ export function SavedItemsPanel({
   const [reviewSessionStartMeta, setReviewSessionStartMeta] = useState<
     Record<string, { reviewCount: number }>
   >({});
+  const [wordReviewFilter, setWordReviewFilter] = useState<WordReviewFilter>("all");
+  const [wordNpcFilter, setWordNpcFilter] = useState<NpcId | "all">("all");
+  const [wordSort, setWordSort] = useState<WordSort>("newest");
 
   useEffect(() => {
     setPanelItems(items);
@@ -678,26 +778,44 @@ export function SavedItemsPanel({
     }
   }, [panelItems, selectedWordId]);
 
-  const filtered =
-    filter === "all"
-      ? panelItems
-      : panelItems.filter((item) => item.type === filter);
-
   const expressionCount = panelItems.filter((item) => item.type === "expression").length;
-  const wordCount = panelItems.filter((item) => item.type === "word").length;
-  const totalCount = expressionCount + wordCount;
-
-  const savedWords = useMemo(
+  const allWordItems = useMemo(
     () => panelItems.filter((item): item is SavedWord => item.type === "word"),
     [panelItems]
   );
+  const wordCount = allWordItems.length;
+  const totalCount = expressionCount + wordCount;
+
+  const filteredWordItems = useMemo(() => {
+    let nextWords = allWordItems.slice();
+
+    if (wordReviewFilter === "unreviewed") {
+      nextWords = nextWords.filter((item) => (item.reviewCount ?? 0) <= 0);
+    } else if (wordReviewFilter === "reviewed") {
+      nextWords = nextWords.filter((item) => (item.reviewCount ?? 0) > 0);
+    } else if (wordReviewFilter === "withNotes") {
+      nextWords = nextWords.filter((item) => Boolean(item.note?.trim()));
+    }
+
+    if (wordNpcFilter !== "all") {
+      nextWords = nextWords.filter((item) => item.npcId === wordNpcFilter);
+    }
+
+    return sortWordItems(nextWords, wordSort);
+  }, [allWordItems, wordNpcFilter, wordReviewFilter, wordSort]);
+
+  const listItems = useMemo(() => {
+    if (filter === "all") return panelItems;
+    if (filter === "expression") return panelItems.filter((item) => item.type === "expression");
+    return filteredWordItems;
+  }, [filter, filteredWordItems, panelItems]);
 
   const selectedWord = useMemo(
-    () => savedWords.find((item) => item.id === selectedWordId) ?? null,
-    [savedWords, selectedWordId]
+    () => allWordItems.find((item) => item.id === selectedWordId) ?? null,
+    [allWordItems, selectedWordId]
   );
 
-  const reviewWords = isWordReviewMode ? reviewSessionWords : savedWords;
+  const reviewWords = isWordReviewMode ? reviewSessionWords : allWordItems;
   const reviewWordsById = useMemo(
     () => new Map(reviewWords.map((word) => [word.id, word])),
     [reviewWords]
@@ -752,11 +870,11 @@ export function SavedItemsPanel({
   };
 
   const handleEnterWordReview = () => {
-    if (savedWords.length === 0) return;
+    if (allWordItems.length === 0) return;
     setSelectedWordId(null);
-    setReviewSessionWords(savedWords);
-    setReviewSessionStartMeta(buildReviewSessionStartMeta(savedWords));
-    setReviewQueueIds(buildReviewQueue(savedWords));
+    setReviewSessionWords(allWordItems);
+    setReviewSessionStartMeta(buildReviewSessionStartMeta(allWordItems));
+    setReviewQueueIds(buildReviewQueue(allWordItems));
     setReviewIndex(0);
     setReviewComplete(false);
     setReviewedInSession([]);
@@ -819,7 +937,7 @@ export function SavedItemsPanel({
   };
 
   const handleRestartReview = () => {
-    const nextWords = reviewSessionWords.length > 0 ? reviewSessionWords : savedWords;
+    const nextWords = reviewSessionWords.length > 0 ? reviewSessionWords : allWordItems;
     if (nextWords.length === 0) {
       setReviewComplete(false);
       return;
@@ -910,6 +1028,68 @@ export function SavedItemsPanel({
                 </button>
               )}
             </div>
+
+            {filter === "word" && wordCount > 0 && (
+              <div className="mt-3 space-y-3">
+                <p className="text-[10px] text-[#7A7060]">
+                  {wordCountLabel(filteredWordItems.length, wordCount)}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {(["all", "unreviewed", "reviewed", "withNotes"] as WordReviewFilter[]).map(
+                    (reviewFilterItem) => (
+                      <button
+                        key={reviewFilterItem}
+                        type="button"
+                        onClick={() => setWordReviewFilter(reviewFilterItem)}
+                        className={`rounded-full px-3 py-1.5 text-[9px] font-medium transition-colors ${
+                          wordReviewFilter === reviewFilterItem
+                            ? "bg-[#2D4A1F] text-[#F3EDE0] shadow-sm"
+                            : "bg-[#E8E0CE]/60 text-[#7A7060] hover:bg-[#E8E0CE]"
+                        }`}
+                      >
+                        {wordReviewFilterLabels[reviewFilterItem]}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-[10px] text-[#7A7060]">
+                    <span>{npcLabel}</span>
+                    <select
+                      value={wordNpcFilter}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setWordNpcFilter(nextValue === "all" ? "all" : (nextValue as NpcId));
+                      }}
+                      className="rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-[11px] text-[#4A4438] outline-none transition-colors focus:border-[#2D4A1F]/20"
+                    >
+                      <option value="all">{npcFilterAllLabel}</option>
+                      {WORD_NPC_FILTER_IDS.map((npcIdValue) => (
+                        <option key={npcIdValue} value={npcIdValue}>
+                          {getNpcFilterLabel(npcIdValue, isEn)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[10px] text-[#7A7060]">
+                    <span>{sortLabel}</span>
+                    <select
+                      value={wordSort}
+                      onChange={(event) => setWordSort(event.target.value as WordSort)}
+                      className="rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-[11px] text-[#4A4438] outline-none transition-colors focus:border-[#2D4A1F]/20"
+                    >
+                      <option value="newest">{wordSortLabels.newest}</option>
+                      <option value="oldest">{wordSortLabels.oldest}</option>
+                      <option value="reviewAsc">{wordSortLabels.reviewAsc}</option>
+                      <option value="reviewDesc">{wordSortLabels.reviewDesc}</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -988,13 +1168,40 @@ export function SavedItemsPanel({
               onBack={() => setSelectedWordId(null)}
               onSaveNote={handleSaveWordNote}
             />
-          ) : filtered.length === 0 ? (
+          ) : filter === "word" ? (
+            wordCount === 0 ? (
+              <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
+                {savedWordsEmptyLabel}
+              </p>
+            ) : listItems.length === 0 ? (
+              <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
+                {noFilteredWordsLabel}
+              </p>
+            ) : (
+              <div className="space-y-3.5">
+                {listItems.map((item) => {
+                  if (item.type !== "word") return null;
+
+                  return (
+                    <WordCard
+                      key={item.id}
+                      item={item}
+                      copy={copy}
+                      isEn={isEn}
+                      onDelete={() => onDelete(item.id)}
+                      onOpen={() => handleOpenWordCard(item.id)}
+                    />
+                  );
+                })}
+              </div>
+            )
+          ) : listItems.length === 0 ? (
             <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
-              {filter === "word" ? savedWordsEmptyLabel : copy.sidebar.savedEmpty}
+              {copy.sidebar.savedEmpty}
             </p>
           ) : (
             <div className="space-y-3.5">
-              {filtered.map((item) => {
+              {listItems.map((item) => {
                 if (item.type === "expression") {
                   return (
                     <ExpressionCard
