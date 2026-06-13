@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   markSavedWordReviewed,
   updateSavedWordNote,
@@ -10,11 +10,16 @@ import type { NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
 import { getNpcDisplayName, isNpcId } from "@/lib/npc";
 import { TrashIcon } from "@/components/ui-icons";
+import {
+  SavedWordsFilterControls,
+  type WordNpcFilter,
+  type WordReviewFilter,
+  type WordSort,
+} from "@/components/saved-words-filter-controls";
+import { SavedWordCompletionSummary } from "@/components/saved-word-completion-summary";
 
 type FilterType = "all" | "expression" | "word";
 type WordCardMode = "queue" | "detail";
-type WordReviewFilter = "all" | "unreviewed" | "reviewed" | "withNotes";
-type WordSort = "newest" | "oldest" | "reviewAsc" | "reviewDesc";
 
 interface SavedItemsPanelProps {
   copy: UiCopy;
@@ -92,10 +97,6 @@ function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
   }
 
   return isEn ? "Kotomachi" : "言街";
-}
-
-function getNpcFilterLabel(npcId: NpcId, isEn: boolean): string {
-  return getWordReviewNpcLabel(npcId, isEn);
 }
 
 function toTimestamp(value?: string): number {
@@ -703,51 +704,6 @@ export function SavedItemsPanel({
   const noFilteredWordsLabel = isEn
     ? "No words match these filters. Try another filter."
     : "没有符合条件的词。可以换一个筛选条件看看。";
-  const wordCountLabel = (shown: number, total: number) =>
-    isEn ? `Showing ${shown} of ${total} words` : `显示 ${shown} / ${total} 个词`;
-  const completionTitle = isEn ? "Round complete" : "这轮看完了";
-  const reviewAgainLabel = isEn ? "Review again" : "再看一轮";
-  const backToSavedLabel = isEn ? "Back to saved items" : "返回收藏";
-  const completionLabels = isEn
-    ? {
-        firstReview: "First review",
-        reviewedBefore: "Reviewed before",
-        withNotes: "With notes",
-      }
-    : {
-        firstReview: "第一次复习",
-        reviewedBefore: "再次复习",
-        withNotes: "有笔记",
-      };
-  const wordReviewFilterLabels: Record<WordReviewFilter, string> = isEn
-    ? {
-        all: "All",
-        unreviewed: "Not reviewed",
-        reviewed: "Reviewed",
-        withNotes: "With notes",
-      }
-    : {
-        all: "全部",
-        unreviewed: "未复习",
-        reviewed: "已复习",
-        withNotes: "有笔记",
-      };
-  const npcFilterAllLabel = isEn ? "All NPCs" : "全部 NPC";
-  const sortLabel = isEn ? "Sort" : "排序";
-  const npcLabel = isEn ? "NPC" : "NPC";
-  const wordSortLabels: Record<WordSort, string> = isEn
-    ? {
-        newest: "Newest saved",
-        oldest: "Oldest saved",
-        reviewAsc: "Fewest reviews",
-        reviewDesc: "Most reviews",
-      }
-    : {
-        newest: "最近保存",
-        oldest: "最早保存",
-        reviewAsc: "复习次数少到多",
-        reviewDesc: "复习次数多到少",
-      };
 
   const [panelItems, setPanelItems] = useState<SavedItem[]>(items);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -762,19 +718,24 @@ export function SavedItemsPanel({
     Record<string, { reviewCount: number }>
   >({});
   const [wordReviewFilter, setWordReviewFilter] = useState<WordReviewFilter>("all");
-  const [wordNpcFilter, setWordNpcFilter] = useState<NpcId | "all">("all");
+  const [wordNpcFilter, setWordNpcFilter] = useState<WordNpcFilter>("all");
   const [wordSort, setWordSort] = useState<WordSort>("newest");
+  const openingWordIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setPanelItems(items);
   }, [items]);
 
   useEffect(() => {
-    if (!selectedWordId) return;
+    if (!selectedWordId) {
+      openingWordIdRef.current = null;
+      return;
+    }
 
     const stillExists = panelItems.some((item) => item.type === "word" && item.id === selectedWordId);
     if (!stillExists) {
       setSelectedWordId(null);
+      openingWordIdRef.current = null;
     }
   }, [panelItems, selectedWordId]);
 
@@ -820,6 +781,7 @@ export function SavedItemsPanel({
     () => new Map(reviewWords.map((word) => [word.id, word])),
     [reviewWords]
   );
+
   const reviewCompletionSummary = useMemo(() => {
     let firstReviewCount = 0;
     let reviewedBeforeCount = 0;
@@ -847,9 +809,7 @@ export function SavedItemsPanel({
       withNotesCount,
     };
   }, [reviewSessionStartMeta, reviewedInSession, reviewWordsById]);
-  const completionText = isEn
-    ? `You reviewed ${reviewCompletionSummary.reviewedCount} saved words.`
-    : `刚刚复习了 ${reviewCompletionSummary.reviewedCount} 个保存过的词。`;
+
   const safeReviewIndex =
     reviewQueueIds.length === 0 ? 0 : Math.min(reviewIndex, reviewQueueIds.length - 1);
   const currentReviewWord = reviewWordsById.get(reviewQueueIds[safeReviewIndex] ?? "") ?? null;
@@ -859,6 +819,20 @@ export function SavedItemsPanel({
     { key: "expression", label: copy.sidebar.savedExpressions, count: expressionCount },
     { key: "word", label: copy.sidebar.savedWords, count: wordCount },
   ];
+
+  const npcOptions = useMemo(
+    () => [
+      {
+        value: "all" as const,
+        label: isEn ? "All NPCs" : "全部 NPC",
+      },
+      ...WORD_NPC_FILTER_IDS.map((npcId) => ({
+        value: npcId,
+        label: getWordReviewNpcLabel(npcId, isEn),
+      })),
+    ],
+    [isEn]
+  );
 
   const resetReviewState = () => {
     setReviewQueueIds([]);
@@ -872,6 +846,7 @@ export function SavedItemsPanel({
   const handleEnterWordReview = () => {
     if (allWordItems.length === 0) return;
     setSelectedWordId(null);
+    openingWordIdRef.current = null;
     setReviewSessionWords(allWordItems);
     setReviewSessionStartMeta(buildReviewSessionStartMeta(allWordItems));
     setReviewQueueIds(buildReviewQueue(allWordItems));
@@ -886,7 +861,18 @@ export function SavedItemsPanel({
     resetReviewState();
   };
 
+  const handleBackToSavedItems = () => {
+    openingWordIdRef.current = null;
+    setSelectedWordId(null);
+  };
+
   const handleOpenWordCard = (wordId: string) => {
+    if (openingWordIdRef.current === wordId && selectedWordId === wordId) {
+      return;
+    }
+
+    openingWordIdRef.current = wordId;
+
     const updatedItems = markSavedWordReviewed(wordId);
     const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
 
@@ -944,6 +930,7 @@ export function SavedItemsPanel({
     }
 
     setSelectedWordId(null);
+    openingWordIdRef.current = null;
     setReviewSessionWords(nextWords);
     setReviewSessionStartMeta(buildReviewSessionStartMeta(nextWords));
     setReviewQueueIds(buildReviewQueue(nextWords));
@@ -1030,65 +1017,18 @@ export function SavedItemsPanel({
             </div>
 
             {filter === "word" && wordCount > 0 && (
-              <div className="mt-3 space-y-3">
-                <p className="text-[10px] text-[#7A7060]">
-                  {wordCountLabel(filteredWordItems.length, wordCount)}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {(["all", "unreviewed", "reviewed", "withNotes"] as WordReviewFilter[]).map(
-                    (reviewFilterItem) => (
-                      <button
-                        key={reviewFilterItem}
-                        type="button"
-                        onClick={() => setWordReviewFilter(reviewFilterItem)}
-                        className={`rounded-full px-3 py-1.5 text-[9px] font-medium transition-colors ${
-                          wordReviewFilter === reviewFilterItem
-                            ? "bg-[#2D4A1F] text-[#F3EDE0] shadow-sm"
-                            : "bg-[#E8E0CE]/60 text-[#7A7060] hover:bg-[#E8E0CE]"
-                        }`}
-                      >
-                        {wordReviewFilterLabels[reviewFilterItem]}
-                      </button>
-                    )
-                  )}
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1 text-[10px] text-[#7A7060]">
-                    <span>{npcLabel}</span>
-                    <select
-                      value={wordNpcFilter}
-                      onChange={(event) => {
-                        const nextValue = event.target.value;
-                        setWordNpcFilter(nextValue === "all" ? "all" : (nextValue as NpcId));
-                      }}
-                      className="rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-[11px] text-[#4A4438] outline-none transition-colors focus:border-[#2D4A1F]/20"
-                    >
-                      <option value="all">{npcFilterAllLabel}</option>
-                      {WORD_NPC_FILTER_IDS.map((npcIdValue) => (
-                        <option key={npcIdValue} value={npcIdValue}>
-                          {getNpcFilterLabel(npcIdValue, isEn)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="flex flex-col gap-1 text-[10px] text-[#7A7060]">
-                    <span>{sortLabel}</span>
-                    <select
-                      value={wordSort}
-                      onChange={(event) => setWordSort(event.target.value as WordSort)}
-                      className="rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-[11px] text-[#4A4438] outline-none transition-colors focus:border-[#2D4A1F]/20"
-                    >
-                      <option value="newest">{wordSortLabels.newest}</option>
-                      <option value="oldest">{wordSortLabels.oldest}</option>
-                      <option value="reviewAsc">{wordSortLabels.reviewAsc}</option>
-                      <option value="reviewDesc">{wordSortLabels.reviewDesc}</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
+              <SavedWordsFilterControls
+                isEn={isEn}
+                wordReviewFilter={wordReviewFilter}
+                wordNpcFilter={wordNpcFilter}
+                wordSort={wordSort}
+                totalCount={wordCount}
+                filteredCount={filteredWordItems.length}
+                npcOptions={npcOptions}
+                onWordReviewFilterChange={setWordReviewFilter}
+                onWordNpcFilterChange={setWordNpcFilter}
+                onWordSortChange={setWordSort}
+              />
             )}
           </div>
         )}
@@ -1096,43 +1036,15 @@ export function SavedItemsPanel({
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {isWordReviewMode ? (
             reviewComplete ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-5">
-                  <h3 className="font-ui text-sm font-semibold text-[#2D4A1F]">
-                    {completionTitle}
-                  </h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-[#4A4438]">
-                    {completionText}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
-                      {completionLabels.firstReview}：{reviewCompletionSummary.firstReviewCount}
-                    </span>
-                    <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
-                      {completionLabels.reviewedBefore}：{reviewCompletionSummary.reviewedBeforeCount}
-                    </span>
-                    <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
-                      {completionLabels.withNotes}：{reviewCompletionSummary.withNotesCount}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRestartReview}
-                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-                  >
-                    {reviewAgainLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExitWordReview}
-                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-                  >
-                    {backToSavedLabel}
-                  </button>
-                </div>
-              </div>
+              <SavedWordCompletionSummary
+                isEn={isEn}
+                totalReviewed={reviewCompletionSummary.reviewedCount}
+                firstReviewCount={reviewCompletionSummary.firstReviewCount}
+                reviewedBeforeCount={reviewCompletionSummary.reviewedBeforeCount}
+                withNotesCount={reviewCompletionSummary.withNotesCount}
+                onReviewAgain={handleRestartReview}
+                onBackToSavedItems={handleExitWordReview}
+              />
             ) : currentReviewWord ? (
               <WordReviewCard
                 item={currentReviewWord}
@@ -1153,7 +1065,7 @@ export function SavedItemsPanel({
                   onClick={handleExitWordReview}
                   className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
                 >
-                  ← {backToSavedLabel}
+                  ← {isEn ? "Back to saved items" : "返回收藏"}
                 </button>
                 <p className="rounded-xl bg-[#FAF6EE] px-4 py-4 text-[12px] leading-relaxed text-[#7A7060]">
                   {savedWordsEmptyLabel}
@@ -1165,7 +1077,7 @@ export function SavedItemsPanel({
               item={selectedWord}
               mode="detail"
               isEn={isEn}
-              onBack={() => setSelectedWordId(null)}
+              onBack={handleBackToSavedItems}
               onSaveNote={handleSaveWordNote}
             />
           ) : filter === "word" ? (
