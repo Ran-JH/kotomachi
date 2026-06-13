@@ -11,6 +11,7 @@ import { getNpcDisplayName, isNpcId } from "@/lib/npc";
 import { TrashIcon } from "@/components/ui-icons";
 
 type FilterType = "all" | "expression" | "word";
+type WordCardMode = "queue" | "detail";
 
 interface SavedItemsPanelProps {
   copy: UiCopy;
@@ -102,6 +103,85 @@ function buildReviewSessionStartMeta(words: SavedWord[]): Record<string, { revie
   }, {});
 }
 
+function getWordReviewSummaryLabel(item: SavedWord, isEn: boolean): string {
+  const count = item.reviewCount ?? 0;
+  if (count <= 0) {
+    return isEn ? "First review" : "第一次复习";
+  }
+
+  if (isEn) {
+    return count === 1 ? "Reviewed 1 time" : `Reviewed ${count} times`;
+  }
+
+  return `已复习 ${count} 次`;
+}
+
+function getWordListReviewBadge(item: SavedWord, isEn: boolean): string {
+  const count = item.reviewCount ?? 0;
+  if (count <= 0) {
+    return isEn ? "Not reviewed" : "未复习";
+  }
+
+  if (isEn) {
+    return count === 1 ? "Reviewed 1 time" : `Reviewed ${count} times`;
+  }
+
+  return `已复习 ${count} 次`;
+}
+
+function getWordCardLabels(isEn: boolean) {
+  return isEn
+    ? {
+        reviewTitle: "Word review",
+        detailTitle: "Word card",
+        backToSaved: "Back to saved items",
+        reading: "Reading",
+        meaning: "Meaning",
+        detailedNote: "Detailed note",
+        sentenceMeaning: "Meaning in this sentence",
+        sourceSentence: "Source sentence",
+        sourceSentenceFallback: "No source sentence yet",
+        myNote: "My note",
+        noNoteYet: "No note yet",
+        addNote: "Add note",
+        editNote: "Edit",
+        saveNote: "Save",
+        cancelEdit: "Cancel",
+        notePlaceholder:
+          "Write your own understanding, such as how this word feels in this sentence.",
+        from: "From",
+        saved: "Saved",
+        lastReviewed: (value: string) => `Last reviewed: ${value}`,
+        previous: "Previous",
+        next: "Next",
+        finishRound: "Finish round",
+      }
+    : {
+        reviewTitle: "单词复习",
+        detailTitle: "单词卡片",
+        backToSaved: "返回收藏",
+        reading: "读音",
+        meaning: "释义",
+        detailedNote: "详细解释",
+        sentenceMeaning: "这句话里的意思",
+        sourceSentence: "出处原句",
+        sourceSentenceFallback: "暂无出处原句",
+        myNote: "我的笔记",
+        noNoteYet: "还没有笔记",
+        addNote: "添加笔记",
+        editNote: "编辑",
+        saveNote: "保存",
+        cancelEdit: "取消",
+        notePlaceholder: "写一点你自己的理解，比如这个词在这句话里的感觉。",
+        from: "来自",
+        saved: "保存于",
+        lastReviewed: (value: string) => `上次看过：${value}`,
+        previous: "上一个",
+        next: "下一个",
+        finishRound: "完成本轮",
+      };
+}
+
 function ExpressionCard({
   item,
   copy,
@@ -174,17 +254,39 @@ function ExpressionCard({
 function WordCard({
   item,
   copy,
+  isEn,
   onDelete,
+  onOpen,
 }: {
   item: SavedWord;
   copy: UiCopy;
+  isEn: boolean;
   onDelete: () => void;
+  onOpen: () => void;
 }) {
+  const reviewBadge = getWordListReviewBadge(item, isEn);
+  const hasNote = Boolean(item.note?.trim());
+
   return (
-    <div className="relative rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3.5">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="relative cursor-pointer rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3.5 transition-colors hover:bg-[#F7F1E6] focus:outline-none focus:ring-2 focus:ring-[#2D4A1F]/20"
+      aria-label={isEn ? `Open word card for ${item.word}` : `打开 ${item.word} 的单词卡片`}
+    >
       <button
         type="button"
-        onClick={onDelete}
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
         className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[8px] text-[#7A7060]/40 transition-colors hover:bg-[#E8E0CE] hover:text-[#7A7060]"
         aria-label={copy.sidebar.savedDelete}
       >
@@ -192,15 +294,28 @@ function WordCard({
         <span>{copy.sidebar.savedDelete}</span>
       </button>
 
-      <div className="flex items-baseline gap-2.5 pr-14">
-        <p className="text-[14px] font-semibold leading-relaxed text-[#2D4A1F]">
-          {item.word}
-        </p>
-        {item.reading && (
-          <p className="text-[10px] leading-relaxed text-[#7A7060]/65">
-            {item.reading}
+      <div className="pr-14">
+        <div className="flex flex-wrap items-baseline gap-2.5">
+          <p className="text-[14px] font-semibold leading-relaxed text-[#2D4A1F]">
+            {item.word}
           </p>
-        )}
+          {item.reading && (
+            <p className="text-[10px] leading-relaxed text-[#7A7060]/65">
+              {item.reading}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
+            {reviewBadge}
+          </span>
+          {hasNote && (
+            <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
+              {isEn ? "Has note" : "有笔记"}
+            </span>
+          )}
+        </div>
       </div>
 
       {item.meaning && (
@@ -236,6 +351,7 @@ function WordCard({
 
 function WordReviewCard({
   item,
+  mode,
   index,
   total,
   isEn,
@@ -246,69 +362,18 @@ function WordReviewCard({
   onSaveNote,
 }: {
   item: SavedWord;
-  index: number;
-  total: number;
+  mode: WordCardMode;
+  index?: number;
+  total?: number;
   isEn: boolean;
-  isLastItem: boolean;
+  isLastItem?: boolean;
   onBack: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onSaveNote: (wordId: string, note: string) => void;
 }) {
-  const labels = isEn
-    ? {
-        backToSaved: "Back to saved items",
-        title: "Word review",
-        reading: "Reading",
-        meaning: "Meaning",
-        detailedNote: "Detailed note",
-        sentenceMeaning: "Meaning in this sentence",
-        sourceSentence: "Source sentence",
-        sourceSentenceFallback: "No source sentence yet",
-        myNote: "My note",
-        noNoteYet: "No note yet",
-        addNote: "Add note",
-        editNote: "Edit",
-        saveNote: "Save",
-        cancelEdit: "Cancel",
-        notePlaceholder:
-          "Write your own understanding, such as how this word feels in this sentence.",
-        from: "From",
-        saved: "Saved",
-        firstReview: "First review",
-        reviewedTimes: (count: number) => `Reviewed ${count} times`,
-        lastReviewed: (value: string) => `Last reviewed: ${value}`,
-        previous: "Previous",
-        next: "Next",
-        finishRound: "Finish round",
-      }
-    : {
-        backToSaved: "返回收藏",
-        title: "单词复习",
-        reading: "读音",
-        meaning: "释义",
-        detailedNote: "详细解释",
-        sentenceMeaning: "这句话里的意思",
-        sourceSentence: "出处原句",
-        sourceSentenceFallback: "暂无出处原句",
-        myNote: "我的笔记",
-        noNoteYet: "还没有笔记",
-        addNote: "添加笔记",
-        editNote: "编辑",
-        saveNote: "保存",
-        cancelEdit: "取消",
-        notePlaceholder: "写一点你自己的理解，比如这个词在这句话里的感觉。",
-        from: "来自",
-        saved: "保存于",
-        firstReview: "第一次复习",
-        reviewedTimes: (count: number) => `已复习 ${count} 次`,
-        lastReviewed: (value: string) => `上次看过：${value}`,
-        previous: "上一个",
-        next: "下一个",
-        finishRound: "完成本轮",
-      };
-
-  const hasPrevious = index > 0;
+  const labels = getWordCardLabels(isEn);
+  const hasPrevious = mode === "queue" ? (index ?? 0) > 0 : false;
   const locale = isEn ? "en-US" : "zh-CN";
   const npcLabel = getWordReviewNpcLabel(item.npcId, isEn);
   const nuanceExplanation = item.nuanceExplanation?.trim();
@@ -316,8 +381,7 @@ function WordReviewCard({
   const sourceSentence = item.example?.trim();
   const note = item.note?.trim() ?? "";
   const hasDetailedNote = Boolean(nuanceExplanation || sentenceMeaning);
-  const reviewCount = item.reviewCount ?? 0;
-  const reviewSummary = reviewCount > 0 ? labels.reviewedTimes(reviewCount) : labels.firstReview;
+  const reviewSummary = getWordReviewSummaryLabel(item, isEn);
   const lastReviewedText = item.lastReviewedAt
     ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
     : null;
@@ -354,11 +418,13 @@ function WordReviewCard({
 
         <div className="ml-auto flex items-center gap-3 text-right">
           <h3 className="font-ui text-sm font-semibold text-[#2D4A1F]">
-            {labels.title}
+            {mode === "queue" ? labels.reviewTitle : labels.detailTitle}
           </h3>
-          <span className="text-[11px] font-medium text-[#7A7060]">
-            {index + 1} / {total}
-          </span>
+          {mode === "queue" && typeof index === "number" && typeof total === "number" && (
+            <span className="text-[11px] font-medium text-[#7A7060]">
+              {index + 1} / {total}
+            </span>
+          )}
         </div>
       </div>
 
@@ -519,30 +585,42 @@ function WordReviewCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onPrevious}
-          disabled={!hasPrevious}
-          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {labels.previous}
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-        >
-          {isLastItem ? labels.finishRound : labels.next}
-        </button>
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-        >
-          {labels.backToSaved}
-        </button>
-      </div>
+      {mode === "queue" ? (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onPrevious}
+            disabled={!hasPrevious}
+            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {labels.previous}
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+          >
+            {isLastItem ? labels.finishRound : labels.next}
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+          >
+            {labels.backToSaved}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+          >
+            {labels.backToSaved}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -574,7 +652,9 @@ export function SavedItemsPanel({
         withNotes: "有笔记",
       };
 
+  const [panelItems, setPanelItems] = useState<SavedItem[]>(items);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isWordReviewMode, setIsWordReviewMode] = useState(false);
   const [reviewQueueIds, setReviewQueueIds] = useState<string[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
@@ -585,18 +665,36 @@ export function SavedItemsPanel({
     Record<string, { reviewCount: number }>
   >({});
 
+  useEffect(() => {
+    setPanelItems(items);
+  }, [items]);
+
+  useEffect(() => {
+    if (!selectedWordId) return;
+
+    const stillExists = panelItems.some((item) => item.type === "word" && item.id === selectedWordId);
+    if (!stillExists) {
+      setSelectedWordId(null);
+    }
+  }, [panelItems, selectedWordId]);
+
   const filtered =
     filter === "all"
-      ? items
-      : items.filter((i) => i.type === filter);
+      ? panelItems
+      : panelItems.filter((item) => item.type === filter);
 
-  const expressionCount = items.filter((i) => i.type === "expression").length;
-  const wordCount = items.filter((i) => i.type === "word").length;
+  const expressionCount = panelItems.filter((item) => item.type === "expression").length;
+  const wordCount = panelItems.filter((item) => item.type === "word").length;
   const totalCount = expressionCount + wordCount;
 
   const savedWords = useMemo(
-    () => items.filter((item): item is SavedWord => item.type === "word"),
-    [items]
+    () => panelItems.filter((item): item is SavedWord => item.type === "word"),
+    [panelItems]
+  );
+
+  const selectedWord = useMemo(
+    () => savedWords.find((item) => item.id === selectedWordId) ?? null,
+    [savedWords, selectedWordId]
   );
 
   const reviewWords = isWordReviewMode ? reviewSessionWords : savedWords;
@@ -655,6 +753,7 @@ export function SavedItemsPanel({
 
   const handleEnterWordReview = () => {
     if (savedWords.length === 0) return;
+    setSelectedWordId(null);
     setReviewSessionWords(savedWords);
     setReviewSessionStartMeta(buildReviewSessionStartMeta(savedWords));
     setReviewQueueIds(buildReviewQueue(savedWords));
@@ -669,6 +768,24 @@ export function SavedItemsPanel({
     resetReviewState();
   };
 
+  const handleOpenWordCard = (wordId: string) => {
+    const updatedItems = markSavedWordReviewed(wordId);
+    const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
+
+    setPanelItems(updatedItems);
+    setSelectedWordId(wordId);
+    setReviewSessionWords(updatedWords);
+  };
+
+  const handleSaveWordNote = (wordId: string, note: string) => {
+    const updatedItems = updateSavedWordNote(wordId, note);
+    const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
+
+    // 本地 panel 状态和 review/detail 视图都基于这份数据，这样保存后能立刻看到最新 badge 和 note。
+    setPanelItems(updatedItems);
+    setReviewSessionWords(updatedWords);
+  };
+
   const markCurrentWordReviewed = (wordId: string): SavedWord[] => {
     if (reviewedInSession.includes(wordId)) {
       return reviewSessionWords;
@@ -676,6 +793,8 @@ export function SavedItemsPanel({
 
     const updatedItems = markSavedWordReviewed(wordId);
     const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
+
+    setPanelItems(updatedItems);
     setReviewSessionWords(updatedWords);
     setReviewedInSession((current) => [...current, wordId]);
     return updatedWords;
@@ -706,20 +825,13 @@ export function SavedItemsPanel({
       return;
     }
 
+    setSelectedWordId(null);
     setReviewSessionWords(nextWords);
     setReviewSessionStartMeta(buildReviewSessionStartMeta(nextWords));
     setReviewQueueIds(buildReviewQueue(nextWords));
     setReviewIndex(0);
     setReviewComplete(false);
     setReviewedInSession([]);
-  };
-
-  const handleSaveWordNote = (wordId: string, note: string) => {
-    const updatedItems = updateSavedWordNote(wordId, note);
-    const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
-
-    // review mode 里维护一份当前词列表，这样保存笔记后无需退出面板也能立刻看到新值。
-    setReviewSessionWords(updatedWords);
   };
 
   return (
@@ -759,25 +871,29 @@ export function SavedItemsPanel({
           )}
         </header>
 
-        {!isWordReviewMode && (
+        {!isWordReviewMode && !selectedWord && (
           <div className="shrink-0 border-b border-[rgba(40,35,26,0.06)] bg-[#FAF6EE]/60 px-6 py-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap gap-2">
-                {filters.map((f) => (
+                {filters.map((filterItem) => (
                   <button
-                    key={f.key}
+                    key={filterItem.key}
                     type="button"
-                    onClick={() => setFilter(f.key)}
+                    onClick={() => setFilter(filterItem.key)}
                     className={`rounded-full px-3.5 py-1.5 text-[9px] font-medium transition-colors ${
-                      filter === f.key
+                      filter === filterItem.key
                         ? "bg-[#2D4A1F] text-[#F3EDE0] shadow-sm"
                         : "bg-[#E8E0CE]/60 text-[#7A7060] hover:bg-[#E8E0CE]"
                     }`}
                   >
-                    {f.label}
-                    {f.count > 0 && (
-                      <span className={`ml-1 ${filter === f.key ? "opacity-70" : "opacity-50"}`}>
-                        {f.count}
+                    {filterItem.label}
+                    {filterItem.count > 0 && (
+                      <span
+                        className={`ml-1 ${
+                          filter === filterItem.key ? "opacity-70" : "opacity-50"
+                        }`}
+                      >
+                        {filterItem.count}
                       </span>
                     )}
                   </button>
@@ -840,6 +956,7 @@ export function SavedItemsPanel({
             ) : currentReviewWord ? (
               <WordReviewCard
                 item={currentReviewWord}
+                mode="queue"
                 index={safeReviewIndex}
                 total={reviewQueueIds.length}
                 isEn={isEn}
@@ -863,6 +980,14 @@ export function SavedItemsPanel({
                 </p>
               </div>
             )
+          ) : selectedWord ? (
+            <WordReviewCard
+              item={selectedWord}
+              mode="detail"
+              isEn={isEn}
+              onBack={() => setSelectedWordId(null)}
+              onSaveNote={handleSaveWordNote}
+            />
           ) : filtered.length === 0 ? (
             <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
               {filter === "word" ? savedWordsEmptyLabel : copy.sidebar.savedEmpty}
@@ -887,7 +1012,9 @@ export function SavedItemsPanel({
                       key={item.id}
                       item={item}
                       copy={copy}
+                      isEn={isEn}
                       onDelete={() => onDelete(item.id)}
+                      onOpen={() => handleOpenWordCard(item.id)}
                     />
                   );
                 }
