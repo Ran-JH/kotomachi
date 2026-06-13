@@ -378,6 +378,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
   const handleToggleSave = () => {
     if (!data) return;
     const nextWord = (data.word ?? selectedText).trim() || selectedText;
+    const sentenceMeaning = data.sentence_meaning?.trim();
+    const nuanceExplanation = data.nuance_explanation?.trim();
     const item: SavedWord = {
       id: createSummaryId("saved-word"),
       type: "word",
@@ -387,6 +389,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
       meaning: data.translation ?? "",
       meaningLanguage: uiLanguage === "en" ? "en" : "zh",
       example: fullSentence,
+      ...(sentenceMeaning ? { sentenceMeaning } : {}),
+      ...(nuanceExplanation ? { nuanceExplanation } : {}),
       source: "lookup",
       sourceMessageId: messageId,
       createdAt: new Date().toISOString(),

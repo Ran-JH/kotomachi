@@ -41,6 +41,8 @@ export interface SavedWord {
   meaning: string;
   meaningLanguage: "zh" | "en";
   example?: string;
+  sentenceMeaning?: string;
+  nuanceExplanation?: string;
   source: "lookup" | "summary_card";
   sourceMessageId?: string;
   summaryCardId?: string;

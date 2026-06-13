@@ -198,6 +198,8 @@ function WordReviewCard({
         title: "Word review",
         reading: "Reading",
         meaning: "Meaning",
+        detailedNote: "Detailed note",
+        sentenceMeaning: "Meaning in this sentence",
         sourceSentence: "Source sentence",
         sourceSentenceFallback: "No source sentence yet",
         from: "From",
@@ -210,6 +212,8 @@ function WordReviewCard({
         title: "单词复习",
         reading: "读音",
         meaning: "释义",
+        detailedNote: "详细解释",
+        sentenceMeaning: "这句话里的意思",
         sourceSentence: "出处原句",
         sourceSentenceFallback: "暂无出处原句",
         from: "来自",
@@ -222,7 +226,10 @@ function WordReviewCard({
   const hasNext = index < total - 1;
   const locale = isEn ? "en-US" : "zh-CN";
   const npcLabel = getWordReviewNpcLabel(item.npcId, isEn);
+  const nuanceExplanation = item.nuanceExplanation?.trim();
+  const sentenceMeaning = item.sentenceMeaning?.trim();
   const sourceSentence = item.example?.trim();
+  const hasDetailedNote = Boolean(nuanceExplanation || sentenceMeaning);
 
   return (
     <div className="space-y-4">
@@ -270,6 +277,31 @@ function WordReviewCard({
               {item.meaning || "—"}
             </p>
           </div>
+
+          {hasDetailedNote && (
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.detailedNote}
+              </p>
+              <div className="mt-1 rounded-xl bg-[#F3EDE0]/80 px-4 py-3">
+                {nuanceExplanation && (
+                  <p className="break-words text-[13px] leading-relaxed text-[#4A4438]">
+                    {nuanceExplanation}
+                  </p>
+                )}
+                {sentenceMeaning && (
+                  <div className={nuanceExplanation ? "mt-3 border-t border-[rgba(40,35,26,0.08)] pt-3" : ""}>
+                    <p className="text-[10px] font-medium text-[#7A7060]">
+                      {labels.sentenceMeaning}
+                    </p>
+                    <p className="mt-1 break-words text-[12px] leading-relaxed text-[#4A4438]">
+                      {sentenceMeaning}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
