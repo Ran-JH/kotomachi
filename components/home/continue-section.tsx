@@ -53,7 +53,7 @@ export function ContinueSection({ uiLanguage }: ContinueSectionProps) {
   const ctaLabel = isZh ? "继续" : "Continue";
 
   return (
-    <section className="mx-auto w-full max-w-[1120px] px-4 py-3 md:px-5">
+    <section className="mx-auto w-full max-w-[1320px] px-4 py-3 md:px-5">
       <div className="mb-2.5">
         <h3 className="text-sm font-medium text-[#2D4A1F] md:text-base">{heading}</h3>
         <p className="mt-0.5 text-[11px] text-[#7A7060]">{subtitle}</p>

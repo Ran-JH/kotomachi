@@ -85,7 +85,7 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
   };
 
   return (
-    <section className="mx-auto w-full max-w-[1120px] px-4 py-4 md:px-5">
+    <section className="mx-auto w-full max-w-[1320px] px-4 py-4 md:px-5">
       {featuredScene && (
         <div className="mb-5">
           <div className="mb-3 flex items-start justify-between gap-3">

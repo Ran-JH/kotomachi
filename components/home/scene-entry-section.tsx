@@ -126,7 +126,7 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   return (
     <Link
       href={`/chat/${npcId}`}
-      className="group flex shrink-0 basis-[78vw] flex-col items-center rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 p-3.5 text-center transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.22)] hover:bg-white/68 hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.99] sm:basis-[320px] md:basis-[calc((100%-1rem)/2.35)] md:p-4 lg:basis-[calc((100%-2rem)/3.35)] xl:basis-[calc((100%-4rem)/5)]"
+      className="group flex w-[260px] max-w-[78vw] shrink-0 flex-col items-center rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 p-3.5 text-center transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.22)] hover:bg-white/68 hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.99] md:p-4 lg:w-[240px] xl:w-[235px] xl:max-w-none"
     >
       <img
         src={avatar}
