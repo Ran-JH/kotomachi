@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
-import type { SavedExpression, SavedItem, SavedWord } from "@/lib/saved-items";
+import {
+  markSavedWordReviewed,
+  type SavedExpression,
+  type SavedItem,
+  type SavedWord,
+} from "@/lib/saved-items";
 import type { UiCopy } from "@/lib/ui-copy";
 import { getNpcDisplayName, isNpcId } from "@/lib/npc";
 import { TrashIcon } from "@/components/ui-icons";
@@ -43,6 +48,38 @@ function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
   return isEn ? "Kotomachi" : "言街";
 }
 
+function toTimestamp(value?: string): number {
+  if (!value) return Number.NaN;
+  return new Date(value).getTime();
+}
+
+function compareByReviewNeed(a: SavedWord, b: SavedWord): number {
+  const aHasReview = Boolean(a.lastReviewedAt);
+  const bHasReview = Boolean(b.lastReviewedAt);
+
+  if (aHasReview !== bHasReview) {
+    return aHasReview ? 1 : -1;
+  }
+
+  if (!aHasReview && !bHasReview) {
+    return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+  }
+
+  const reviewDelta = toTimestamp(a.lastReviewedAt) - toTimestamp(b.lastReviewedAt);
+  if (reviewDelta !== 0) {
+    return reviewDelta;
+  }
+
+  return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+}
+
+function buildReviewQueue(words: SavedWord[]): string[] {
+  return words
+    .slice()
+    .sort(compareByReviewNeed)
+    .map((item) => item.id);
+}
+
 function ExpressionCard({
   item,
   copy,
@@ -84,7 +121,7 @@ function ExpressionCard({
           <span className="mb-0.5 block text-[8px] font-medium text-[#7A7060]/50">
             {copy.sidebar.savedNoteLabel}
           </span>
-          <p className="text-[10px] leading-relaxed text-[#7A7060]/70 line-clamp-2">
+          <p className="line-clamp-2 text-[10px] leading-relaxed text-[#7A7060]/70">
             {item.note}
           </p>
         </div>
@@ -180,6 +217,7 @@ function WordReviewCard({
   index,
   total,
   isEn,
+  isLastItem,
   onBack,
   onPrevious,
   onNext,
@@ -188,6 +226,7 @@ function WordReviewCard({
   index: number;
   total: number;
   isEn: boolean;
+  isLastItem: boolean;
   onBack: () => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -206,6 +245,7 @@ function WordReviewCard({
         saved: "Saved",
         previous: "Previous",
         next: "Next",
+        finishRound: "Finish round",
       }
     : {
         backToSaved: "返回收藏",
@@ -220,10 +260,10 @@ function WordReviewCard({
         saved: "保存于",
         previous: "上一个",
         next: "下一个",
+        finishRound: "完成本轮",
       };
 
   const hasPrevious = index > 0;
-  const hasNext = index < total - 1;
   const locale = isEn ? "en-US" : "zh-CN";
   const npcLabel = getWordReviewNpcLabel(item.npcId, isEn);
   const nuanceExplanation = item.nuanceExplanation?.trim();
@@ -290,7 +330,9 @@ function WordReviewCard({
                   </p>
                 )}
                 {sentenceMeaning && (
-                  <div className={nuanceExplanation ? "mt-3 border-t border-[rgba(40,35,26,0.08)] pt-3" : ""}>
+                  <div
+                    className={nuanceExplanation ? "mt-3 border-t border-[rgba(40,35,26,0.08)] pt-3" : ""}
+                  >
                     <p className="text-[10px] font-medium text-[#7A7060]">
                       {labels.sentenceMeaning}
                     </p>
@@ -348,10 +390,9 @@ function WordReviewCard({
         <button
           type="button"
           onClick={onNext}
-          disabled={!hasNext}
-          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
         >
-          {labels.next}
+          {isLastItem ? labels.finishRound : labels.next}
         </button>
         <button
           type="button"
@@ -377,10 +418,20 @@ export function SavedItemsPanel({
   const savedWordsEmptyLabel = isEn
     ? "No saved words yet. Select a word during chat and save it after looking it up."
     : "还没有保存的单词。聊天时划词查词后，可以把想复习的词保存下来。";
+  const completionTitle = isEn ? "Round complete" : "这轮看完了";
+  const completionText = isEn
+    ? "You took a quick look at your saved words."
+    : "刚刚顺手复习了这些保存过的词。";
+  const reviewAgainLabel = isEn ? "Review again" : "再看一轮";
+  const backToSavedLabel = isEn ? "Back to saved items" : "返回收藏";
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [isWordReviewMode, setIsWordReviewMode] = useState(false);
+  const [reviewQueueIds, setReviewQueueIds] = useState<string[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
+  const [reviewComplete, setReviewComplete] = useState(false);
+  const [reviewedInSession, setReviewedInSession] = useState<string[]>([]);
+  const [reviewSessionWords, setReviewSessionWords] = useState<SavedWord[]>([]);
 
   const filtered =
     filter === "all"
@@ -396,9 +447,14 @@ export function SavedItemsPanel({
     [items]
   );
 
+  const reviewWords = isWordReviewMode ? reviewSessionWords : savedWords;
+  const reviewWordsById = useMemo(
+    () => new Map(reviewWords.map((word) => [word.id, word])),
+    [reviewWords]
+  );
   const safeReviewIndex =
-    savedWords.length === 0 ? 0 : Math.min(reviewIndex, savedWords.length - 1);
-  const currentReviewWord = savedWords[safeReviewIndex] ?? null;
+    reviewQueueIds.length === 0 ? 0 : Math.min(reviewIndex, reviewQueueIds.length - 1);
+  const currentReviewWord = reviewWordsById.get(reviewQueueIds[safeReviewIndex] ?? "") ?? null;
 
   const filters: { key: FilterType; label: string; count: number }[] = [
     { key: "all", label: copy.sidebar.savedAll, count: totalCount },
@@ -406,14 +462,71 @@ export function SavedItemsPanel({
     { key: "word", label: copy.sidebar.savedWords, count: wordCount },
   ];
 
+  const resetReviewState = () => {
+    setReviewQueueIds([]);
+    setReviewIndex(0);
+    setReviewComplete(false);
+    setReviewedInSession([]);
+    setReviewSessionWords([]);
+  };
+
   const handleEnterWordReview = () => {
     if (savedWords.length === 0) return;
+    setReviewSessionWords(savedWords);
+    setReviewQueueIds(buildReviewQueue(savedWords));
     setReviewIndex(0);
+    setReviewComplete(false);
+    setReviewedInSession([]);
     setIsWordReviewMode(true);
   };
 
   const handleExitWordReview = () => {
     setIsWordReviewMode(false);
+    resetReviewState();
+  };
+
+  const markCurrentWordReviewed = (wordId: string): SavedWord[] => {
+    if (reviewedInSession.includes(wordId)) {
+      return reviewSessionWords;
+    }
+
+    const updatedItems = markSavedWordReviewed(wordId);
+    const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
+    setReviewSessionWords(updatedWords);
+    setReviewedInSession((current) => [...current, wordId]);
+    return updatedWords;
+  };
+
+  const handleAdvanceReview = () => {
+    if (!currentReviewWord) return;
+
+    const updatedWords = markCurrentWordReviewed(currentReviewWord.id);
+    const isLastItem = safeReviewIndex >= reviewQueueIds.length - 1;
+
+    if (isLastItem) {
+      setReviewComplete(true);
+      return;
+    }
+
+    if (updatedWords.length > 0) {
+      setReviewSessionWords(updatedWords);
+    }
+
+    setReviewIndex((current) => Math.min(reviewQueueIds.length - 1, current + 1));
+  };
+
+  const handleRestartReview = () => {
+    const nextWords = reviewSessionWords.length > 0 ? reviewSessionWords : savedWords;
+    if (nextWords.length === 0) {
+      setReviewComplete(false);
+      return;
+    }
+
+    setReviewSessionWords(nextWords);
+    setReviewQueueIds(buildReviewQueue(nextWords));
+    setReviewIndex(0);
+    setReviewComplete(false);
+    setReviewedInSession([]);
   };
 
   return (
@@ -493,17 +606,43 @@ export function SavedItemsPanel({
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {isWordReviewMode ? (
-            currentReviewWord ? (
+            reviewComplete ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-5">
+                  <h3 className="font-ui text-sm font-semibold text-[#2D4A1F]">
+                    {completionTitle}
+                  </h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-[#4A4438]">
+                    {completionText}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRestartReview}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  >
+                    {reviewAgainLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExitWordReview}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  >
+                    {backToSavedLabel}
+                  </button>
+                </div>
+              </div>
+            ) : currentReviewWord ? (
               <WordReviewCard
                 item={currentReviewWord}
                 index={safeReviewIndex}
-                total={savedWords.length}
+                total={reviewQueueIds.length}
                 isEn={isEn}
+                isLastItem={safeReviewIndex >= reviewQueueIds.length - 1}
                 onBack={handleExitWordReview}
                 onPrevious={() => setReviewIndex((current) => Math.max(0, current - 1))}
-                onNext={() =>
-                  setReviewIndex((current) => Math.min(savedWords.length - 1, current + 1))
-                }
+                onNext={handleAdvanceReview}
               />
             ) : (
               <div className="space-y-4">
@@ -512,7 +651,7 @@ export function SavedItemsPanel({
                   onClick={handleExitWordReview}
                   className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
                 >
-                  ← {isEn ? "Back to saved items" : "返回收藏"}
+                  ← {backToSavedLabel}
                 </button>
                 <p className="rounded-xl bg-[#FAF6EE] px-4 py-4 text-[12px] leading-relaxed text-[#7A7060]">
                   {savedWordsEmptyLabel}

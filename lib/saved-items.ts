@@ -43,6 +43,8 @@ export interface SavedWord {
   example?: string;
   sentenceMeaning?: string;
   nuanceExplanation?: string;
+  lastReviewedAt?: string;
+  reviewCount?: number;
   source: "lookup" | "summary_card";
   sourceMessageId?: string;
   summaryCardId?: string;
@@ -142,4 +144,32 @@ export function toggleSavedItem(item: SavedItem): { items: SavedItem[]; saved: b
   const next = enforceLimit([...items, item]);
   saveSavedItems(next);
   return { items: next, saved: true };
+}
+
+export function markSavedWordReviewed(
+  id: string,
+  reviewedAt = new Date().toISOString()
+): SavedItem[] {
+  const items = loadSavedItems();
+  let changed = false;
+
+  const next = items.map((item) => {
+    if (item.id !== id || item.type !== "word") {
+      return item;
+    }
+
+    changed = true;
+    return {
+      ...item,
+      lastReviewedAt: reviewedAt,
+      reviewCount: (item.reviewCount ?? 0) + 1,
+    };
+  });
+
+  if (!changed) {
+    return items;
+  }
+
+  saveSavedItems(next);
+  return next;
 }
