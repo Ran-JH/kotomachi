@@ -93,6 +93,15 @@ function buildReviewQueue(words: SavedWord[]): string[] {
     .map((item) => item.id);
 }
 
+function buildReviewSessionStartMeta(words: SavedWord[]): Record<string, { reviewCount: number }> {
+  return words.reduce<Record<string, { reviewCount: number }>>((acc, item) => {
+    acc[item.id] = {
+      reviewCount: item.reviewCount ?? 0,
+    };
+    return acc;
+  }, {});
+}
+
 function ExpressionCard({
   item,
   copy,
@@ -316,7 +325,7 @@ function WordReviewCard({
   const [draftNote, setDraftNote] = useState(note);
 
   useEffect(() => {
-    // 卡片切换或外部状态回写时，重置输入框，避免把上一张词卡的草稿带过来。
+    // 切换到另一张卡片，或外部保存后回写时，重置编辑器状态，避免串到别的词。
     setDraftNote(item.note ?? "");
     setIsEditingNote(false);
   }, [item.id, item.note]);
@@ -553,6 +562,17 @@ export function SavedItemsPanel({
   const completionTitle = isEn ? "Round complete" : "这轮看完了";
   const reviewAgainLabel = isEn ? "Review again" : "再看一轮";
   const backToSavedLabel = isEn ? "Back to saved items" : "返回收藏";
+  const completionLabels = isEn
+    ? {
+        firstReview: "First review",
+        reviewedBefore: "Reviewed before",
+        withNotes: "With notes",
+      }
+    : {
+        firstReview: "第一次复习",
+        reviewedBefore: "再次复习",
+        withNotes: "有笔记",
+      };
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [isWordReviewMode, setIsWordReviewMode] = useState(false);
@@ -561,9 +581,9 @@ export function SavedItemsPanel({
   const [reviewComplete, setReviewComplete] = useState(false);
   const [reviewedInSession, setReviewedInSession] = useState<string[]>([]);
   const [reviewSessionWords, setReviewSessionWords] = useState<SavedWord[]>([]);
-  const completionText = isEn
-    ? `You reviewed ${reviewQueueIds.length} saved words.`
-    : `刚刚复习了 ${reviewQueueIds.length} 个保存过的词。`;
+  const [reviewSessionStartMeta, setReviewSessionStartMeta] = useState<
+    Record<string, { reviewCount: number }>
+  >({});
 
   const filtered =
     filter === "all"
@@ -584,6 +604,36 @@ export function SavedItemsPanel({
     () => new Map(reviewWords.map((word) => [word.id, word])),
     [reviewWords]
   );
+  const reviewCompletionSummary = useMemo(() => {
+    let firstReviewCount = 0;
+    let reviewedBeforeCount = 0;
+    let withNotesCount = 0;
+
+    for (const wordId of reviewedInSession) {
+      const startMeta = reviewSessionStartMeta[wordId];
+      const currentWord = reviewWordsById.get(wordId);
+
+      if ((startMeta?.reviewCount ?? 0) <= 0) {
+        firstReviewCount += 1;
+      } else {
+        reviewedBeforeCount += 1;
+      }
+
+      if (currentWord?.note?.trim()) {
+        withNotesCount += 1;
+      }
+    }
+
+    return {
+      reviewedCount: reviewedInSession.length,
+      firstReviewCount,
+      reviewedBeforeCount,
+      withNotesCount,
+    };
+  }, [reviewSessionStartMeta, reviewedInSession, reviewWordsById]);
+  const completionText = isEn
+    ? `You reviewed ${reviewCompletionSummary.reviewedCount} saved words.`
+    : `刚刚复习了 ${reviewCompletionSummary.reviewedCount} 个保存过的词。`;
   const safeReviewIndex =
     reviewQueueIds.length === 0 ? 0 : Math.min(reviewIndex, reviewQueueIds.length - 1);
   const currentReviewWord = reviewWordsById.get(reviewQueueIds[safeReviewIndex] ?? "") ?? null;
@@ -600,11 +650,13 @@ export function SavedItemsPanel({
     setReviewComplete(false);
     setReviewedInSession([]);
     setReviewSessionWords([]);
+    setReviewSessionStartMeta({});
   };
 
   const handleEnterWordReview = () => {
     if (savedWords.length === 0) return;
     setReviewSessionWords(savedWords);
+    setReviewSessionStartMeta(buildReviewSessionStartMeta(savedWords));
     setReviewQueueIds(buildReviewQueue(savedWords));
     setReviewIndex(0);
     setReviewComplete(false);
@@ -655,6 +707,7 @@ export function SavedItemsPanel({
     }
 
     setReviewSessionWords(nextWords);
+    setReviewSessionStartMeta(buildReviewSessionStartMeta(nextWords));
     setReviewQueueIds(buildReviewQueue(nextWords));
     setReviewIndex(0);
     setReviewComplete(false);
@@ -755,6 +808,17 @@ export function SavedItemsPanel({
                   <p className="mt-2 text-[13px] leading-relaxed text-[#4A4438]">
                     {completionText}
                   </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
+                      {completionLabels.firstReview}：{reviewCompletionSummary.firstReviewCount}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
+                      {completionLabels.reviewedBefore}：{reviewCompletionSummary.reviewedBeforeCount}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
+                      {completionLabels.withNotes}：{reviewCompletionSummary.withNotesCount}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
