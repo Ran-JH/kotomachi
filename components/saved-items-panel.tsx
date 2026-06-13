@@ -20,6 +20,7 @@ import { SavedWordCompletionSummary } from "@/components/saved-word-completion-s
 
 type FilterType = "all" | "expression" | "word";
 type WordCardMode = "queue" | "detail";
+type ReviewSessionLimit = 5 | 10 | "all";
 
 interface SavedItemsPanelProps {
   copy: UiCopy;
@@ -105,15 +106,19 @@ function toTimestamp(value?: string): number {
 }
 
 function compareByReviewNeed(a: SavedWord, b: SavedWord): number {
-  const aHasReview = Boolean(a.lastReviewedAt);
-  const bHasReview = Boolean(b.lastReviewedAt);
+  const aCount = a.reviewCount ?? 0;
+  const bCount = b.reviewCount ?? 0;
 
-  if (aHasReview !== bHasReview) {
-    return aHasReview ? 1 : -1;
+  if (aCount === 0 && bCount > 0) {
+    return -1;
   }
 
-  if (!aHasReview && !bHasReview) {
-    return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+  if (aCount > 0 && bCount === 0) {
+    return 1;
+  }
+
+  if (aCount !== bCount) {
+    return aCount - bCount;
   }
 
   const reviewDelta = toTimestamp(a.lastReviewedAt) - toTimestamp(b.lastReviewedAt);
@@ -124,10 +129,11 @@ function compareByReviewNeed(a: SavedWord, b: SavedWord): number {
   return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
 }
 
-function buildReviewQueue(words: SavedWord[]): string[] {
+function buildReviewQueue(words: SavedWord[], limit?: number): string[] {
   return words
     .slice()
     .sort(compareByReviewNeed)
+    .slice(0, limit ?? words.length)
     .map((item) => item.id);
 }
 
@@ -696,6 +702,9 @@ export function SavedItemsPanel({
   onClose,
 }: SavedItemsPanelProps) {
   const isEn = copy.summary.title === "Review Card";
+  const reviewFiveLabel = isEn ? "Review 5" : "看 5 个";
+  const reviewTenLabel = isEn ? "Review 10" : "看 10 个";
+  const reviewAllLabel = isEn ? "All" : "全部";
   const backToChatLabel = isEn ? "← Back to chat" : "← 返回聊天";
   const reviewEntryLabel = isEn ? "Review words" : "复习单词";
   const savedWordsEmptyLabel = isEn
@@ -714,6 +723,8 @@ export function SavedItemsPanel({
   const [reviewComplete, setReviewComplete] = useState(false);
   const [reviewedInSession, setReviewedInSession] = useState<string[]>([]);
   const [reviewSessionWords, setReviewSessionWords] = useState<SavedWord[]>([]);
+  const [reviewSessionLimit, setReviewSessionLimit] = useState<ReviewSessionLimit>(10);
+  const [reviewSessionAvailableCount, setReviewSessionAvailableCount] = useState(0);
   const [reviewSessionStartMeta, setReviewSessionStartMeta] = useState<
     Record<string, { reviewCount: number }>
   >({});
@@ -807,8 +818,9 @@ export function SavedItemsPanel({
       firstReviewCount,
       reviewedBeforeCount,
       withNotesCount,
+      remainingCount: Math.max(0, reviewSessionAvailableCount - reviewQueueIds.length),
     };
-  }, [reviewSessionStartMeta, reviewedInSession, reviewWordsById]);
+  }, [reviewQueueIds.length, reviewSessionAvailableCount, reviewSessionStartMeta, reviewedInSession, reviewWordsById]);
 
   const safeReviewIndex =
     reviewQueueIds.length === 0 ? 0 : Math.min(reviewIndex, reviewQueueIds.length - 1);
@@ -840,16 +852,28 @@ export function SavedItemsPanel({
     setReviewComplete(false);
     setReviewedInSession([]);
     setReviewSessionWords([]);
+    setReviewSessionAvailableCount(0);
     setReviewSessionStartMeta({});
   };
 
-  const handleEnterWordReview = () => {
+  const handleEnterWordReview = (limit: ReviewSessionLimit) => {
     if (allWordItems.length === 0) return;
+
+    // Smart review should look at the full saved-word pool, not the currently filtered list.
+    const queueSize = limit === "all" ? allWordItems.length : Math.min(limit, allWordItems.length);
+    const nextQueueIds = buildReviewQueue(allWordItems, queueSize);
+    const nextSessionWords = nextQueueIds
+      .map((wordId) => allWordItems.find((item) => item.id === wordId) ?? null)
+      .filter((item): item is SavedWord => item !== null);
+
     setSelectedWordId(null);
     openingWordIdRef.current = null;
-    setReviewSessionWords(allWordItems);
-    setReviewSessionStartMeta(buildReviewSessionStartMeta(allWordItems));
-    setReviewQueueIds(buildReviewQueue(allWordItems));
+    setReviewSessionLimit(limit);
+    // Keep the session's total pool stable so the completion summary can say how many are left.
+    setReviewSessionAvailableCount(allWordItems.length);
+    setReviewSessionWords(nextSessionWords);
+    setReviewSessionStartMeta(buildReviewSessionStartMeta(nextSessionWords));
+    setReviewQueueIds(nextQueueIds);
     setReviewIndex(0);
     setReviewComplete(false);
     setReviewedInSession([]);
@@ -923,20 +947,12 @@ export function SavedItemsPanel({
   };
 
   const handleRestartReview = () => {
-    const nextWords = reviewSessionWords.length > 0 ? reviewSessionWords : allWordItems;
-    if (nextWords.length === 0) {
+    if (allWordItems.length === 0) {
       setReviewComplete(false);
       return;
     }
 
-    setSelectedWordId(null);
-    openingWordIdRef.current = null;
-    setReviewSessionWords(nextWords);
-    setReviewSessionStartMeta(buildReviewSessionStartMeta(nextWords));
-    setReviewQueueIds(buildReviewQueue(nextWords));
-    setReviewIndex(0);
-    setReviewComplete(false);
-    setReviewedInSession([]);
+    handleEnterWordReview(reviewSessionLimit);
   };
 
   return (
@@ -1006,13 +1022,39 @@ export function SavedItemsPanel({
               </div>
 
               {wordCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleEnterWordReview}
-                  className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-                >
-                  {reviewEntryLabel}
-                </button>
+                wordCount <= 10 ? (
+                  <button
+                    type="button"
+                    onClick={() => handleEnterWordReview("all")}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  >
+                    {reviewEntryLabel}
+                  </button>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleEnterWordReview(10)}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    >
+                      {reviewTenLabel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEnterWordReview(5)}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    >
+                      {reviewFiveLabel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEnterWordReview("all")}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    >
+                      {reviewAllLabel}
+                    </button>
+                  </div>
+                )
               )}
             </div>
 
@@ -1042,6 +1084,7 @@ export function SavedItemsPanel({
                 firstReviewCount={reviewCompletionSummary.firstReviewCount}
                 reviewedBeforeCount={reviewCompletionSummary.reviewedBeforeCount}
                 withNotesCount={reviewCompletionSummary.withNotesCount}
+                remainingCount={reviewCompletionSummary.remainingCount}
                 onReviewAgain={handleRestartReview}
                 onBackToSavedItems={handleExitWordReview}
               />

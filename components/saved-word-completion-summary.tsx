@@ -4,6 +4,7 @@ interface SavedWordCompletionSummaryProps {
   firstReviewCount: number;
   reviewedBeforeCount: number;
   withNotesCount: number;
+  remainingCount: number;
   onReviewAgain: () => void;
   onBackToSavedItems: () => void;
 }
@@ -14,6 +15,7 @@ export function SavedWordCompletionSummary({
   firstReviewCount,
   reviewedBeforeCount,
   withNotesCount,
+  remainingCount,
   onReviewAgain,
   onBackToSavedItems,
 }: SavedWordCompletionSummaryProps) {
@@ -21,6 +23,16 @@ export function SavedWordCompletionSummary({
   const description = isEn
     ? `You reviewed ${totalReviewed} saved words.`
     : `刚刚复习了 ${totalReviewed} 个保存过的词。`;
+  const remainingText =
+    remainingCount > 0
+      ? isEn
+        ? `${remainingCount} words left for later.`
+        : `还有 ${remainingCount} 个词可以之后再看。`
+      : isEn
+        ? "You reviewed all saved words in this round."
+        : "这一轮已经看完全部保存词。";
+  const statSeparator = isEn ? ": " : "：";
+
   const labels = isEn
     ? {
         firstReview: "First review",
@@ -42,15 +54,23 @@ export function SavedWordCompletionSummary({
       <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-5">
         <h3 className="font-ui text-sm font-semibold text-[#2D4A1F]">{title}</h3>
         <p className="mt-2 text-[13px] leading-relaxed text-[#4A4438]">{description}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-[#7A7060]">{remainingText}</p>
+
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
-            {labels.firstReview}：{firstReviewCount}
+            {labels.firstReview}
+            {statSeparator}
+            {firstReviewCount}
           </span>
           <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
-            {labels.reviewedBefore}：{reviewedBeforeCount}
+            {labels.reviewedBefore}
+            {statSeparator}
+            {reviewedBeforeCount}
           </span>
           <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-3 py-1 text-[11px] font-medium text-[#4A4438]">
-            {labels.withNotes}：{withNotesCount}
+            {labels.withNotes}
+            {statSeparator}
+            {withNotesCount}
           </span>
         </div>
       </div>
