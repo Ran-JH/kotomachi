@@ -43,6 +43,7 @@ export interface SavedWord {
   example?: string;
   sentenceMeaning?: string;
   nuanceExplanation?: string;
+  note?: string;
   lastReviewedAt?: string;
   reviewCount?: number;
   source: "lookup" | "summary_card";
@@ -163,6 +164,39 @@ export function markSavedWordReviewed(
       ...item,
       lastReviewedAt: reviewedAt,
       reviewCount: (item.reviewCount ?? 0) + 1,
+    };
+  });
+
+  if (!changed) {
+    return items;
+  }
+
+  saveSavedItems(next);
+  return next;
+}
+
+export function updateSavedWordNote(id: string, note: string): SavedItem[] {
+  const items = loadSavedItems();
+  const trimmedNote = note.trim();
+  let changed = false;
+
+  const next = items.map((item) => {
+    if (item.id !== id || item.type !== "word") {
+      return item;
+    }
+
+    changed = true;
+
+    if (!trimmedNote) {
+      return {
+        ...item,
+        note: undefined,
+      };
+    }
+
+    return {
+      ...item,
+      note: trimmedNote,
     };
   });
 

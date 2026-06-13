@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   markSavedWordReviewed,
+  updateSavedWordNote,
   type SavedExpression,
   type SavedItem,
   type SavedWord,
@@ -233,6 +234,7 @@ function WordReviewCard({
   onBack,
   onPrevious,
   onNext,
+  onSaveNote,
 }: {
   item: SavedWord;
   index: number;
@@ -242,6 +244,7 @@ function WordReviewCard({
   onBack: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  onSaveNote: (wordId: string, note: string) => void;
 }) {
   const labels = isEn
     ? {
@@ -253,6 +256,14 @@ function WordReviewCard({
         sentenceMeaning: "Meaning in this sentence",
         sourceSentence: "Source sentence",
         sourceSentenceFallback: "No source sentence yet",
+        myNote: "My note",
+        noNoteYet: "No note yet",
+        addNote: "Add note",
+        editNote: "Edit",
+        saveNote: "Save",
+        cancelEdit: "Cancel",
+        notePlaceholder:
+          "Write your own understanding, such as how this word feels in this sentence.",
         from: "From",
         saved: "Saved",
         firstReview: "First review",
@@ -271,6 +282,13 @@ function WordReviewCard({
         sentenceMeaning: "这句话里的意思",
         sourceSentence: "出处原句",
         sourceSentenceFallback: "暂无出处原句",
+        myNote: "我的笔记",
+        noNoteYet: "还没有笔记",
+        addNote: "添加笔记",
+        editNote: "编辑",
+        saveNote: "保存",
+        cancelEdit: "取消",
+        notePlaceholder: "写一点你自己的理解，比如这个词在这句话里的感觉。",
         from: "来自",
         saved: "保存于",
         firstReview: "第一次复习",
@@ -287,12 +305,32 @@ function WordReviewCard({
   const nuanceExplanation = item.nuanceExplanation?.trim();
   const sentenceMeaning = item.sentenceMeaning?.trim();
   const sourceSentence = item.example?.trim();
+  const note = item.note?.trim() ?? "";
   const hasDetailedNote = Boolean(nuanceExplanation || sentenceMeaning);
   const reviewCount = item.reviewCount ?? 0;
   const reviewSummary = reviewCount > 0 ? labels.reviewedTimes(reviewCount) : labels.firstReview;
   const lastReviewedText = item.lastReviewedAt
     ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
     : null;
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [draftNote, setDraftNote] = useState(note);
+
+  useEffect(() => {
+    // 卡片切换或外部状态回写时，重置输入框，避免把上一张词卡的草稿带过来。
+    setDraftNote(item.note ?? "");
+    setIsEditingNote(false);
+  }, [item.id, item.note]);
+
+  const handleCancelNoteEdit = () => {
+    setDraftNote(note);
+    setIsEditingNote(false);
+  };
+
+  const handleSaveNote = () => {
+    onSaveNote(item.id, draftNote);
+    setDraftNote(draftNote.trim());
+    setIsEditingNote(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -386,6 +424,67 @@ function WordReviewCard({
               <p className="font-ja break-words text-[14px] leading-relaxed text-[#4A4438]">
                 {sourceSentence || labels.sourceSentenceFallback}
               </p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+              {labels.myNote}
+            </p>
+            <div className="mt-1 rounded-xl bg-[#F7F2E8] px-4 py-3">
+              {isEditingNote ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={draftNote}
+                    onChange={(event) => setDraftNote(event.target.value)}
+                    placeholder={labels.notePlaceholder}
+                    rows={4}
+                    className="min-h-[104px] w-full resize-y rounded-xl border border-[rgba(40,35,26,0.12)] bg-[#FAF6EE] px-3 py-2 text-[13px] leading-relaxed text-[#28231A] outline-none transition-colors placeholder:text-[#7A7060]/45 focus:border-[#2D4A1F]/25"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveNote}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    >
+                      {labels.saveNote}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelNoteEdit}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    >
+                      {labels.cancelEdit}
+                    </button>
+                  </div>
+                </div>
+              ) : note ? (
+                <div className="space-y-3">
+                  <p className="break-words text-[13px] leading-relaxed text-[#4A4438]">
+                    {note}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingNote(true)}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  >
+                    {labels.editNote}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-[12px] leading-relaxed text-[#7A7060]">
+                    {labels.noNoteYet}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingNote(true)}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  >
+                    {labels.addNote}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -562,6 +661,14 @@ export function SavedItemsPanel({
     setReviewedInSession([]);
   };
 
+  const handleSaveWordNote = (wordId: string, note: string) => {
+    const updatedItems = updateSavedWordNote(wordId, note);
+    const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
+
+    // review mode 里维护一份当前词列表，这样保存笔记后无需退出面板也能立刻看到新值。
+    setReviewSessionWords(updatedWords);
+  };
+
   return (
     <div className="fixed inset-0 z-30 flex justify-end">
       <button
@@ -676,6 +783,7 @@ export function SavedItemsPanel({
                 onBack={handleExitWordReview}
                 onPrevious={() => setReviewIndex((current) => Math.max(0, current - 1))}
                 onNext={handleAdvanceReview}
+                onSaveNote={handleSaveWordNote}
               />
             ) : (
               <div className="space-y-4">
