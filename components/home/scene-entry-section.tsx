@@ -23,7 +23,7 @@ const NPC_TONE_LABELS: Record<NpcId, { zh: string; en: string }> = {
   misaki: { zh: "轻丁宁", en: "Gentle polite" },
   taisho: { zh: "熟客口语", en: "Regular-customer casual" },
   nana: { zh: "轻丁宁", en: "Light polite" },
-  ren: { zh: "旅居者", en: "Sojourner" },
+  ren: { zh: "普通自然", en: "Natural" },
 };
 
 // 首页卡片需要更短、更稳定的短句，避免个别 NPC 文案在小卡上显得拥挤。
