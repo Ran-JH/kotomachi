@@ -42,7 +42,7 @@ export default function Home() {
       style={{ background }}
     >
       <section className="w-full px-0 md:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-6">
-        <div className="w-full max-w-[1320px] mx-auto">
+        <div className="mx-auto w-full max-w-[1320px]">
           <div className="relative overflow-hidden md:rounded-[24px]">
             <img
               src="/home/home-hero-rainy-street.png"

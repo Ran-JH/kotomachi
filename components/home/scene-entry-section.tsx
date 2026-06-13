@@ -48,7 +48,7 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
   const npcActionLabel = isZh ? "去聊天" : "Start chat";
 
   return (
-    <section className="mx-auto w-full max-w-[1120px] px-4 py-2 md:px-5 md:py-4">
+    <section className="mx-auto w-full max-w-[1320px] px-4 py-2 md:px-5 md:py-4">
       <div className="mb-4 px-1 text-left md:mb-5">
         <h2 className="text-[18px] font-medium tracking-wide text-[#2D4A1F] md:text-[21px]">
           {heading}
@@ -88,7 +88,7 @@ function SceneCard({ scene, uiLanguage, npcActionLabel }: SceneCardProps) {
       </div>
 
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <div className="flex min-w-max items-start gap-3 pr-1 md:gap-4">
+        <div className="flex w-max min-w-full items-start gap-3 pr-1 md:gap-4">
           {scene.npcIds.map((npcId) => (
             <NpcMiniCard
               key={npcId}
@@ -126,7 +126,7 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   return (
     <Link
       href={`/chat/${npcId}`}
-      className="group flex w-[190px] shrink-0 flex-col items-center rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 p-3.5 text-center transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.22)] hover:bg-white/68 hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.99] sm:w-[210px] md:w-[230px] md:p-4 lg:w-[240px]"
+      className="group flex shrink-0 basis-[78vw] flex-col items-center rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 p-3.5 text-center transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.22)] hover:bg-white/68 hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.99] sm:basis-[320px] md:basis-[calc((100%-1rem)/2.35)] md:p-4 lg:basis-[calc((100%-2rem)/3.35)] xl:basis-[calc((100%-4rem)/5)]"
     >
       <img
         src={avatar}
