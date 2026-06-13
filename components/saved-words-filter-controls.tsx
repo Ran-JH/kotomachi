@@ -1,6 +1,6 @@
 import type { NpcId } from "@/lib/npc";
 
-export type WordReviewFilter = "all" | "unreviewed" | "reviewed" | "withNotes";
+export type WordReviewFilter = "all" | "unreviewed" | "reviewed" | "withNotes" | "mastered";
 export type WordNpcFilter = NpcId | "all";
 export type WordSort = "newest" | "oldest" | "reviewAsc" | "reviewDesc";
 
@@ -17,7 +17,13 @@ interface SavedWordsFilterControlsProps {
   onWordSortChange: (value: WordSort) => void;
 }
 
-const REVIEW_FILTERS: WordReviewFilter[] = ["all", "unreviewed", "reviewed", "withNotes"];
+const REVIEW_FILTERS: WordReviewFilter[] = [
+  "all",
+  "unreviewed",
+  "reviewed",
+  "withNotes",
+  "mastered",
+];
 
 export function SavedWordsFilterControls({
   isEn,
@@ -37,12 +43,14 @@ export function SavedWordsFilterControls({
         unreviewed: "Not reviewed",
         reviewed: "Reviewed",
         withNotes: "With notes",
+        mastered: "Mastered",
       }
     : {
         all: "全部",
         unreviewed: "未复习",
         reviewed: "已复习",
         withNotes: "有笔记",
+        mastered: "已掌握",
       };
 
   const wordCountLabel = isEn

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   markSavedWordReviewed,
+  updateSavedWordMastered,
   updateSavedWordNote,
   type SavedExpression,
   type SavedItem,
   type SavedWord,
 } from "@/lib/saved-items";
-import type { NpcId } from "@/lib/npc";
+import { getNpcDisplayName, isNpcId, type NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
-import { getNpcDisplayName, isNpcId } from "@/lib/npc";
 import { TrashIcon } from "@/components/ui-icons";
 import {
   SavedWordsFilterControls,
@@ -31,7 +31,7 @@ interface SavedItemsPanelProps {
 
 const LEVEL_LABELS: Record<string, string> = {
   casual: "カジュアル",
-  neutral: "ふつう",
+  neutral: "ていねい",
   polite: "フォーマル",
   summary_upgrade: "ステップアップ",
 };
@@ -45,6 +45,11 @@ const WORD_NPC_FILTER_IDS: NpcId[] = [
   "nana",
   "ren",
 ];
+
+function toTimestamp(value?: string): number {
+  if (!value) return Number.NaN;
+  return new Date(value).getTime();
+}
 
 function formatSavedTime(value: string, locale: "zh-CN" | "en-US"): string {
   const date = new Date(value);
@@ -64,7 +69,7 @@ function formatSavedTime(value: string, locale: "zh-CN" | "en-US"): string {
 function formatReviewDate(value: string, locale: "zh-CN" | "en-US"): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return value || "—";
   }
 
   return new Intl.DateTimeFormat(locale, {
@@ -100,31 +105,16 @@ function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
   return isEn ? "Kotomachi" : "言街";
 }
 
-function toTimestamp(value?: string): number {
-  if (!value) return Number.NaN;
-  return new Date(value).getTime();
-}
-
 function compareByReviewNeed(a: SavedWord, b: SavedWord): number {
   const aCount = a.reviewCount ?? 0;
   const bCount = b.reviewCount ?? 0;
 
-  if (aCount === 0 && bCount > 0) {
-    return -1;
-  }
-
-  if (aCount > 0 && bCount === 0) {
-    return 1;
-  }
-
-  if (aCount !== bCount) {
-    return aCount - bCount;
-  }
+  if (aCount === 0 && bCount > 0) return -1;
+  if (aCount > 0 && bCount === 0) return 1;
+  if (aCount !== bCount) return aCount - bCount;
 
   const reviewDelta = toTimestamp(a.lastReviewedAt) - toTimestamp(b.lastReviewedAt);
-  if (reviewDelta !== 0) {
-    return reviewDelta;
-  }
+  if (reviewDelta !== 0) return reviewDelta;
 
   return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
 }
@@ -144,6 +134,33 @@ function buildReviewSessionStartMeta(words: SavedWord[]): Record<string, { revie
     };
     return acc;
   }, {});
+}
+
+function sortWordItems(words: SavedWord[], wordSort: WordSort): SavedWord[] {
+  return words.slice().sort((a, b) => {
+    const aCreatedAt = toTimestamp(a.createdAt);
+    const bCreatedAt = toTimestamp(b.createdAt);
+    const aReviewCount = a.reviewCount ?? 0;
+    const bReviewCount = b.reviewCount ?? 0;
+
+    switch (wordSort) {
+      case "oldest":
+        return aCreatedAt - bCreatedAt;
+      case "reviewAsc":
+        if (aReviewCount !== bReviewCount) {
+          return aReviewCount - bReviewCount;
+        }
+        return bCreatedAt - aCreatedAt;
+      case "reviewDesc":
+        if (aReviewCount !== bReviewCount) {
+          return bReviewCount - aReviewCount;
+        }
+        return bCreatedAt - aCreatedAt;
+      case "newest":
+      default:
+        return bCreatedAt - aCreatedAt;
+    }
+  });
 }
 
 function getWordReviewSummaryLabel(item: SavedWord, isEn: boolean): string {
@@ -190,14 +207,17 @@ function getWordCardLabels(isEn: boolean) {
         editNote: "Edit",
         saveNote: "Save",
         cancelEdit: "Cancel",
-        notePlaceholder:
-          "Write your own understanding, such as how this word feels in this sentence.",
         from: "From",
         saved: "Saved",
         lastReviewed: (value: string) => `Last reviewed: ${value}`,
         previous: "Previous",
         next: "Next",
         finishRound: "Finish round",
+        markMastered: "Mark as mastered",
+        mastered: "Mastered",
+        undoMastered: "Undo",
+        notePlaceholder:
+          "Write your own understanding, such as how this word feels in this sentence.",
       }
     : {
         reviewTitle: "单词复习",
@@ -215,41 +235,17 @@ function getWordCardLabels(isEn: boolean) {
         editNote: "编辑",
         saveNote: "保存",
         cancelEdit: "取消",
-        notePlaceholder: "写一点你自己的理解，比如这个词在这句话里的感觉。",
         from: "来自",
         saved: "保存于",
         lastReviewed: (value: string) => `上次看过：${value}`,
         previous: "上一个",
         next: "下一个",
         finishRound: "完成本轮",
+        markMastered: "标记为已掌握",
+        mastered: "已掌握",
+        undoMastered: "撤销",
+        notePlaceholder: "写一点你自己的理解，比如这个词在这句话里的感觉。",
       };
-}
-
-function sortWordItems(words: SavedWord[], wordSort: WordSort): SavedWord[] {
-  return words.slice().sort((a, b) => {
-    const aCreatedAt = toTimestamp(a.createdAt);
-    const bCreatedAt = toTimestamp(b.createdAt);
-    const aReviewCount = a.reviewCount ?? 0;
-    const bReviewCount = b.reviewCount ?? 0;
-
-    switch (wordSort) {
-      case "oldest":
-        return aCreatedAt - bCreatedAt;
-      case "reviewAsc":
-        if (aReviewCount !== bReviewCount) {
-          return aReviewCount - bReviewCount;
-        }
-        return bCreatedAt - aCreatedAt;
-      case "reviewDesc":
-        if (aReviewCount !== bReviewCount) {
-          return bReviewCount - aReviewCount;
-        }
-        return bCreatedAt - aCreatedAt;
-      case "newest":
-      default:
-        return bCreatedAt - aCreatedAt;
-    }
-  });
 }
 
 function ExpressionCard({
@@ -336,6 +332,7 @@ function WordCard({
 }) {
   const reviewBadge = getWordListReviewBadge(item, isEn);
   const hasNote = Boolean(item.note?.trim());
+  const isMastered = Boolean(item.masteredAt);
 
   return (
     <div
@@ -370,9 +367,7 @@ function WordCard({
             {item.word}
           </p>
           {item.reading && (
-            <p className="text-[10px] leading-relaxed text-[#7A7060]/65">
-              {item.reading}
-            </p>
+            <p className="text-[10px] leading-relaxed text-[#7A7060]/65">{item.reading}</p>
           )}
         </div>
 
@@ -385,13 +380,16 @@ function WordCard({
               {isEn ? "Has note" : "有笔记"}
             </span>
           )}
+          {isMastered && (
+            <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
+              {isEn ? "Mastered" : "已掌握"}
+            </span>
+          )}
         </div>
       </div>
 
       {item.meaning && (
-        <p className="mt-2 text-[11px] leading-relaxed text-[#28231A]/85">
-          {item.meaning}
-        </p>
+        <p className="mt-2 text-[11px] leading-relaxed text-[#28231A]/85">{item.meaning}</p>
       )}
 
       {item.example && (
@@ -430,6 +428,7 @@ function WordReviewCard({
   onPrevious,
   onNext,
   onSaveNote,
+  onToggleMastered,
 }: {
   item: SavedWord;
   mode: WordCardMode;
@@ -441,6 +440,7 @@ function WordReviewCard({
   onPrevious?: () => void;
   onNext?: () => void;
   onSaveNote: (wordId: string, note: string) => void;
+  onToggleMastered: (wordId: string, mastered: boolean) => void;
 }) {
   const labels = getWordCardLabels(isEn);
   const hasPrevious = mode === "queue" ? (index ?? 0) > 0 : false;
@@ -455,11 +455,12 @@ function WordReviewCard({
   const lastReviewedText = item.lastReviewedAt
     ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
     : null;
+  const isMastered = Boolean(item.masteredAt);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [draftNote, setDraftNote] = useState(note);
 
   useEffect(() => {
-    // 切换到另一张卡片，或外部保存后回写时，重置编辑器状态，避免串到别的词。
+    // 切到另一张词卡，或外部保存后回写时，重置编辑状态，避免把草稿串到别的词。
     setDraftNote(item.note ?? "");
     setIsEditingNote(false);
   }, [item.id, item.note]);
@@ -473,6 +474,10 @@ function WordReviewCard({
     onSaveNote(item.id, draftNote);
     setDraftNote(draftNote.trim());
     setIsEditingNote(false);
+  };
+
+  const handleToggleMastered = () => {
+    onToggleMastered(item.id, !isMastered);
   };
 
   return (
@@ -504,14 +509,36 @@ function WordReviewCard({
             <p className="font-ja break-words text-[24px] font-semibold leading-tight text-[#2D4A1F] sm:text-[28px]">
               {item.word}
             </p>
-            <span className="inline-flex shrink-0 items-center rounded-full bg-[#2D4A1F]/10 px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
-              {reviewSummary}
-            </span>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <span className="inline-flex items-center rounded-full bg-[#2D4A1F]/10 px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
+                {reviewSummary}
+              </span>
+              {isMastered ? (
+                <>
+                  <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-3 py-1 text-[10px] font-medium text-[#6D624F]">
+                    {labels.mastered}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleToggleMastered}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1 text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  >
+                    {labels.undoMastered}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleToggleMastered}
+                  className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1 text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                >
+                  {labels.markMastered}
+                </button>
+              )}
+            </div>
           </div>
           {lastReviewedText && (
-            <p className="mt-2 text-[11px] leading-relaxed text-[#7A7060]">
-              {lastReviewedText}
-            </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-[#7A7060]">{lastReviewedText}</p>
           )}
         </div>
 
@@ -547,7 +574,9 @@ function WordReviewCard({
                 )}
                 {sentenceMeaning && (
                   <div
-                    className={nuanceExplanation ? "mt-3 border-t border-[rgba(40,35,26,0.08)] pt-3" : ""}
+                    className={
+                      nuanceExplanation ? "mt-3 border-t border-[rgba(40,35,26,0.08)] pt-3" : ""
+                    }
                   >
                     <p className="text-[10px] font-medium text-[#7A7060]">
                       {labels.sentenceMeaning}
@@ -605,9 +634,7 @@ function WordReviewCard({
                 </div>
               ) : note ? (
                 <div className="space-y-3">
-                  <p className="break-words text-[13px] leading-relaxed text-[#4A4438]">
-                    {note}
-                  </p>
+                  <p className="break-words text-[13px] leading-relaxed text-[#4A4438]">{note}</p>
                   <button
                     type="button"
                     onClick={() => setIsEditingNote(true)}
@@ -618,9 +645,7 @@ function WordReviewCard({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-[12px] leading-relaxed text-[#7A7060]">
-                    {labels.noNoteYet}
-                  </p>
+                  <p className="text-[12px] leading-relaxed text-[#7A7060]">{labels.noNoteYet}</p>
                   <button
                     type="button"
                     onClick={() => setIsEditingNote(true)}
@@ -638,16 +663,13 @@ function WordReviewCard({
               <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
                 {labels.from}
               </p>
-              <p className="mt-1 break-words text-[13px] leading-relaxed text-[#28231A]">
-                {npcLabel}
-              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4A4438]">{npcLabel}</p>
             </div>
-
             <div>
               <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
                 {labels.saved}
               </p>
-              <p className="mt-1 break-words text-[13px] leading-relaxed text-[#28231A]">
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4A4438]">
                 {formatSavedTime(item.createdAt, locale)}
               </p>
             </div>
@@ -661,7 +683,7 @@ function WordReviewCard({
             type="button"
             onClick={onPrevious}
             disabled={!hasPrevious}
-            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-45"
           >
             {labels.previous}
           </button>
@@ -713,6 +735,9 @@ export function SavedItemsPanel({
   const noFilteredWordsLabel = isEn
     ? "No words match these filters. Try another filter."
     : "没有符合条件的词。可以换一个筛选条件看看。";
+  const allMasteredWordsLabel = isEn
+    ? "All saved words are marked as mastered. You can view them with the Mastered filter or undo the tag to review them again."
+    : "这些词都已经标记为已掌握。可以在「已掌握」筛选里查看，也可以撤销后再复习。";
 
   const [panelItems, setPanelItems] = useState<SavedItem[]>(items);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -755,18 +780,26 @@ export function SavedItemsPanel({
     () => panelItems.filter((item): item is SavedWord => item.type === "word"),
     [panelItems]
   );
+  const reviewableWords = useMemo(
+    () => allWordItems.filter((item) => !item.masteredAt),
+    [allWordItems]
+  );
   const wordCount = allWordItems.length;
+  const reviewableWordCount = reviewableWords.length;
+  const isReviewUnavailable = wordCount > 0 && reviewableWordCount === 0;
   const totalCount = expressionCount + wordCount;
 
   const filteredWordItems = useMemo(() => {
     let nextWords = allWordItems.slice();
 
     if (wordReviewFilter === "unreviewed") {
-      nextWords = nextWords.filter((item) => (item.reviewCount ?? 0) <= 0);
+      nextWords = nextWords.filter((item) => !item.masteredAt && (item.reviewCount ?? 0) <= 0);
     } else if (wordReviewFilter === "reviewed") {
-      nextWords = nextWords.filter((item) => (item.reviewCount ?? 0) > 0);
+      nextWords = nextWords.filter((item) => !item.masteredAt && (item.reviewCount ?? 0) > 0);
     } else if (wordReviewFilter === "withNotes") {
       nextWords = nextWords.filter((item) => Boolean(item.note?.trim()));
+    } else if (wordReviewFilter === "mastered") {
+      nextWords = nextWords.filter((item) => Boolean(item.masteredAt));
     }
 
     if (wordNpcFilter !== "all") {
@@ -857,20 +890,21 @@ export function SavedItemsPanel({
   };
 
   const handleEnterWordReview = (limit: ReviewSessionLimit) => {
-    if (allWordItems.length === 0) return;
+    if (reviewableWords.length === 0) return;
 
     // Smart review should look at the full saved-word pool, not the currently filtered list.
-    const queueSize = limit === "all" ? allWordItems.length : Math.min(limit, allWordItems.length);
-    const nextQueueIds = buildReviewQueue(allWordItems, queueSize);
+    const queueSize =
+      limit === "all" ? reviewableWords.length : Math.min(limit, reviewableWords.length);
+    const nextQueueIds = buildReviewQueue(reviewableWords, queueSize);
     const nextSessionWords = nextQueueIds
-      .map((wordId) => allWordItems.find((item) => item.id === wordId) ?? null)
+      .map((wordId) => reviewableWords.find((item) => item.id === wordId) ?? null)
       .filter((item): item is SavedWord => item !== null);
 
     setSelectedWordId(null);
     openingWordIdRef.current = null;
     setReviewSessionLimit(limit);
     // Keep the session's total pool stable so the completion summary can say how many are left.
-    setReviewSessionAvailableCount(allWordItems.length);
+    setReviewSessionAvailableCount(reviewableWords.length);
     setReviewSessionWords(nextSessionWords);
     setReviewSessionStartMeta(buildReviewSessionStartMeta(nextSessionWords));
     setReviewQueueIds(nextQueueIds);
@@ -914,6 +948,14 @@ export function SavedItemsPanel({
     setReviewSessionWords(updatedWords);
   };
 
+  const handleToggleWordMastered = (wordId: string, mastered: boolean) => {
+    const updatedItems = updateSavedWordMastered(wordId, mastered);
+    const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
+
+    setPanelItems(updatedItems);
+    setReviewSessionWords(updatedWords);
+  };
+
   const markCurrentWordReviewed = (wordId: string): SavedWord[] => {
     if (reviewedInSession.includes(wordId)) {
       return reviewSessionWords;
@@ -947,7 +989,7 @@ export function SavedItemsPanel({
   };
 
   const handleRestartReview = () => {
-    if (allWordItems.length === 0) {
+    if (reviewableWords.length === 0) {
       setReviewComplete(false);
       return;
     }
@@ -963,6 +1005,7 @@ export function SavedItemsPanel({
         className="absolute inset-0 bg-[#28231A]/10"
         onClick={onClose}
       />
+
       <aside className="relative flex h-full w-full max-w-lg flex-col border-l border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
         <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-4 sm:px-6 sm:py-5">
           <div className="mb-1 flex items-center">
@@ -974,21 +1017,21 @@ export function SavedItemsPanel({
               {backToChatLabel}
             </button>
           </div>
+
           <button
             type="button"
             onClick={onClose}
             className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-xs text-[#7A7060] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
             aria-label={copy.common.close}
           >
-            ✕
+            ×
           </button>
+
           <h2 className="font-ui mt-1 text-sm font-semibold text-[#2D4A1F]">
             {copy.sidebar.savedTitle}
           </h2>
           {totalCount > 0 && (
-            <p className="mt-1 text-[9px] text-[#7A7060]/55">
-              {copy.sidebar.savedCount(totalCount)}
-            </p>
+            <p className="mt-1 text-[9px] text-[#7A7060]/55">{copy.sidebar.savedCount(totalCount)}</p>
           )}
         </header>
 
@@ -1010,9 +1053,7 @@ export function SavedItemsPanel({
                     {filterItem.label}
                     {filterItem.count > 0 && (
                       <span
-                        className={`ml-1 ${
-                          filter === filterItem.key ? "opacity-70" : "opacity-50"
-                        }`}
+                        className={`ml-1 ${filter === filterItem.key ? "opacity-70" : "opacity-50"}`}
                       >
                         {filterItem.count}
                       </span>
@@ -1021,12 +1062,13 @@ export function SavedItemsPanel({
                 ))}
               </div>
 
-              {wordCount > 0 && (
-                wordCount <= 10 ? (
+              {wordCount > 0 &&
+                (wordCount <= 10 ? (
                   <button
                     type="button"
                     onClick={() => handleEnterWordReview("all")}
-                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    disabled={isReviewUnavailable}
+                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {reviewEntryLabel}
                   </button>
@@ -1035,28 +1077,36 @@ export function SavedItemsPanel({
                     <button
                       type="button"
                       onClick={() => handleEnterWordReview(10)}
-                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                      disabled={isReviewUnavailable}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {reviewTenLabel}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleEnterWordReview(5)}
-                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                      disabled={isReviewUnavailable}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {reviewFiveLabel}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleEnterWordReview("all")}
-                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                      disabled={isReviewUnavailable}
+                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {reviewAllLabel}
                     </button>
                   </div>
-                )
-              )}
+                ))}
             </div>
+
+            {isReviewUnavailable && (
+              <p className="mt-2 text-[10px] leading-relaxed text-[#7A7060]">
+                {allMasteredWordsLabel}
+              </p>
+            )}
 
             {filter === "word" && wordCount > 0 && (
               <SavedWordsFilterControls
@@ -1100,6 +1150,7 @@ export function SavedItemsPanel({
                 onPrevious={() => setReviewIndex((current) => Math.max(0, current - 1))}
                 onNext={handleAdvanceReview}
                 onSaveNote={handleSaveWordNote}
+                onToggleMastered={handleToggleWordMastered}
               />
             ) : (
               <div className="space-y-4">
@@ -1111,7 +1162,7 @@ export function SavedItemsPanel({
                   ← {isEn ? "Back to saved items" : "返回收藏"}
                 </button>
                 <p className="rounded-xl bg-[#FAF6EE] px-4 py-4 text-[12px] leading-relaxed text-[#7A7060]">
-                  {savedWordsEmptyLabel}
+                  {reviewableWordCount === 0 ? allMasteredWordsLabel : savedWordsEmptyLabel}
                 </p>
               </div>
             )
@@ -1122,6 +1173,7 @@ export function SavedItemsPanel({
               isEn={isEn}
               onBack={handleBackToSavedItems}
               onSaveNote={handleSaveWordNote}
+              onToggleMastered={handleToggleWordMastered}
             />
           ) : filter === "word" ? (
             wordCount === 0 ? (

@@ -46,6 +46,7 @@ export interface SavedWord {
   note?: string;
   lastReviewedAt?: string;
   reviewCount?: number;
+  masteredAt?: string;
   source: "lookup" | "summary_card";
   sourceMessageId?: string;
   summaryCardId?: string;
@@ -197,6 +198,42 @@ export function updateSavedWordNote(id: string, note: string): SavedItem[] {
     return {
       ...item,
       note: trimmedNote,
+    };
+  });
+
+  if (!changed) {
+    return items;
+  }
+
+  saveSavedItems(next);
+  return next;
+}
+
+export function updateSavedWordMastered(
+  id: string,
+  mastered: boolean,
+  masteredAt = new Date().toISOString()
+): SavedItem[] {
+  const items = loadSavedItems();
+  let changed = false;
+
+  const next = items.map((item) => {
+    if (item.id !== id || item.type !== "word") {
+      return item;
+    }
+
+    changed = true;
+
+    if (!mastered) {
+      return {
+        ...item,
+        masteredAt: undefined,
+      };
+    }
+
+    return {
+      ...item,
+      masteredAt,
     };
   });
 
