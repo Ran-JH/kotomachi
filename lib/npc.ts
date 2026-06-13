@@ -25,13 +25,13 @@ export function getNpcDisplayName(npcId: NpcId): string {
 }
 
 export const NPC_AVATARS: Record<NpcId, string> = {
-  aoi: "/avatars/aoi_avatar.png",
-  haruka: "/avatars/haruka_avatar.png",
-  kimura: "/avatars/kimura_avatar.png",
-  misaki: "/avatars/misaki_avatar.png",
-  taisho: "/avatars/taisho_avatar.png",
-  nana: "/avatars/nana_avatar.png",
-  ren: "/avatars/ren_avatar.png",
+  aoi: "/avatars/aoi_avatar.webp",
+  haruka: "/avatars/haruka_avatar.webp",
+  kimura: "/avatars/kimura_avatar.webp",
+  misaki: "/avatars/misaki_avatar.webp",
+  taisho: "/avatars/taisho_avatar.webp",
+  nana: "/avatars/nana_avatar.webp",
+  ren: "/avatars/ren_avatar.webp",
 };
 
 interface ArcState {
