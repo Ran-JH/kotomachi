@@ -2000,192 +2000,204 @@ export default function ChatPage() {
                 +
               </button>
               {isInputActionsOpen && (
-                <div
-                  className="fixed inset-x-3 bottom-24 z-50 max-h-[min(72vh,calc(100dvh-7rem))] overflow-y-auto overflow-x-hidden rounded-3xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)] sm:absolute sm:inset-x-auto sm:bottom-11 sm:left-0 sm:z-30 sm:max-h-[min(70vh,32rem)] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl"
-                >
+                <>
                   <button
                     type="button"
-                    onClick={handleOpenPreSendPanel}
-                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                    aria-label={copy.common.close}
+                    className="fixed inset-0 z-40 bg-[rgba(31,42,24,0.08)] backdrop-blur-[1px] sm:hidden"
+                    onClick={() => {
+                      setIsInputActionsOpen(false);
+                      setIsScenePickerOpen(false);
+                      setIsTopicIdeasOpen(false);
+                    }}
+                  />
+                  <div
+                    className="fixed inset-x-3 bottom-24 z-50 max-h-[min(72vh,calc(100dvh-7rem))] overflow-y-auto overflow-x-hidden rounded-3xl border border-[rgba(59,52,38,0.14)] bg-[#FBF8F0] p-1.5 shadow-[0_18px_50px_rgba(35,31,20,0.14)] sm:absolute sm:inset-x-auto sm:bottom-11 sm:left-0 sm:z-30 sm:max-h-[min(70vh,32rem)] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl sm:border-[rgba(59,52,38,0.12)] sm:shadow-[0_14px_36px_rgba(35,31,20,0.12)]"
                   >
-                    <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                      {preSendMenuTitle}
-                    </span>
-                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                      {preSendMenuSubtitle}
-                    </span>
-                  </button>
-                  {!activeScene && availableScenes.length > 0 && !isScenePickerOpen && (
                     <button
                       type="button"
-                      onClick={handleOpenScenePicker}
-                      className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
+                      onClick={handleOpenPreSendPanel}
+                      className="w-full rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[#F4ECDD]"
                     >
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                        {sceneMenuTitle}
-                      </span>
-                      <span className="block min-w-0 mt-0.5 text-[10px] text-[#7A7060]">
-                        {sceneMenuSubtitle}
-                      </span>
-                    </button>
-                  )}
-                  {!activeScene && availableScenes.length > 0 && isScenePickerOpen && (
-                    <div className="w-full max-w-full overflow-x-hidden rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2.5">
-                      <button
-                        type="button"
-                        onClick={handleBackFromScenePicker}
-                        className="w-full rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-[#FAF6EE]"
-                      >
-                        <span className="block text-[11px] text-[#7A7060]">
-                          {`← ${sceneMenuTitle}`}
-                        </span>
-                      </button>
-                      <div className="mt-2 space-y-1.5">
-                        {availableScenes.map(({ sceneId, scene }) => {
-                          const microEpisodeCopy = getSceneMicroEpisodeCopy(scene);
-
-                          return (
-                            <button
-                              key={sceneId}
-                              type="button"
-                              onClick={() => handleStartScene(sceneId)}
-                              className="group w-full min-w-0 max-w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
-                            >
-                              <span className="block min-w-0 break-words text-[12px] font-medium text-[#2D4A1F]">
-                                {getSceneDisplayTitle(scene)}
-                              </span>
-                              {microEpisodeCopy.sampleUserLineJa && (
-                                <span className="mt-0.5 block min-w-0 break-words text-[10px] leading-relaxed text-[#2D4A1F]/75">
-                                  「{microEpisodeCopy.sampleUserLineJa}」
-                                </span>
-                              )}
-                              {microEpisodeCopy.microEpisode && (
-                                <span className="mt-1 hidden min-w-0 break-words text-[10px] leading-relaxed text-[#7A7060] md:group-hover:line-clamp-3 md:group-focus-visible:line-clamp-3">
-                                  {microEpisodeCopy.microEpisode}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {activeScene && (
-                    <button
-                      type="button"
-                      onClick={handleExitScene}
-                      className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
-                    >
-                      <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                        {uiLanguage === "zh" ? "回到随便聊" : "Back to free chat"}
+                        {preSendMenuTitle}
                       </span>
                       <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                        {uiLanguage === "zh" ? "结束这个小场景，回到普通聊天" : "Leave the scene and return to free chat."}
+                        {preSendMenuSubtitle}
                       </span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsScenePickerOpen(false);
-                      setIsTopicIdeasOpen((prev) => !prev);
-                    }}
-                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
-                  >
-                    <span className="block text-[12px] font-medium text-[#2D4A1F]">{topicIdeasTitle}</span>
-                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">{topicIdeasMenuSubtitle}</span>
-                  </button>
-                  {isTopicIdeasOpen && (
-                    <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
-                      <div className="mb-2 px-1">
-                        <span className="inline-flex rounded-full bg-[#FAF6EE] px-2 py-1 text-[10px] text-[#7A7060]">
-                          {topicIdeasModeLabel}
+                    {!activeScene && availableScenes.length > 0 && !isScenePickerOpen && (
+                      <button
+                        type="button"
+                        onClick={handleOpenScenePicker}
+                        className="w-full rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[#F4ECDD]"
+                      >
+                        <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                          {sceneMenuTitle}
                         </span>
-                      </div>
-                      {isTopicIdeasOpeningMode && (
+                        <span className="block min-w-0 mt-0.5 text-[10px] text-[#7A7060]">
+                          {sceneMenuSubtitle}
+                        </span>
+                      </button>
+                    )}
+                    {!activeScene && availableScenes.length > 0 && isScenePickerOpen && (
+                      <div className="w-full max-w-full overflow-x-hidden rounded-2xl border border-[rgba(59,52,38,0.1)] bg-[#F7F1E5] p-2">
                         <button
                           type="button"
-                          onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
-                          className="w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                          onClick={handleBackFromScenePicker}
+                          className="w-full rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-[#FCF8EF]"
                         >
-                          <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
-                          <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
+                          <span className="block text-[11px] text-[#7A7060]">
+                            {`← ${sceneMenuTitle}`}
+                          </span>
                         </button>
-                      )}
-                      {!isTopicIdeasOpeningMode && (
-                        <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                          {isTopicIdeasLoading ? (
-                            <p className="py-1 text-[11px] text-[#7A7060]">{topicIdeasLoadingLabel}</p>
-                          ) : (
-                            <p className="py-1 text-[10px] text-[#7A7060]">
-                              {uiLanguage === "zh" ? "这几句更贴近当前对话。" : "These lines fit the current conversation."}
-                            </p>
-                          )}
-                          <button
-                            type="button"
-                            onClick={handleRefreshTopicIdeas}
-                            disabled={isTopicIdeasLoading || isRefreshingTopicIdeas}
-                            className="shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-[10px] text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
-                          >
-                            {refreshTopicIdeasLabel}
-                          </button>
+                        <div className="mt-1.5 space-y-1">
+                          {availableScenes.map(({ sceneId, scene }) => {
+                            const microEpisodeCopy = getSceneMicroEpisodeCopy(scene);
+
+                            return (
+                              <button
+                                key={sceneId}
+                                type="button"
+                                onClick={() => handleStartScene(sceneId)}
+                                className="group w-full min-w-0 max-w-full rounded-2xl border border-[rgba(59,52,38,0.08)] bg-[#FFFDF7] px-3.5 py-2.5 text-left transition-colors hover:border-[rgba(59,52,38,0.14)] hover:bg-[#F6EFE2] active:bg-[#F1E8D7]"
+                              >
+                                <span className="block min-w-0 break-words text-[12px] font-medium text-[#2D4A1F]">
+                                  {getSceneDisplayTitle(scene)}
+                                </span>
+                                {microEpisodeCopy.sampleUserLineJa && (
+                                  <span className="mt-0.5 block min-w-0 break-words text-[10px] leading-relaxed text-[#5F624E]">
+                                    「{microEpisodeCopy.sampleUserLineJa}」
+                                  </span>
+                                )}
+                                {microEpisodeCopy.microEpisode && (
+                                  <span className="mt-1 hidden min-w-0 break-words text-[10px] leading-relaxed text-[#7A7060] md:group-hover:line-clamp-3 md:group-focus-visible:line-clamp-3">
+                                    {microEpisodeCopy.microEpisode}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {displayedTopicIdeas.map((prompt) => (
-                          <button
-                            key={`menu-${prompt}`}
-                            type="button"
-                            onClick={() => handleUseStarterPrompt(prompt)}
-                            className="max-w-full rounded-full border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-2.5 py-1 text-left text-[11px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#E8E0CE]"
-                          >
-                            <span className="block break-words">{prompt}</span>
-                          </button>
-                        ))}
                       </div>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!canCreateSummary || isSummaryGenerating) return;
-                      void handleCreateSummary();
-                      setIsScenePickerOpen(false);
-                      setIsInputActionsOpen(false);
-                    }}
-                    aria-disabled={isSummaryGenerating || !canCreateSummary}
-                    className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
-                      canCreateSummary && !isSummaryGenerating
-                        ? "hover:bg-[#F3EDE0]"
-                        : "opacity-70"
-                    }`}
-                  >
-                    <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                      {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
-                    </span>
-                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                      {canCreateSummary || isSummaryGenerating
-                        ? copy.sidebar.reviewDescription
-                        : reviewDisabledHint}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsScenePickerOpen(false);
-                      setIsInputActionsOpen(false);
-                      setIsResetConfirmOpen(true);
-                    }}
-                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
-                  >
-                    <span className="block text-[12px] font-medium text-[#9A5555]">
-                      {restartMenuTitle}
-                    </span>
-                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                      {restartMenuSubtitle}
-                    </span>
-                  </button>
-                </div>
+                    )}
+                    {activeScene && (
+                      <button
+                        type="button"
+                        onClick={handleExitScene}
+                        className="w-full rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[#F4ECDD]"
+                      >
+                        <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                          {uiLanguage === "zh" ? "回到随便聊" : "Back to free chat"}
+                        </span>
+                        <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                          {uiLanguage === "zh" ? "结束这个小场景，回到普通聊天" : "Leave the scene and return to free chat."}
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsScenePickerOpen(false);
+                        setIsTopicIdeasOpen((prev) => !prev);
+                      }}
+                      className="w-full rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[#F4ECDD]"
+                    >
+                      <span className="block text-[12px] font-medium text-[#2D4A1F]">{topicIdeasTitle}</span>
+                      <span className="block mt-0.5 text-[10px] text-[#7A7060]">{topicIdeasMenuSubtitle}</span>
+                    </button>
+                    {isTopicIdeasOpen && (
+                      <div className="mt-1 rounded-2xl border border-[rgba(59,52,38,0.1)] bg-[#F7F1E5] p-2">
+                        <div className="mb-2 px-1">
+                          <span className="inline-flex rounded-full bg-[#FCF8EF] px-2 py-1 text-[10px] text-[#7A7060]">
+                            {topicIdeasModeLabel}
+                          </span>
+                        </div>
+                        {isTopicIdeasOpeningMode && (
+                          <button
+                            type="button"
+                            onClick={() => handleUseStarterPrompt(statusAwarePrompt)}
+                            className="w-full rounded-xl border border-[rgba(59,52,38,0.08)] bg-[#FFFDF7] px-2.5 py-2 text-left transition-colors hover:bg-[#F6EFE2]"
+                          >
+                            <span className="block text-[10px] text-[#7A7060]">{statusAwareTitle}</span>
+                            <span className="mt-0.5 block text-[12px] leading-relaxed text-[#2D4A1F] break-words">{statusAwarePrompt}</span>
+                          </button>
+                        )}
+                        {!isTopicIdeasOpeningMode && (
+                          <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                            {isTopicIdeasLoading ? (
+                              <p className="py-1 text-[11px] text-[#7A7060]">{topicIdeasLoadingLabel}</p>
+                            ) : (
+                              <p className="py-1 text-[10px] text-[#7A7060]">
+                                {uiLanguage === "zh" ? "这几句更贴近当前对话。" : "These lines fit the current conversation."}
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleRefreshTopicIdeas}
+                              disabled={isTopicIdeasLoading || isRefreshingTopicIdeas}
+                              className="shrink-0 rounded-full border border-[rgba(59,52,38,0.08)] bg-[#FCF8EF] px-2.5 py-1 text-[10px] text-[#2D4A1F] transition-colors hover:bg-[#F1E8D7] disabled:cursor-not-allowed disabled:opacity-55"
+                            >
+                              {refreshTopicIdeasLabel}
+                            </button>
+                          </div>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {displayedTopicIdeas.map((prompt) => (
+                            <button
+                              key={`menu-${prompt}`}
+                              type="button"
+                              onClick={() => handleUseStarterPrompt(prompt)}
+                              className="max-w-full rounded-full border border-[rgba(59,52,38,0.08)] bg-[#FCF8EF] px-2.5 py-1 text-left text-[11px] leading-relaxed text-[#2D4A1F] transition-colors hover:bg-[#F1E8D7]"
+                            >
+                              <span className="block break-words">{prompt}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!canCreateSummary || isSummaryGenerating) return;
+                        void handleCreateSummary();
+                        setIsScenePickerOpen(false);
+                        setIsInputActionsOpen(false);
+                      }}
+                      aria-disabled={isSummaryGenerating || !canCreateSummary}
+                      className={`w-full rounded-2xl px-3 py-2 text-left transition-colors ${
+                        canCreateSummary && !isSummaryGenerating
+                          ? "hover:bg-[#F4ECDD]"
+                          : "opacity-70"
+                      }`}
+                    >
+                      <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                        {isSummaryGenerating ? copy.sidebar.creatingReview : copy.sidebar.createReview}
+                      </span>
+                      <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                        {canCreateSummary || isSummaryGenerating
+                          ? copy.sidebar.reviewDescription
+                          : reviewDisabledHint}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsScenePickerOpen(false);
+                        setIsInputActionsOpen(false);
+                        setIsResetConfirmOpen(true);
+                      }}
+                      className="w-full rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[#F4ECDD]"
+                    >
+                      <span className="block text-[12px] font-medium text-[#9A5555]">
+                        {restartMenuTitle}
+                      </span>
+                      <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                        {restartMenuSubtitle}
+                      </span>
+                    </button>
+                  </div>
+                </>
               )}
             </div>
 
