@@ -50,6 +50,8 @@ export const UI_COPY = {
       savedNoteLabel: "学习点",
       savedExpressionBadge: "表达",
       savedWordBadge: "词语",
+      reviewWordsTitle: "复习单词",
+      reviewWordsEmptyHint: "划词查词并收藏后可复习",
     },
     chat: {
       typing: "正在回复…",
@@ -70,6 +72,10 @@ export const UI_COPY = {
       noSpeech: "没听清，可以再说一次，或直接输入文字。",
       sttError: "语音识别失败，可以继续用文字输入。",
       micError: "无法访问麦克风，请在浏览器里允许录音权限。",
+      onboardingHintLine1: "不用说完整日语。中 / 英 / 日混着说也可以。",
+      onboardingHintLine2: "选中聊天里的词句后，可以点查词并保存。发送后把鼠标移到自己的消息上，可以打开「表达提示」看看更自然的说法。",
+      quickGuideSelectionHint: "选中聊天里的词句后，可以点查词并保存。",
+      quickGuideExpressionHint: "发送后把鼠标移到自己的消息上，可以打开「表达提示」看看更自然的说法。",
     },
     feedback: {
       trigger: "表达提示",
@@ -108,6 +114,7 @@ export const UI_COPY = {
       hideExplanation: "收起解释",
       saveWord: "收藏词语",
       savedWord: "已收藏",
+      savedWordFeedback: "已保存 · 可在「收藏」或「复习单词」里查看",
     },
     summary: {
       title: "回顾卡片",
@@ -195,6 +202,8 @@ export const UI_COPY = {
       savedNoteLabel: "Note",
       savedExpressionBadge: "Expression",
       savedWordBadge: "Word",
+      reviewWordsTitle: "Review words",
+      reviewWordsEmptyHint: "Look up selected words and save to review",
     },
     chat: {
       typing: "Replying…",
@@ -215,6 +224,10 @@ export const UI_COPY = {
       noSpeech: "I couldn’t catch that. Try again or type instead.",
       sttError: "Voice recognition failed. You can keep typing instead.",
       micError: "Couldn’t access the microphone. Please allow recording in your browser.",
+      onboardingHintLine1: "You do not need perfect Japanese. Mixing Chinese, English, and Japanese is okay.",
+      onboardingHintLine2: "Select words in the chat, then use lookup to save them. After sending, hover over your own message to open Expression hint.",
+      quickGuideSelectionHint: "Select words in the chat, then use lookup to save them.",
+      quickGuideExpressionHint: "After sending a message, hover over your own message to open Expression hint.",
     },
     feedback: {
       trigger: "Expression Hints",
@@ -253,6 +266,7 @@ export const UI_COPY = {
       hideExplanation: "Hide explanation",
       saveWord: "Save word",
       savedWord: "Saved",
+      savedWordFeedback: "Saved · Find it in Saved items or Review words",
     },
     summary: {
       title: "Review Card",

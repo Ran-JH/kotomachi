@@ -318,7 +318,7 @@ export default function ChatPage() {
   ).length;
   const savedTotalCount = savedExpressionCount + savedWordCount;
   const savedEntryTitle = uiLanguage === "zh" ? copy.sidebar.savedTitle : "Saved items";
-  const savedWordReviewTitle = uiLanguage === "zh" ? "复习单词" : "Review words";
+  const savedWordReviewTitle = copy.sidebar.reviewWordsTitle;
   const savedEntrySubtitle = savedTotalCount === 0
     ? (uiLanguage === "zh" ? "还没有收藏" : "No saved items yet")
     : (uiLanguage === "zh"
@@ -326,7 +326,7 @@ export default function ChatPage() {
       : `${savedTotalCount} saved expressions and words`);
   const reviewWordsEntrySubtitle = reviewableWordCount > 0
     ? (uiLanguage === "zh" ? `待复习 ${reviewableWordCount} 个` : `${reviewableWordCount} to review`)
-    : (uiLanguage === "zh" ? "暂无待复习词" : "No words to review");
+    : copy.sidebar.reviewWordsEmptyHint;
   const reviewEntrySubtitle = allSummaryCards.length === 0
     ? (uiLanguage === "zh" ? "还没有回顾卡" : "No review cards yet")
     : (uiLanguage === "zh"
@@ -1074,15 +1074,11 @@ export default function ChatPage() {
   const starterHeading = uiLanguage === "zh" ? "不知道怎么开始？" : "Not sure how to start?";
   const starterSubheading = uiLanguage === "zh" ? "可以这样开口" : "Try one of these";
   const onboardingHintTitle = uiLanguage === "zh" ? "可以随便开口" : "Start however you can";
-  const onboardingHintLine1 = uiLanguage === "zh"
-    ? "不用说完整日语。中 / 英 / 日混着说也可以。"
-    : "You do not need perfect Japanese. Mixing Chinese, English, and Japanese is okay.";
-  const onboardingHintLine2 = uiLanguage === "zh"
-    ? "不知道说什么时，可以点 “+” 找话题。"
-    : "If you are not sure what to say, tap “+” for topic ideas.";
+  const onboardingHintLine1 = copy.chat.onboardingHintLine1;
+  const onboardingHintLine2 = copy.chat.onboardingHintLine2;
   const onboardingHintLine3 = uiLanguage === "zh"
-    ? "我会帮你把想法整理成自然日语。"
-    : "Kotomachi helps turn your rough thoughts into natural Japanese.";
+    ? "不知道说什么时，可以点 + 找话题。"
+    : "If you are not sure what to say, tap + for topic ideas.";
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
   const preSendMenuTitle = uiLanguage === "zh" ? "我想说……" : "I want to say…";
   const preSendMenuSubtitle = uiLanguage === "zh"
@@ -1114,20 +1110,20 @@ export default function ChatPage() {
   const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
   const quickGuideItems = uiLanguage === "zh"
     ? [
-        "点气泡旁的提示按钮，可以比较几种自然说法。",
-        "手机端可先长按选中 NPC 消息里的词，再点查词入口查看意思和读音。",
+        copy.chat.quickGuideExpressionHint,
+        copy.chat.quickGuideSelectionHint,
         "点喇叭可以听发音。",
         "不知道说什么时，点 + 找话题。",
         "聊几句后，可以从 + 生成回顾卡。",
-        "收藏的表达和词语会保存在“收藏”里。",
+        "保存的词语之后可以在「收藏」或「复习单词」里找到。",
       ]
     : [
-        "Use Expression Hints to compare natural ways to say your message.",
-        "On mobile, long-press and select a word in an NPC message, then use the lookup action.",
+        copy.chat.quickGuideExpressionHint,
+        copy.chat.quickGuideSelectionHint,
         "Tap Listen to hear pronunciation.",
         "Use + for topic ideas when you are not sure what to say.",
         "After a short chat, use + to create a review card.",
-        "Saved words and expressions are stored in Saved.",
+        "Saved words can be found later in Saved items or Review words.",
       ];
   const installHelpTitle = uiLanguage === "zh" ? "添加到桌面" : "Add to Home Screen";
   const installHelpLines = uiLanguage === "zh"

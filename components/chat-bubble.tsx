@@ -237,6 +237,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
   const [explainError, setExplainError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const copy = getUiCopy(uiLanguage);
   const displayWord = data?.word?.trim() || selectedText;
@@ -262,6 +263,8 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         if (!res.ok) throw new Error("explain failed");
         const json = (await res.json()) as ExplainResult;
         if (!cancelled) {
+          // 反馈只在当前这次手动保存成功后显示，不在重新打开时自动出现。
+          setShowSavedFeedback(false);
           setData(json);
           setExplainError(false);
           const nextWord = (json.word ?? selectedText).trim() || selectedText;
@@ -282,6 +285,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         }
       } catch {
         if (!cancelled) {
+          setShowSavedFeedback(false);
           setExplainError(true);
           setData({
             pronunciation: "",
@@ -397,6 +401,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     };
     const result = toggleSavedItem(item);
     setIsSaved(result.saved);
+    setShowSavedFeedback(result.saved);
   };
 
   return createPortal(
@@ -473,6 +478,11 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
             >
               {isSaved ? copy.explain.savedWord : copy.explain.saveWord}
             </button>
+            {showSavedFeedback && (
+              <p className="mt-1.5 text-[9px] leading-relaxed text-[#7A7060] md:text-[11px]">
+                {copy.explain.savedWordFeedback}
+              </p>
+            )}
 
             {/* 鏁村彞缈昏瘧 */}
             <div className="border-t border-[rgba(40,35,26,0.08)] pt-2 mt-2">
