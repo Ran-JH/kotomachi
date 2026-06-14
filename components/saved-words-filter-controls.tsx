@@ -58,7 +58,7 @@ export function SavedWordsFilterControls({
     : `显示 ${filteredCount} / ${totalCount} 个词`;
 
   const sortLabel = isEn ? "Sort" : "排序";
-  const npcLabel = "NPC";
+  const npcLabel = isEn ? "People in town" : "街区里的人";
 
   const wordSortLabels: Record<WordSort, string> = isEn
     ? {

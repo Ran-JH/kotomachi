@@ -916,7 +916,7 @@ export function SavedItemsPanel({
     () => [
       {
         value: "all" as const,
-        label: isEn ? "All NPCs" : "全部 NPC",
+        label: isEn ? "Across town" : "整个街区",
       },
       ...WORD_NPC_FILTER_IDS.map((npcId) => ({
         value: npcId,
