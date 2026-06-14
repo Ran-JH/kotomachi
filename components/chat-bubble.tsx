@@ -605,6 +605,7 @@ function FeedbackDrawer({
   const analysisRefs = useRef<Partial<Record<FeedbackLevelKey, HTMLParagraphElement | null>>>({});
   const hasUserRecording = Boolean(userAudioUrl || userAudioBlob);
   const copy = getUiCopy(uiLanguage);
+  const pauseLabel = uiLanguage === "zh" ? "\u6682\u505c" : "Pause";
 
   const revokeUserTempAudioUrl = useCallback(() => {
     if (!userTempAudioUrlRef.current) return;
@@ -811,12 +812,12 @@ function FeedbackDrawer({
                 }
                 void playUserRecording();
               }}
-              aria-label={copy.feedback.userRecording}
-              title={isUserRecordingPlaying ? (uiLanguage === "zh" ? "鍋滄" : "Stop") : copy.feedback.userRecording}
+              aria-label={isUserRecordingPlaying ? pauseLabel : copy.feedback.userRecording}
+              title={isUserRecordingPlaying ? pauseLabel : copy.feedback.userRecording}
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2D4A1F] text-[#F3EDE0] py-2 text-[10px] font-medium hover:bg-[#2D4A1F]/90 transition-colors"
             >
               <VolumeIcon size={13} />
-              <span>{isUserRecordingPlaying ? (uiLanguage === "zh" ? "鍋滄" : "Stop") : copy.feedback.userRecording}</span>
+              <span>{isUserRecordingPlaying ? pauseLabel : copy.feedback.userRecording}</span>
             </button>
           )}
         </div>
@@ -882,12 +883,12 @@ function FeedbackDrawer({
                         }}
                         aria-pressed={isTtsActive}
                         className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] transition-colors whitespace-nowrap"
-                        title={isTtsActive ? (uiLanguage === "zh" ? "停止" : "Stop") : copy.feedback.listen}
+                        title={isTtsActive ? pauseLabel : copy.feedback.listen}
                       >
                         {isTtsLoading ? (
-                          <span className="animate-pulse">{uiLanguage === "zh" ? "播放中…" : "Playing…"}</span>
+                          <span className="animate-pulse">{uiLanguage === "zh" ? "\u64ad\u653e\u4e2d\u2026" : "Playing\u2026"}</span>
                         ) : isTtsPlaying ? (
-                          <span>{uiLanguage === "zh" ? "停止" : "Stop"}</span>
+                          <span>{pauseLabel}</span>
                         ) : (
                           <>
                             <VolumeIcon size={11} /> {copy.feedback.listen}
@@ -996,6 +997,7 @@ export function ChatBubble({
   const npcAudioRef = useRef<HTMLAudioElement | null>(null);
   const npcObjectUrlRef = useRef<string | null>(null);
   const copy = getUiCopy(uiLanguage);
+  const pauseLabel = uiLanguage === "zh" ? "\u6682\u505c" : "Pause";
   const actionButtonClass =
     "mt-1 inline-flex items-center gap-1.5 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/72 px-2.5 py-1 text-[9px] text-[#6F6658] transition-colors hover:bg-[#E8E0CE] hover:text-[#2D4A1F] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
   const closeDrawer = useCallback(() => {
@@ -1145,11 +1147,11 @@ export function ChatBubble({
 
   const playStandardAudio = async () => {
     const playbackKey = `assistant:${messageId}`;
-    // Guard against repeated clicks while this bubble is requesting or playing.
-    if (isNpcAudioLoading || isNpcAudioPlaying) return;
     if (activeManagedAudio && activeManagedAudio.key === playbackKey && !activeManagedAudio.controller.signal.aborted) {
+      stopActiveManagedAudio();
       return;
     }
+    if (isNpcAudioLoading) return;
 
     setIsNpcAudioLoading(true);
 
@@ -1352,17 +1354,17 @@ export function ChatBubble({
                 <button
                   type="button"
                   onClick={playStandardAudio}
-                  disabled={isNpcAudioLoading || isNpcAudioPlaying}
-                  aria-label={copy.audio.playNpc}
-                  title={copy.audio.play}
+                  disabled={isNpcAudioLoading}
+                  aria-label={isNpcAudioPlaying ? pauseLabel : copy.audio.playNpc}
+                  title={isNpcAudioPlaying ? pauseLabel : copy.audio.play}
                   className={actionButtonClass}
                 >
                   <VolumeIcon size={12} />
                   <span>
                     {isNpcAudioLoading
-                      ? (uiLanguage === "zh" ? "播放中…" : "Playing…")
+                      ? (uiLanguage === "zh" ? "\u64ad\u653e\u4e2d\u2026" : "Playing\u2026")
                       : isNpcAudioPlaying
-                        ? (uiLanguage === "zh" ? "播放中…" : "Playing…")
+                        ? pauseLabel
                         : copy.audio.play}
                   </span>
                 </button>
