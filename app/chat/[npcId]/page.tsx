@@ -2001,7 +2001,7 @@ export default function ChatPage() {
               </button>
               {isInputActionsOpen && (
                 <div
-                  className="absolute bottom-11 left-1/2 z-30 w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-x-hidden rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)] sm:left-0 sm:translate-x-0"
+                  className="fixed inset-x-3 bottom-24 z-50 max-h-[min(72vh,calc(100dvh-7rem))] overflow-y-auto overflow-x-hidden rounded-3xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)] sm:absolute sm:inset-x-auto sm:bottom-11 sm:left-0 sm:z-30 sm:max-h-[min(70vh,32rem)] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl"
                 >
                   <button
                     type="button"
