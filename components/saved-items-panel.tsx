@@ -371,7 +371,7 @@ function WordCard({
           )}
         </div>
 
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 pr-2">
           <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
             {reviewBadge}
           </span>
@@ -969,7 +969,8 @@ export function SavedItemsPanel({
   };
 
   const handleOpenWordCard = (wordId: string) => {
-    if (openingWordIdRef.current === wordId && selectedWordId === wordId) {
+    // Treat one list-open action as a single review so fast double clicks do not double count.
+    if (openingWordIdRef.current === wordId || selectedWordId === wordId) {
       return;
     }
 
@@ -1123,7 +1124,7 @@ export function SavedItemsPanel({
                   </button>
 
                   {isReviewEntryOpen && (
-                    <div className="absolute right-0 top-full z-30 mt-3 w-[min(20rem,calc(100vw-5rem))] max-w-[calc(100vw-5rem)] rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] p-3 shadow-[0_8px_24px_rgba(40,35,26,0.08)]">
+                    <div className="absolute right-0 top-full z-30 mt-3 w-[min(20rem,calc(100vw-3rem))] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] p-3 shadow-[0_8px_24px_rgba(40,35,26,0.08)] sm:w-[min(20rem,calc(100vw-5rem))] sm:max-w-[calc(100vw-5rem)]">
                       {isReviewUnavailable ? (
                         <p className="text-[10px] leading-relaxed text-[#7A7060]">
                           {allMasteredWordsLabel}
