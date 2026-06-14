@@ -198,6 +198,7 @@ async function fetchAndPlayTts(
 
 interface ExplainResult {
   pronunciation: string;
+  pronunciations?: string[];
   translation: string;
   sentence_meaning: string;
   nuance_explanation: string;
@@ -231,6 +232,19 @@ function hasUsefulNuance(data: ExplainResult, copy: ReturnType<typeof getUiCopy>
   return true;
 }
 
+function getExplainReadings(data: Pick<ExplainResult, "pronunciation" | "pronunciations">): string[] {
+  const normalizedReadings =
+    Array.isArray(data.pronunciations) && data.pronunciations.length > 0
+      ? data.pronunciations.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      : data.pronunciation
+        ? [data.pronunciation]
+        : [];
+
+  return Array.from(
+    new Set(normalizedReadings.map((value) => value.trim()).filter(Boolean)),
+  ).slice(0, 3);
+}
+
 function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect, uiLanguage, onClose }: WordPopoverProps) {
   const [data, setData] = useState<ExplainResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -243,6 +257,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
   const displayWord = data?.word?.trim() || selectedText;
   const originalSelection = data?.originalSelection?.trim() || selectedText;
   const wasCorrected = Boolean(data?.wasCorrected && displayWord && displayWord !== originalSelection);
+  const displayReadings = data ? getExplainReadings(data) : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -268,13 +283,15 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
           setData(json);
           setExplainError(false);
           const nextWord = (json.word ?? selectedText).trim() || selectedText;
-          setIsSaved(isWordSaved(nextWord, json.pronunciation));
+          const nextReadings = getExplainReadings(json);
+          const nextPrimaryReading = nextReadings[0] ?? json.pronunciation ?? "";
+          setIsSaved(isWordSaved(nextWord, nextPrimaryReading));
           saveLookupHistory({
             schemaVersion: 1,
             id: createSummaryId("lookup"),
             npcId,
             word: nextWord,
-            reading: json.pronunciation,
+            reading: nextPrimaryReading,
             meaning: json.translation,
             sourceSentence: fullSentence,
             originalSelection: (json.originalSelection ?? selectedText).trim() || selectedText,
@@ -371,12 +388,14 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     const nextWord = (data.word ?? selectedText).trim() || selectedText;
     const sentenceMeaning = data.sentence_meaning?.trim();
     const nuanceExplanation = data.nuance_explanation?.trim();
+    const readings = getExplainReadings(data);
     const item: SavedWord = {
       id: createSummaryId("saved-word"),
       type: "word",
       npcId,
       word: nextWord,
-      reading: data.pronunciation ?? "",
+      reading: readings[0] ?? data.pronunciation ?? "",
+      ...(readings.length > 0 ? { readings } : {}),
       meaning: data.translation ?? "",
       meaningLanguage: uiLanguage === "en" ? "en" : "zh",
       example: fullSentence,
@@ -421,10 +440,12 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
                       : `已从「${originalSelection}」自动修正`}
                   </p>
                 )}
-                {data.pronunciation && (
+                {displayReadings.length > 0 && (
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-[8px] font-medium text-[#7A7060] md:text-[11px]">{readingLabel}</span>
-                    <span className="font-ja text-[10px] text-[#4A4438] md:text-[13px]">{data.pronunciation}</span>
+                    <span className="font-ja min-w-0 break-words text-[10px] text-[#4A4438] md:text-[13px]">
+                      {displayReadings.join(" / ")}
+                    </span>
                       <button
                         type="button"
                         onClick={() => { void fetchAndPlayTts(displayWord, npcId, `lookup:${messageId}:${displayWord}`).catch(() => undefined); }}

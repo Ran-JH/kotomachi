@@ -38,6 +38,7 @@ export interface SavedWord {
   npcId: NpcId;
   word: string;
   reading: string;
+  readings?: string[];
   meaning: string;
   meaningLanguage: "zh" | "en";
   example?: string;

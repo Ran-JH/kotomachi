@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 
 interface ExplainResponse {
   pronunciation: string;
+  pronunciations?: string[];
   translation: string;
   sentence_meaning: string;
   nuance_explanation: string;
@@ -73,6 +74,27 @@ function cleanText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isLikelyKanaReading(value: string): boolean {
+  return /^[\u3040-\u309F\u30A0-\u30FFー・\s]+$/.test(value.trim());
+}
+
+function normalizePronunciations(primary: string, raw: unknown): string[] {
+  const source = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+      ? [raw]
+      : [];
+  const merged = primary ? [primary, ...source] : source;
+
+  return Array.from(
+    new Set(
+      merged
+        .map((value) => cleanText(value))
+        .filter((value) => value && isLikelyKanaReading(value)),
+    ),
+  ).slice(0, 3);
+}
+
 function isLikelySentence(value: string): boolean {
   const text = value.trim();
   return /[。！？?!、]/.test(text) || text.length >= 14;
@@ -130,6 +152,10 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
   if (KNOWN_EXPLAINS[selected]) {
     return {
       ...KNOWN_EXPLAINS[selected],
+      pronunciations: normalizePronunciations(
+        KNOWN_EXPLAINS[selected].pronunciation,
+        KNOWN_EXPLAINS[selected].pronunciations,
+      ),
       word: lookup.word,
       originalSelection: lookup.originalSelection,
       wasCorrected: lookup.wasCorrected,
@@ -139,6 +165,7 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
   if (sentenceSelected) {
     return {
       pronunciation: "",
+      pronunciations: [],
       translation: `这句话的意思：${selected}`,
       sentence_meaning: sentence || selected,
       nuance_explanation: "",
@@ -150,6 +177,7 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
 
   return {
     pronunciation: "",
+    pronunciations: [],
     translation: selected,
     sentence_meaning: sentence,
     nuance_explanation: "",
@@ -172,6 +200,10 @@ function normalizeExplainResponse(
     cleanText(parsed.reading) ||
     cleanText(parsed["读音"]) ||
     fallback.pronunciation;
+  const pronunciations = normalizePronunciations(
+    pronunciation,
+    parsed.pronunciations ?? parsed.readings,
+  );
   const translation =
     cleanText(parsed.translation) ||
     cleanText(parsed.meaning) ||
@@ -201,6 +233,10 @@ function normalizeExplainResponse(
   if (known) {
     return {
       pronunciation: pronunciation || known.pronunciation,
+      pronunciations:
+        pronunciations.length > 0
+          ? pronunciations
+          : normalizePronunciations(known.pronunciation, known.pronunciations),
       translation: known.translation,
       sentence_meaning: sentenceMeaning || known.sentence_meaning,
       nuance_explanation: nuance || known.nuance_explanation,
@@ -212,6 +248,7 @@ function normalizeExplainResponse(
 
   return {
     pronunciation,
+    pronunciations,
     translation,
     sentence_meaning: sentenceMeaning,
     nuance_explanation: nuance,
@@ -238,6 +275,11 @@ export async function POST(req: NextRequest) {
       content: `选中的词：${selectedText}
 完整句子：${fullSentence}
 uiLanguage: ${targetLanguage}
+
+Return JSON with pronunciation as the primary kana reading and pronunciations as an optional array of kana readings, primary first.
+Only include extra readings if they are common or contextually plausible. Do not invent rare readings.
+If uncertain, return only the most common reading. For example, 「灯り」 is normally 「あかり」.
+If selectedText is a short phrase, prefer the most natural overall reading for the phrase.
 
 语言规则：
 1) uiLanguage 为 en 时，translation / sentence_meaning / nuance_explanation 必须用英文。

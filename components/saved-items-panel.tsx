@@ -83,6 +83,23 @@ function formatReviewDate(value: string, locale: "zh-CN" | "en-US"): string {
   }).format(date);
 }
 
+function getSavedWordReadings(item: SavedWord): string[] {
+  const source =
+    item.readings?.length
+      ? item.readings
+      : item.reading
+        ? [item.reading]
+        : [];
+
+  return Array.from(
+    new Set(
+      source
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean),
+    ),
+  ).slice(0, 3);
+}
+
 function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
   if (isNpcId(npcId)) {
     if (isEn) {
@@ -338,6 +355,7 @@ function WordCard({
   const reviewBadge = getWordListReviewBadge(item, isEn);
   const hasNote = Boolean(item.note?.trim());
   const isMastered = Boolean(item.masteredAt);
+  const readings = getSavedWordReadings(item);
 
   return (
     <div
@@ -371,8 +389,8 @@ function WordCard({
           <p className="text-[14px] font-semibold leading-relaxed text-[#2D4A1F]">
             {item.word}
           </p>
-          {item.reading && (
-            <p className="text-[10px] leading-relaxed text-[#5E5648]/88">{item.reading}</p>
+          {readings.length > 0 && (
+            <p className="text-[10px] leading-relaxed text-[#5E5648]/88">{readings.join(" / ")}</p>
           )}
         </div>
 
@@ -455,6 +473,7 @@ function WordReviewCard({
   const sentenceMeaning = item.sentenceMeaning?.trim();
   const sourceSentence = item.example?.trim();
   const note = item.note?.trim() ?? "";
+  const readings = getSavedWordReadings(item);
   const hasDetailedNote = Boolean(nuanceExplanation || sentenceMeaning);
   const reviewSummary = getWordReviewSummaryLabel(item, isEn);
   const lastReviewedText = item.lastReviewedAt
@@ -553,7 +572,7 @@ function WordReviewCard({
               {labels.reading}
             </p>
             <p className="font-ja mt-1 break-words text-[14px] leading-relaxed text-[#28231A]">
-              {item.reading?.trim() || "—"}
+              {readings.join(" / ") || "—"}
             </p>
           </div>
 
