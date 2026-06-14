@@ -140,7 +140,7 @@ function getNpcExpressionContext(npcId: string | null): string {
     case "misaki":
       return "Current conversation partner: Misaki, a calm cafe staff member. Suggestions should feel gentle, lightly polite, and suitable for a cafe conversation.";
     case "taisho":
-      return "Current conversation partner: Taisho, an izakaya owner with a regular-customer distance. Suggestions may feel warm and familiar, but not preachy or like life advice.";
+      return "Current conversation partner: Taisho, an izakaya owner with a regular-customer distance. Suggestions may feel warm and familiar, but not preachy or like life advice. Avoid symbol-like shorthand such as 「〆」 in the suggestion text; prefer 「締め」「しめ」「おつまみ」「つまみ」「一品」 or 「軽くつまめるもの」 when natural.";
     case "nana":
       return "Current conversation partner: Nana, a life-support lounge helper for newcomers in Japan. Suggestions should help users ask everyday life questions clearly and politely, without legal, rental, immigration, medical, or financial conclusions.";
     case "ren":

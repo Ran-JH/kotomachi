@@ -480,6 +480,9 @@ function WordReviewCard({
     ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
     : null;
   const isMastered = Boolean(item.masteredAt);
+  const masteredActionLabel = isMastered
+    ? (isEn ? "Undo mastered" : "撤销已掌握")
+    : labels.markMastered;
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [draftNote, setDraftNote] = useState(note);
 
@@ -537,28 +540,17 @@ function WordReviewCard({
               <span className="inline-flex items-center rounded-full bg-[#2D4A1F]/10 px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
                 {reviewSummary}
               </span>
-              {isMastered ? (
-                <>
-                  <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-3 py-1 text-[10px] font-medium text-[#6D624F]">
-                    {labels.mastered}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleToggleMastered}
-                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1 text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-                  >
-                    {labels.undoMastered}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleToggleMastered}
-                  className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1 text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-                >
-                  {labels.markMastered}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleToggleMastered}
+                className={`rounded-full border px-3 py-1 text-[10px] font-medium transition-colors ${
+                  isMastered
+                    ? "border-[#D6C9AE] bg-[#E8E0CE] text-[#6D624F] hover:bg-[#E2D8C2] hover:text-[#5A5144]"
+                    : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                }`}
+              >
+                {masteredActionLabel}
+              </button>
             </div>
           </div>
           {lastReviewedText && (
