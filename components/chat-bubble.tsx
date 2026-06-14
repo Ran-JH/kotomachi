@@ -323,7 +323,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
   const popoverLayout: {
     style: React.CSSProperties;
     cardStyle: React.CSSProperties;
-    placement: "top" | "bottom";
+    placement: "above" | "below";
   } = (() => {
     const gap = 12;
     const margin = 16;
@@ -337,30 +337,26 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     const left = clampNumber(anchorCenter - width / 2, margin, viewportWidth - width - margin);
     const spaceAbove = Math.max(0, anchorRect.top - margin - gap);
     const spaceBelow = Math.max(0, viewportHeight - anchorRect.bottom - margin - gap);
-    const estimatedHeight = isMobile ? 360 : 420;
-    const placement = spaceBelow < estimatedHeight && spaceAbove > spaceBelow ? "top" : "bottom";
+    const placement = spaceBelow < 260 && spaceAbove > spaceBelow ? "above" : "below";
+    const rawMaxHeight = placement === "above" ? spaceAbove : spaceBelow;
     const availableHeight = Math.max(
-      220,
-      Math.min(
-        placement === "bottom" ? spaceBelow : spaceAbove,
-        viewportHeight - margin * 2,
-      ),
+      240,
+      Math.min(rawMaxHeight, isMobile ? viewportHeight * 0.7 : 520),
     );
-    const top = placement === "bottom"
-      ? clampNumber(anchorRect.bottom + gap, margin, viewportHeight - availableHeight - margin)
-      : clampNumber(anchorRect.top - availableHeight - gap, margin, viewportHeight - availableHeight - margin);
 
     return {
       placement,
       style: {
         position: "fixed",
         left: `${left}px`,
-        top: `${top}px`,
         width: `${width}px`,
         zIndex: 90,
+        ...(placement === "below"
+          ? { top: `${clampNumber(anchorRect.bottom + gap, margin, viewportHeight - margin)}px` }
+          : { bottom: `${clampNumber(viewportHeight - anchorRect.top + gap, margin, viewportHeight - margin)}px` }),
       },
       cardStyle: {
-        maxHeight: `${Math.min(availableHeight, isMobile ? viewportHeight * 0.7 : 512)}px`,
+        maxHeight: `${availableHeight}px`,
       },
     };
   })();
@@ -397,7 +393,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
 
   return createPortal(
     <div ref={popoverRef} style={popoverLayout.style}>
-      {popoverLayout.placement === "bottom" && (
+      {popoverLayout.placement === "below" && (
         <div className="flex justify-center -mb-px">
           <div className="h-2 w-2 translate-y-1 rotate-45 border-l border-t border-[rgba(40,35,26,0.12)] bg-[#FCF8F0]" />
         </div>
@@ -519,7 +515,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         )}
       </div>
       {/* 灏忎笁瑙?*/}
-      {popoverLayout.placement === "top" && (
+      {popoverLayout.placement === "above" && (
         <div className="flex justify-center -mt-px">
           <div className="w-2 h-2 bg-[#FCF8F0] border-r border-b border-[rgba(40,35,26,0.12)] rotate-45 -translate-y-1" />
         </div>
