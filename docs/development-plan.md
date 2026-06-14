@@ -219,6 +219,163 @@ Kotomachi 不应被写成：
 
 ---
 
+## 2.1 Daily Share Motivation / 日常分享动机
+
+### 核心产品方向
+
+Kotomachi 不只是一个"练习日语"的工具，也应该成为一个用户愿意打开来表达日常小事的小镇。
+
+**理想开口理由不应只是：**
+- 我要学习
+- 我要练一个场景
+- 我要完成任务
+
+**而应该是：**
+- 今天有点累，想跟 Aoi 说一句
+- 今天做了饭，想问 Taisho 怎么说
+- 今天研究/求职有点烦，想跟 Haruka 讲
+- 今天想慢慢说点心情，想去找 Misaki
+- 今天遇到日本生活手续问题，想问 Nana
+- 今天想去便利店找 Kimura 随便聊两句
+
+**产品目标**：
+> The product goal is to make real-life moments become Japanese output.
+>
+> 让用户把自己的真实生活片段自然转化成日语输出。
+
+### 与多 NPC 的关系
+
+多 NPC 不是简单堆角色，而是 Kotomachi 的核心差异化之一。
+
+GPT / 普通 AI 聊天通常是一个万能接口。Kotomachi 的优势是一个小镇里有不同的人、不同地点、不同社会关系，能承接用户生活里的不同片段。
+
+| NPC | 适合分享的语境 |
+|-----|----------------|
+| Kimura | 便利店、夜晚、打工、生活琐事、累不累 |
+| Misaki | 咖啡、天气、安静心情、慢慢讲的小事 |
+| Taisho | 吃了什么、下班后放松、今天遇到的荒唐事 |
+| Haruka | 学习、研究、论文、面试、表达压力 |
+| Aoi | 最近喜欢的东西、开心/烦躁的小事、朋友感话题 |
+| Nana | 日本生活中不知道怎么问的事、手续、租房、手机网络 |
+
+**原则**：NPC 是不同生活语境下的自然 conversation partners，不是情感依赖对象。
+
+### 与现有入口的关系
+
+未来产品层级（概念）：
+```
+进入 NPC
+├─ Free Chat：想和这个人随便聊聊
+├─ Guided Scenario：想在这个地方处理一件小事
+└─ Daily Share：想告诉这个人一件今天发生的小事
+```
+
+**v0 实现原则**：
+- 不做成新的正式入口；
+- 先作为 NPC prompt、starter、empty state、topic ideas 的产品原则；
+- 不重塑首页大结构；
+- 不做成社交媒体；
+- 不做成情感陪伴 App。
+
+### 与 Guided Scenarios 的区别
+
+| 特性 | Guided Scenario | Daily Share |
+|------|-----------------|-------------|
+| 开口动机 | 我想做一件事 | 我有件事想说 |
+| 目标 | 处理一个生活小情境（买便当、点咖啡、问手续） | 把今天发生的小事告诉某个 NPC |
+| 核心 | 降低开口成本 | 分享日常片段 |
+
+### 与 Expression Hints 的关系
+
+**原则**：
+- **Main conversation catches the user's life.** 对话主回复负责接住用户生活，不要立刻教学化。
+- **Learning layers extract language value.** Expression Hints / Review Cards 负责在辅助层提炼表达。
+
+**示例**：
+用户说：`今日はちょっと疲れた。`
+
+NPC 主回复不应是：`更自然的说法是……`
+
+而应先自然接住：`そっか、今日はちょっと疲れたんだね。何かあった？`
+
+学习价值可以放在辅助层（Expression Hints 或 Review Card），而不是让 NPC 主回复变成批改老师。
+
+### 产品原则
+
+- 用户不是为了完成任务才打开，而是因为有小事想说；
+- 多 NPC 提供不同社会语境，而不是多个皮肤；
+- NPC 先接住生活，再提供轻量语言价值；
+- 不把 Daily Share 做成情感陪伴或恋爱陪伴；
+- 不鼓励依赖 NPC 解决现实情绪问题；
+- 不做心理咨询 / mental health support；
+- 不把分享入口做成打卡；
+- 不要求用户每天提交日记；
+- 不做社交媒体信息流；
+- 不用强 notification / streak 逼用户回来；
+- 保持低压力、短、生活化；
+- 用户可以随时跑偏或结束；
+- Review Card 只轻量提炼表达，不做情绪总结；
+- NPC 个性应影响"适合分享什么"和"如何回应"。
+
+### Non-goals
+
+明确不做：
+- emotional companion product；
+- romantic companion；
+- therapy / counseling；
+- mental health support；
+- diary app；
+- streak / mandatory check-in；
+- social feed；
+- parasocial dependency design；
+- push notification growth loop；
+- scoring / progress for daily sharing；
+- forced daily reflection；
+- replacing real friends or teachers。
+
+### 优先级
+
+- **Product direction: P1** — 这是重要的产品方向；
+- **Implementation: P2 / later** — 但现在不应马上大改 UI；
+
+**当前优先级仍是**：
+- 图片压缩；
+- 大陆访问稳定；
+- 真实用户测试；
+- Guided Scenarios polish；
+- Expression Hints 稳定；
+- 作品集包装。
+
+### 可探索的轻量实现方向
+
+1. **NPC card / empty state copy**：
+   - 今天有点累？去便利店跟 Kimura 说两句。
+   - 想慢慢说一件小事？Misaki 会听你讲。
+   - 学习和研究有点卡？可以找 Haruka 说说。
+
+2. **Starter prompts**（根据 NPC 个性调整）：
+   - 今日はちょっと疲れました。
+   - 最近、少しうれしかったことがあります。
+   - 今日こんなことがありました。
+   - ちょっと聞いてほしいことがあります。
+
+3. **Topic Ideas**（帮用户把真实生活转成可说的日语）：
+   - 今天发生的小事
+   - 最近喜欢的东西
+   - 有点累的时候
+   - 想问对方怎么看
+
+4. **NPC prompt behavior**：
+   - 先承接用户分享；
+   - 追问一个自然的小问题；
+   - 不急着教学；
+   - 不把每句话都纠正；
+   - 保持角色身份和场景感；
+   - 避免过度亲密化；
+   - 避免心理咨询化。
+
+---
+
 ## 3. Current NPC Coverage / 当前 NPC 覆盖
 
 | NPC | Scene | Relationship / register | Main value | Main risk |

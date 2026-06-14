@@ -726,7 +726,6 @@ export function SavedItemsPanel({
   const isEn = copy.summary.title === "Review Card";
   const reviewFiveLabel = isEn ? "Review 5" : "看 5 个";
   const reviewTenLabel = isEn ? "Review 10" : "看 10 个";
-  const reviewAllLabel = isEn ? "All" : "全部";
   const backToChatLabel = isEn ? "← Back to chat" : "← 返回聊天";
   const reviewEntryLabel = isEn ? "Review words" : "复习单词";
   const savedWordsEmptyLabel = isEn
@@ -753,10 +752,12 @@ export function SavedItemsPanel({
   const [reviewSessionStartMeta, setReviewSessionStartMeta] = useState<
     Record<string, { reviewCount: number }>
   >({});
+  const [isReviewEntryOpen, setIsReviewEntryOpen] = useState(false);
   const [wordReviewFilter, setWordReviewFilter] = useState<WordReviewFilter>("all");
   const [wordNpcFilter, setWordNpcFilter] = useState<WordNpcFilter>("all");
   const [wordSort, setWordSort] = useState<WordSort>("newest");
   const openingWordIdRef = useRef<string | null>(null);
+  const reviewEntryRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setPanelItems(items);
@@ -775,6 +776,37 @@ export function SavedItemsPanel({
     }
   }, [panelItems, selectedWordId]);
 
+  useEffect(() => {
+    if (filter !== "word") {
+      setIsReviewEntryOpen(false);
+    }
+  }, [filter]);
+
+  useEffect(() => {
+    if (!isReviewEntryOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (reviewEntryRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsReviewEntryOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isReviewEntryOpen]);
+
   const expressionCount = panelItems.filter((item) => item.type === "expression").length;
   const allWordItems = useMemo(
     () => panelItems.filter((item): item is SavedWord => item.type === "word"),
@@ -787,6 +819,15 @@ export function SavedItemsPanel({
   const wordCount = allWordItems.length;
   const reviewableWordCount = reviewableWords.length;
   const isReviewUnavailable = wordCount > 0 && reviewableWordCount === 0;
+  const reviewableCountLabel = isEn
+    ? `${reviewableWordCount} to review`
+    : `待复习 ${reviewableWordCount}`;
+  const reviewAllCountLabel = isEn
+    ? `All to review · ${reviewableWordCount}`
+    : `全部待复习 ${reviewableWordCount} 个`;
+  const masteredHintLabel = isEn
+    ? `${wordCount - reviewableWordCount} mastered words will not appear by default`
+    : `已掌握 ${wordCount - reviewableWordCount} 个，不会默认进入复习`;
   const totalCount = expressionCount + wordCount;
 
   const filteredWordItems = useMemo(() => {
@@ -912,16 +953,19 @@ export function SavedItemsPanel({
     setReviewComplete(false);
     setReviewedInSession([]);
     setIsWordReviewMode(true);
+    setIsReviewEntryOpen(false);
   };
 
   const handleExitWordReview = () => {
     setIsWordReviewMode(false);
+    setIsReviewEntryOpen(false);
     resetReviewState();
   };
 
   const handleBackToSavedItems = () => {
     openingWordIdRef.current = null;
     setSelectedWordId(null);
+    setIsReviewEntryOpen(false);
   };
 
   const handleOpenWordCard = (wordId: string) => {
@@ -937,6 +981,7 @@ export function SavedItemsPanel({
     setPanelItems(updatedItems);
     setSelectedWordId(wordId);
     setReviewSessionWords(updatedWords);
+    setIsReviewEntryOpen(false);
   };
 
   const handleSaveWordNote = (wordId: string, note: string) => {
@@ -1062,51 +1107,62 @@ export function SavedItemsPanel({
                 ))}
               </div>
 
-              {wordCount > 0 &&
-                (wordCount <= 10 ? (
+              {wordCount > 0 && (
+                <div ref={reviewEntryRef} className="relative shrink-0">
                   <button
                     type="button"
-                    onClick={() => handleEnterWordReview("all")}
-                    disabled={isReviewUnavailable}
-                    className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setIsReviewEntryOpen((current) => !current)}
+                    className="inline-flex items-center gap-2 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                    aria-expanded={isReviewEntryOpen}
+                    aria-haspopup="dialog"
                   >
-                    {reviewEntryLabel}
+                    <span>{reviewEntryLabel}</span>
+                    <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
+                      {reviewableCountLabel}
+                    </span>
                   </button>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleEnterWordReview(10)}
-                      disabled={isReviewUnavailable}
-                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-1.5 text-[9px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {reviewTenLabel}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEnterWordReview(5)}
-                      disabled={isReviewUnavailable}
-                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {reviewFiveLabel}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEnterWordReview("all")}
-                      disabled={isReviewUnavailable}
-                      className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-3 py-1.5 text-[9px] font-medium text-[#6D624F] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {reviewAllLabel}
-                    </button>
-                  </div>
-                ))}
-            </div>
 
-            {isReviewUnavailable && (
-              <p className="mt-2 text-[10px] leading-relaxed text-[#7A7060]">
-                {allMasteredWordsLabel}
-              </p>
-            )}
+                  {isReviewEntryOpen && (
+                    <div className="absolute right-0 top-full z-30 mt-3 w-[min(20rem,calc(100vw-5rem))] max-w-[calc(100vw-5rem)] rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] p-3 shadow-[0_8px_24px_rgba(40,35,26,0.08)]">
+                      {isReviewUnavailable ? (
+                        <p className="text-[10px] leading-relaxed text-[#7A7060]">
+                          {allMasteredWordsLabel}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEnterWordReview(5)}
+                            className="flex w-full items-center justify-between rounded-xl bg-[#F7F2E8] px-3 py-2 text-left text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                          >
+                            <span>{reviewFiveLabel}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEnterWordReview(10)}
+                            className="flex w-full items-center justify-between rounded-xl bg-[#F7F2E8] px-3 py-2 text-left text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                          >
+                            <span>{reviewTenLabel}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEnterWordReview("all")}
+                            className="flex w-full items-center justify-between rounded-xl bg-[#F7F2E8] px-3 py-2 text-left text-[10px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                          >
+                            <span>{reviewAllCountLabel}</span>
+                          </button>
+                          {wordCount > reviewableWordCount && (
+                            <p className="pt-1 text-[9px] leading-relaxed text-[#7A7060]">
+                              {masteredHintLabel}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {filter === "word" && wordCount > 0 && (
               <SavedWordsFilterControls

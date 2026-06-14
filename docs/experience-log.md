@@ -43,6 +43,16 @@
 
 ## Current stage note
 
+### 2026-06-13 - Daily Share Motivation as core product direction
+- Source: internal product planning
+- Feature area: product strategy / retention / multi-NPC design
+- Observation: Kotomachi's long-term retention should not rely solely on "wanting to study Japanese". Users should also want to open Kotomachi when they have a small real-life moment to share.
+- Diagnosis: Multi-NPC design can become a core advantage because different NPCs provide different social contexts for everyday Japanese output.
+- Decision: Frame "Daily Share Motivation" as a key product direction. Implement through NPC card copy, starter prompts, topic ideas, and NPC prompt behavior changes - not as a new standalone entry.
+- Public note: Kotomachi should be a place where users naturally turn their real-life moments into Japanese output, not just a language practice tool.
+- Severity: Low
+- Status: Planned
+
 ### 2026-06-11 - STT mishearing confirmation became a better direction
 - Source: internal product planning / Voice Advice exploration
 - Feature area: speech input reliability / NPC prompt behavior
