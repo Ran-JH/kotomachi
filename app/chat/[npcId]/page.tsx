@@ -1111,35 +1111,45 @@ export default function ChatPage() {
   const restartMenuSubtitle = copy.chat.restartMenuSubtitle;
   const helpTitle = uiLanguage === "zh" ? "帮助" : "Help";
   const helpSubtitle = uiLanguage === "zh" ? "使用提示与安装说明" : "Guide & install help";
-  const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
+  const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Tips";
   const quickGuideItems = uiLanguage === "zh"
     ? [
-        copy.chat.quickGuideExpressionHint,
-        copy.chat.quickGuideSelectionHint,
-        "点喇叭可以听发音。",
-        "不知道说什么时，点 + 找话题。",
-        "聊几句后，可以从 + 生成回顾卡。",
-        "保存的词语之后可以在「收藏」或「复习单词」里找到。",
+        "发送前：点「+」里的「我想说……」，可以先用中文、英文或日语碎片说想法，我会帮你变成自然日语。",
+        "发送后：把鼠标移到自己的消息上，可以打开「表达提示」，看看更自然的说法。",
+        "查词：选中聊天里的词句后，可以点查词并保存。",
+        "语音：点麦克风可以说话，点消息旁的语音按钮可以听 NPC 的声音。",
       ]
     : [
-        copy.chat.quickGuideExpressionHint,
-        copy.chat.quickGuideSelectionHint,
-        "Tap Listen to hear pronunciation.",
-        "Use + for topic ideas when you are not sure what to say.",
-        "After a short chat, use + to create a review card.",
-        "Saved words can be found later in Saved items or Review words.",
+        "Before sending: use “I want to say...” from “+” to turn your idea into natural Japanese.",
+        "After sending: hover over your own message to open Expression hint.",
+        "Lookup: select words in the chat, then use lookup to save them.",
+        "Voice: use the microphone to speak, and use the voice button on messages to listen.",
+      ];
+  const learningRecordsTitle = uiLanguage === "zh" ? "学习记录" : "Learning records";
+  const learningRecordsItems = uiLanguage === "zh"
+    ? [
+        "保存的词语会出现在「收藏」里，也可以从左边栏「复习单词」顺手复习。",
+        "复习时可以看 5 个、10 个，或查看全部待复习词。",
+        "你可以给词语写笔记，也可以把已经熟悉的词标记为「已掌握」。已掌握的词会留在收藏里，但不会默认进入复习。",
+        "聊了一会儿后，可以从「+」生成回顾卡，把最近聊天整理成学习回顾。",
+      ]
+    : [
+        "Saved words appear in Saved items, and you can review them from Review words in the sidebar.",
+        "You can review 5, 10, or all words to review.",
+        "You can add notes to words, or mark familiar words as Mastered. Mastered words stay saved, but will not appear in default review sessions.",
+        "After chatting for a while, use “+” to create a review card from recent chat.",
       ];
   const installHelpTitle = uiLanguage === "zh" ? "添加到桌面" : "Add to Home Screen";
   const installHelpLines = uiLanguage === "zh"
     ? [
         "Android：建议使用 Chrome 打开链接，点击浏览器菜单，选择“添加到主屏幕”或“安装应用”。",
         "iPhone：请用 Safari 打开链接，点击分享按钮，选择“添加到主屏幕”。",
-        "Edge 等浏览器的安装入口可能因设备不同而变化；如果没有生成图标，请尝试 Chrome。",
+        "如果没有生成图标，可以先尝试用 Chrome 打开。",
       ]
     : [
-        "Android: For the most reliable install experience, open the link in Chrome and choose Add to Home screen or Install app.",
-        "iPhone: Open the link in Safari, tap Share, then Add to Home Screen.",
-        "Some browsers may behave differently. If Edge does not create an icon, try Chrome.",
+        "Android: open the link in Chrome, open the browser menu, then choose Add to Home screen or Install app.",
+        "iPhone: open the link in Safari, tap Share, then choose Add to Home Screen.",
+        "If the icon does not appear, try opening the site in Chrome.",
       ];
   const statusAwareTitle = uiLanguage === "zh" ? "问一句近况" : "Ask how they’re doing";
   const visibleStarterPrompts = pickStarterPrompts(npcId, userMessageCount);
@@ -2300,6 +2310,15 @@ export default function ChatPage() {
                 <p className="text-[12px] font-medium text-[#2D4A1F]">{quickGuideTitle}</p>
                 <div className="mt-1.5 space-y-1">
                   {quickGuideItems.map((line) => (
+                    <p key={line} className="text-[11px] leading-relaxed text-[#6B6254]">{line}</p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/65 px-3 py-2.5">
+                <p className="text-[12px] font-medium text-[#2D4A1F]">{learningRecordsTitle}</p>
+                <div className="mt-1.5 space-y-1">
+                  {learningRecordsItems.map((line) => (
                     <p key={line} className="text-[11px] leading-relaxed text-[#6B6254]">{line}</p>
                   ))}
                 </div>
