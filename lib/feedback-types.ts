@@ -1,9 +1,59 @@
+export interface StructureNote {
+  pattern?: string;
+  explanation?: string;
+  examples?: string[];
+}
+
+export function normalizeStructureNote(value: unknown): StructureNote | undefined {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const raw = value as {
+      pattern?: unknown;
+      explanation?: unknown;
+      examples?: unknown;
+    };
+
+    const pattern =
+      typeof raw.pattern === "string" && raw.pattern.trim()
+        ? raw.pattern.trim()
+        : undefined;
+    const explanation =
+      typeof raw.explanation === "string" && raw.explanation.trim()
+        ? raw.explanation.trim()
+        : undefined;
+    const examples = Array.isArray(raw.examples)
+      ? raw.examples
+          .filter((example): example is string => typeof example === "string")
+          .map((example) => example.trim())
+          .filter(Boolean)
+          .slice(0, 2)
+      : undefined;
+
+    if (!pattern && !explanation && (!examples || examples.length === 0)) {
+      return undefined;
+    }
+
+    return {
+      ...(pattern ? { pattern } : {}),
+      ...(explanation ? { explanation } : {}),
+      ...(examples && examples.length > 0 ? { examples } : {}),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 /** 单个场合的地道表达 + 因果分析 */
 export interface FeedbackLevel {
-  /** 该场合下最纯正地道的日文 */
+  /** 该场合下最自然的建议表达 */
   nativeSay: string;
-  /** 双层分析：场合为何这样说 + 用户原句为何不妥 */
+  /** 双层分析：场合为何这么说 + 原句为何不够自然 */
   analysis: string;
+  /** 可选的表达结构说明，用于提示可复用句型 */
+  structureNote?: StructureNote;
 }
 
 /** /api/feedback 返回结构 */

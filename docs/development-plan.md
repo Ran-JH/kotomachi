@@ -870,3 +870,9 @@ Kotomachi 不走这些方向：
 README 面向外部读者，写简洁的产品说明。
 这个文件负责更完整的阶段判断、已完成清单和维护节奏。
 两者要一致，但层级不同，不要互相打架。
+
+---
+
+## 12. NPC Prompt Policy
+
+NPC prompt behavior should stay short, layered, and context-aware. Product philosophy belongs in docs, while runtime prompts should only include the rules needed for the current generation. See `docs/npc-prompt-policy-v0.md`.

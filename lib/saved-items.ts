@@ -1,4 +1,5 @@
 import type { NpcId } from "./npc";
+import type { StructureNote } from "./feedback-types";
 
 const STORAGE_KEY = "kotomachi_saved_items_v1";
 export const SAVED_ITEMS_UPDATED_EVENT = "kotomachi:saved-items-updated";
@@ -30,6 +31,7 @@ export interface SavedExpression {
   summaryCardId?: string;
   createdAt: string;
   uiLanguageAtSave?: "zh" | "en";
+  structureNote?: StructureNote;
 }
 
 export interface SavedWord {

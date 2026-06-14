@@ -7,6 +7,7 @@ import {
   type SavedItem,
   type SavedWord,
 } from "@/lib/saved-items";
+import { normalizeStructureNote } from "@/lib/feedback-types";
 import { getNpcDisplayName, isNpcId, type NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
 import { TrashIcon } from "@/components/ui-icons";
@@ -273,12 +274,19 @@ function getWordCardLabels(isEn: boolean) {
 function ExpressionCard({
   item,
   copy,
+  isEn,
   onDelete,
 }: {
   item: SavedExpression;
   copy: UiCopy;
+  isEn: boolean;
   onDelete: () => void;
 }) {
+  const structureNote = normalizeStructureNote(item.structureNote);
+  const structureTitle = isEn ? "Structure" : "表达结构";
+  const structureBadge = isEn ? "Structure note" : "有结构说明";
+  const structureExampleLabel = isEn ? "Example" : "例";
+
   return (
     <div className="relative rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3.5">
       <button
@@ -317,6 +325,32 @@ function ExpressionCard({
         </div>
       )}
 
+      {structureNote && (
+        <div className="mt-2 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0] px-3 py-2.5">
+          <span className="mb-1 block text-[8px] font-medium text-[#7A7060]/70">
+            {structureTitle}
+          </span>
+          {structureNote.pattern && (
+            <p className="font-ja break-words text-[11px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
+              {structureNote.pattern}
+            </p>
+          )}
+          {structureNote.explanation && (
+            <p className="mt-1 break-words text-[10px] leading-relaxed text-[#4A4438]/88 [overflow-wrap:anywhere]">
+              {structureNote.explanation}
+            </p>
+          )}
+          {structureNote.examples?.map((example, index) => (
+            <p
+              key={`${item.id}-structure-example-${index}`}
+              className="mt-1 break-words text-[9px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]"
+            >
+              {structureExampleLabel}: {example}
+            </p>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className="inline-block rounded-full bg-[#2D4A1F]/10 px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/70">
           {copy.sidebar.savedExpressionBadge}
@@ -332,6 +366,11 @@ function ExpressionCard({
         {item.source === "summary_card" && (
           <span className="inline-block rounded-full bg-[#7A7060]/8 px-2.5 py-0.5 text-[8px] font-medium text-[#7A7060]/55">
             {copy.sidebar.savedBadgeSummary}
+          </span>
+        )}
+        {structureNote && (
+          <span className="inline-block rounded-full bg-[#E8E0CE]/65 px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
+            {structureBadge}
           </span>
         )}
       </div>
@@ -1309,6 +1348,7 @@ export function SavedItemsPanel({
                       key={item.id}
                       item={item}
                       copy={copy}
+                      isEn={isEn}
                       onDelete={() => onDelete(item.id)}
                     />
                   );

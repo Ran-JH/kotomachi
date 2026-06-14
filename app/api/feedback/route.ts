@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { FeedbackLevel, FeedbackResponse } from "@/lib/feedback-types";
+import {
+  normalizeStructureNote,
+  type FeedbackLevel,
+  type FeedbackResponse,
+  type StructureNote,
+} from "@/lib/feedback-types";
 import { createChatCompletion } from "@/lib/llm";
 
 export const runtime = "nodejs";
@@ -71,6 +76,10 @@ function containsLatinFragment(value: string): boolean {
   return /[A-Za-z]{2,}/.test(value);
 }
 
+function extractLatinTokens(value: string): string[] {
+  return value.match(/[A-Za-z]{2,}/g) ?? [];
+}
+
 /**
  * 检测是否包含危险的长英文片段（3个或更多连续英文单词）
  */
@@ -101,7 +110,7 @@ function containsLongEnglishPhrase(value: string): boolean {
 function containsOriginalEnglishFragment(value: string, originalText: string): boolean {
   // 从原句中提取英文单词
   const englishWords = originalText.match(/[A-Za-z]{2,}/g) || [];
-  if (englishWords.length < 2) return false;
+  if (englishWords.length < 3) return false;
   
   // 检查是否包含连续的多个英文单词
   for (let i = 0; i < englishWords.length - 1; i++) {
@@ -113,12 +122,42 @@ function containsOriginalEnglishFragment(value: string, originalText: string): b
   return false;
 }
 
+function extractJsonObject(raw: string): string | null {
+  const fencedMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = fencedMatch?.[1]?.trim() || raw.trim();
+  const firstBrace = candidate.indexOf("{");
+  const lastBrace = candidate.lastIndexOf("}");
+
+  if (firstBrace < 0 || lastBrace <= firstBrace) {
+    return null;
+  }
+
+  return candidate.slice(firstBrace, lastBrace + 1);
+}
+
+function parseFeedbackResponseText(raw: string): Partial<FeedbackResponse> {
+  const jsonText = extractJsonObject(raw);
+  if (!jsonText) {
+    throw new Error("feedback_response_missing_json_object");
+  }
+
+  return JSON.parse(jsonText) as Partial<FeedbackResponse>;
+}
+
 function includesAny(value: string, words: string[]): boolean {
   return words.some((word) => value.toLowerCase().includes(word.toLowerCase()));
 }
 
-function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
-  return { nativeSay, analysis };
+function feedbackLevel(
+  nativeSay: string,
+  analysis: string,
+  structureNote?: StructureNote
+): FeedbackLevel {
+  return {
+    nativeSay,
+    analysis,
+    ...(structureNote ? { structureNote } : {}),
+  };
 }
 
 const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren"] as const;
@@ -171,29 +210,24 @@ const SAFE_HINT_LATIN_WORDS = new Set([
 ]);
 
 function hasUnsafeLatinWord(value: string): boolean {
-  let current = "";
-
-  for (const char of value) {
-    const code = char.charCodeAt(0);
-    const isLatin = (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
-    if (isLatin) {
-      current += char;
-      continue;
+  return extractLatinTokens(value).some((token) => {
+    const upper = token.toUpperCase();
+    if (SAFE_HINT_LATIN_WORDS.has(upper)) {
+      return false;
     }
 
-    if (current) {
-      if (!SAFE_HINT_LATIN_WORDS.has(current.toUpperCase())) {
-        return true;
-      }
-      current = "";
+    // Allow short acronyms / team names such as VNL, BVNL, NBA, USA.
+    if (/^[A-Z]{2,6}$/.test(token)) {
+      return false;
     }
-  }
 
-  if (current) {
-    return !SAFE_HINT_LATIN_WORDS.has(current.toUpperCase());
-  }
+    // Allow short lowercase fragments that often appear in speech or STT.
+    if (/^[a-z]{2,4}$/.test(token)) {
+      return false;
+    }
 
-  return false;
+    return token.length >= 5;
+  });
 }
 
 function isSafeHintExpression(value: string, originalText: string): boolean {
@@ -201,7 +235,7 @@ function isSafeHintExpression(value: string, originalText: string): boolean {
   if (!normalized) return false;
   if (isPrimarilyEnglish(normalized)) return false;
   if (hasUnsafeLatinWord(normalized)) return false;
-  if (containsLongEnglishPhrase(normalized)) return false;
+  if (containsLongEnglishPhrase(normalized) && !containsLatinFragment(originalText)) return false;
   if (containsOriginalEnglishFragment(normalized, originalText)) return false;
   return true;
 }
@@ -306,12 +340,19 @@ function normalizeLevel(
   fallbackAnalysis: string,
   originalText: string
 ): FeedbackLevel {
-  let nativeSay = typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
+  const candidateNativeSay = typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
     ? normalizeNativeSay(raw.nativeSay)
     : fallbackSay;
 
+  let nativeSay = candidateNativeSay;
+
   if (!isSafeHintExpression(nativeSay, originalText)) {
-    nativeSay = "";
+    const canKeepBestEffort =
+      Boolean(candidateNativeSay) &&
+      !isPrimarilyEnglish(candidateNativeSay) &&
+      !(containsLongEnglishPhrase(candidateNativeSay) && !containsLatinFragment(originalText));
+
+    nativeSay = canKeepBestEffort ? candidateNativeSay : "";
   }
 
   // 安全检查：如果输出是英文或无效，设为空字符串（不展示）
@@ -319,9 +360,12 @@ function normalizeLevel(
     nativeSay = "";
   }
 
+  const structureNote = normalizeStructureNote(raw?.structureNote);
+
   return {
     nativeSay,
     analysis: pickAnalysis(raw) || fallbackAnalysis,
+    ...(structureNote ? { structureNote } : {}),
   };
 }
 
@@ -362,6 +406,30 @@ function localizeAnalysisText(
 
 function buildFallbackResponse(userText: string): FeedbackResponse {
   return buildIntentFallback(userText);
+}
+
+function localizeFeedbackResponse(
+  response: FeedbackResponse,
+  uiLanguage: "zh" | "en",
+  userText: string
+): FeedbackResponse {
+  return {
+    casual: {
+      nativeSay: response.casual.nativeSay,
+      analysis: localizeAnalysisText(response.casual.analysis, uiLanguage, "casual", userText),
+      ...(response.casual.structureNote ? { structureNote: response.casual.structureNote } : {}),
+    },
+    business: {
+      nativeSay: response.business.nativeSay,
+      analysis: localizeAnalysisText(response.business.analysis, uiLanguage, "business", userText),
+      ...(response.business.structureNote ? { structureNote: response.business.structureNote } : {}),
+    },
+    formal: {
+      nativeSay: response.formal.nativeSay,
+      analysis: localizeAnalysisText(response.formal.analysis, uiLanguage, "formal", userText),
+      ...(response.formal.structureNote ? { structureNote: response.formal.structureNote } : {}),
+    },
+  };
 }
 
 function needsFallback(response: FeedbackResponse, userText: string): boolean {
@@ -447,7 +515,23 @@ const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatG
 - "哲学が...寝たい..." 一类句子通常是在说「哲学很难/听着容易困」
 - "明日レポートを書かないといけない。" 本身自然，只需要按三档调整语气，不要过度改写
 
-- 不要输出 wordTips 或任何额外字段`;
+- 不要输出 wordTips 或任何额外字段
+- You may optionally add a "structureNote" object to each level.
+- Only include "structureNote" when the suggested expression contains a clearly reusable Japanese pattern or sentence structure that helps the learner produce similar sentences later.
+- Do not force a structure note for every expression.
+- Do not explain ordinary vocabulary in structureNote.
+- Keep structureNote short and practical, not a long grammar lesson.
+- Do not include JLPT labels unless it is genuinely natural and necessary.
+- structureNote.pattern: the reusable Japanese pattern, such as 「〜てみたいです」 or 「〜てもいいですか」.
+- structureNote.explanation: one short learner-friendly explanation. Use the user's UI language.
+- structureNote.examples: up to 2 short Japanese example sentences using the same pattern.
+- The user's message may be messy spoken Japanese, with filler words such as 「えっと」「あの」, repeated fragments, English names, acronyms, or speech recognition mistakes. Do not reject such input.
+- Produce best-effort natural Japanese suggestions.
+- Keep proper nouns, team names, English acronyms, and unclear fragments when needed, but make the sentence natural.
+- If the intended meaning is partially unclear, infer conservatively and avoid overcorrecting.
+- structureNote is optional. If the sentence is fragmented or there is no clear reusable pattern, omit structureNote.
+- Never fail the whole response just because no structureNote is available.
+`;
 
 export async function POST(req: NextRequest) {
   let userText = "";
@@ -467,7 +551,7 @@ ${npcExpressionContext}
 Use this only to fine-tune nuance and naturalness. Do not change the user's intended meaning.
 Keep the existing three levels: casual, business/natural, formal.
 Do not add emoji, kaomoji, markdown, or action descriptions.
-Do not include English fragments from the original user input.`;
+Do not copy long English fragments from the original user input verbatim, but short acronyms, team names, and proper nouns are allowed when they help keep the sentence natural.`;
 
     if (!userText) {
       return NextResponse.json({ error: "文本不能为空" }, { status: 400 });
@@ -490,13 +574,33 @@ Language rules:
 - Japanese examples must remain Japanese.
 - The original user message must remain unchanged.
 - Do not translate suggested Japanese expressions into English.
-- Do not add Chinese explanations when uiLanguage is "en".`,
+- Do not add Chinese explanations when uiLanguage is "en".
+- If you include structureNote.explanation, use English only when uiLanguage is "en" and Chinese only when uiLanguage is "zh".
+- If you include structureNote.examples, keep them as short Japanese examples and return at most 2.`,
         },
       ],
       { temperature: 0.5, jsonMode: true }
     );
 
-    const parsed = JSON.parse(raw) as Partial<FeedbackResponse>;
+    let parsed: Partial<FeedbackResponse>;
+    try {
+      parsed = parseFeedbackResponseText(raw);
+    } catch (parseError) {
+      console.warn("[api/feedback] Failed to parse feedback response", {
+        message: parseError instanceof Error ? parseError.message : "unknown",
+        responsePreview: raw.slice(0, 300),
+        userTextLength: userText.length,
+      });
+
+      const fallbackResponse = buildFallbackResponse(userText);
+      const localizedFallback = localizeFeedbackResponse(fallbackResponse, uiLanguage, userText);
+
+      if (hasValidExpressions(localizedFallback)) {
+        return NextResponse.json(localizedFallback);
+      }
+
+    return NextResponse.json({ error: "琛ㄨ揪鎻愮ず鐢熸垚澶辫触" }, { status: 500 });
+    }
 
     const response: FeedbackResponse = {
       casual: normalizeLevel(
@@ -520,20 +624,22 @@ Language rules:
     };
 
     const repaired = repairFeedbackResponse(response, userText);
-    const localized: FeedbackResponse = {
-      casual: {
-        nativeSay: repaired.casual.nativeSay,
-        analysis: localizeAnalysisText(repaired.casual.analysis, uiLanguage, "casual", userText),
-      },
-      business: {
-        nativeSay: repaired.business.nativeSay,
-        analysis: localizeAnalysisText(repaired.business.analysis, uiLanguage, "business", userText),
-      },
-      formal: {
-        nativeSay: repaired.formal.nativeSay,
-        analysis: localizeAnalysisText(repaired.formal.analysis, uiLanguage, "formal", userText),
-      },
-    };
+    const localized = localizeFeedbackResponse(repaired, uiLanguage, userText);
+    if (!hasValidExpressions(localized)) {
+      const fallbackResponse = buildFallbackResponse(userText);
+      const localizedFallback = localizeFeedbackResponse(fallbackResponse, uiLanguage, userText);
+
+      console.warn("[api/feedback] Falling back after invalid normalized response", {
+        userTextLength: userText.length,
+        responsePreview: raw.slice(0, 300),
+      });
+
+      if (hasValidExpressions(localizedFallback)) {
+        return NextResponse.json(localizedFallback);
+      }
+
+      return NextResponse.json({ error: "琛ㄨ揪鎻愮ず鐢熸垚澶辫触" }, { status: 500 });
+    }
 
     // 如果三档都无效，返回错误状态
     if (!hasValidExpressions(localized)) {
@@ -544,9 +650,14 @@ Language rules:
   } catch (error) {
     console.warn("[api/feedback] failed", {
       message: error instanceof Error ? error.message : "unknown",
+      userTextLength: userText.length,
     });
     const fallback = buildFallbackResponse(userText || "（空）");
-    const localizedFallback: FeedbackResponse = {
+    const localizedFallback = localizeFeedbackResponse(fallback, uiLanguage, userText);
+    if (hasValidExpressions(localizedFallback)) {
+      return NextResponse.json(localizedFallback);
+    }
+    const legacyLocalizedFallback: FeedbackResponse = {
       casual: {
         nativeSay: fallback.casual.nativeSay,
         analysis: localizeAnalysisText(fallback.casual.analysis, uiLanguage, "casual", userText),
