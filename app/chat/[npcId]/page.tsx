@@ -2000,7 +2000,9 @@ export default function ChatPage() {
                 +
               </button>
               {isInputActionsOpen && (
-                <div className="absolute bottom-11 left-0 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)]">
+                <div
+                  className="absolute bottom-11 left-1/2 z-30 w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-x-hidden rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] p-1.5 shadow-[0_6px_24px_rgba(40,35,26,0.15)] sm:left-0 sm:translate-x-0"
+                >
                   <button
                     type="button"
                     onClick={handleOpenPreSendPanel}
@@ -2022,13 +2024,13 @@ export default function ChatPage() {
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
                         {sceneMenuTitle}
                       </span>
-                      <span className="block mt-0.5 text-[10px] text-[#7A7060]">
+                      <span className="block min-w-0 mt-0.5 text-[10px] text-[#7A7060]">
                         {sceneMenuSubtitle}
                       </span>
                     </button>
                   )}
                   {!activeScene && availableScenes.length > 0 && isScenePickerOpen && (
-                    <div className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2.5">
+                    <div className="w-full max-w-full overflow-x-hidden rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2.5">
                       <button
                         type="button"
                         onClick={handleBackFromScenePicker}
@@ -2047,18 +2049,18 @@ export default function ChatPage() {
                               key={sceneId}
                               type="button"
                               onClick={() => handleStartScene(sceneId)}
-                              className="group w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
+                              className="group w-full min-w-0 max-w-full rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-3 py-2 text-left transition-colors hover:bg-[#E8E0CE]"
                             >
-                              <span className="block text-[12px] font-medium text-[#2D4A1F]">
+                              <span className="block min-w-0 break-words text-[12px] font-medium text-[#2D4A1F]">
                                 {getSceneDisplayTitle(scene)}
                               </span>
                               {microEpisodeCopy.sampleUserLineJa && (
-                                <span className="mt-0.5 block truncate text-[10px] leading-relaxed text-[#2D4A1F]/75">
+                                <span className="mt-0.5 block min-w-0 break-words text-[10px] leading-relaxed text-[#2D4A1F]/75">
                                   「{microEpisodeCopy.sampleUserLineJa}」
                                 </span>
                               )}
                               {microEpisodeCopy.microEpisode && (
-                                <span className="mt-1 hidden text-[10px] leading-relaxed text-[#7A7060] md:group-hover:line-clamp-3 md:group-focus-visible:line-clamp-3">
+                                <span className="mt-1 hidden min-w-0 break-words text-[10px] leading-relaxed text-[#7A7060] md:group-hover:line-clamp-3 md:group-focus-visible:line-clamp-3">
                                   {microEpisodeCopy.microEpisode}
                                 </span>
                               )}
