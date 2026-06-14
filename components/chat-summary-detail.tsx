@@ -69,8 +69,8 @@ export function ChatSummaryDetail({
   const backToListLabel = isEn ? "← Back to list" : "← 返回列表";
   const backToChatLabel = isEn ? "← Back to chat" : "← 返回聊天";
   const emptyPanelText = isEn
-    ? "No review cards yet. Chat a little, then create one from the “+” menu."
-    : "暂无回顾卡片。聊一会儿后，可以从输入框旁的“+”生成。";
+    ? "After chatting for a while, use “+” to create a review card from recent chat."
+    : "聊一会儿后，可以从「+」生成回顾卡，把最近聊天整理成学习内容。";
 
   const renderList = (
     <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">

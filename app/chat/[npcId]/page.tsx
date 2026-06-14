@@ -1081,10 +1081,8 @@ export default function ChatPage() {
     ? "不知道说什么时，可以点 + 找话题。"
     : "If you are not sure what to say, tap + for topic ideas.";
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
-  const preSendMenuTitle = uiLanguage === "zh" ? "我想说……" : "I want to say…";
-  const preSendMenuSubtitle = uiLanguage === "zh"
-    ? "把中文、英文或日语碎片变成可发送的日语"
-    : "Turn a Chinese, English, or rough Japanese idea into a sendable line";
+  const preSendMenuTitle = copy.chat.preSendMenuTitle;
+  const preSendMenuSubtitle = copy.chat.preSendMenuSubtitle;
   const preSendPanelTitle = uiLanguage === "zh" ? "把想说的意思变成日语" : "Turn your idea into Japanese";
   const preSendPanelPlaceholder = uiLanguage === "zh"
     ? "比如：我想问对方周末一般做什么"
@@ -1105,7 +1103,12 @@ export default function ChatPage() {
   };
   const topicIdeasTitle = activeScene
     ? (uiLanguage === "zh" ? "下一句怎么说" : "How to say the next line")
-    : (uiLanguage === "zh" ? "找话题" : "Topic ideas");
+    : copy.chat.topicIdeasMenuTitle;
+  const sceneMenuTitle = copy.chat.sceneMenuTitle;
+  const sceneMenuSubtitle = copy.chat.sceneMenuSubtitle;
+  const topicIdeasMenuSubtitle = copy.chat.topicIdeasMenuSubtitle;
+  const restartMenuTitle = copy.chat.restartMenuTitle;
+  const restartMenuSubtitle = copy.chat.restartMenuSubtitle;
   const helpTitle = uiLanguage === "zh" ? "帮助" : "Help";
   const helpSubtitle = uiLanguage === "zh" ? "使用提示与安装说明" : "Guide & install help";
   const quickGuideTitle = uiLanguage === "zh" ? "使用提示" : "Quick guide";
@@ -2017,10 +2020,10 @@ export default function ChatPage() {
                       className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
                     >
                       <span className="block text-[12px] font-medium text-[#2D4A1F]">
-                        {uiLanguage === "zh" ? "街角对话场景" : "Tiny conversation scenes"}
+                        {sceneMenuTitle}
                       </span>
                       <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                        {uiLanguage === "zh" ? "用几句话处理一个简单的具体情景" : "Use a few lines for a simple real-life moment."}
+                        {sceneMenuSubtitle}
                       </span>
                     </button>
                   )}
@@ -2032,7 +2035,7 @@ export default function ChatPage() {
                         className="w-full rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-[#FAF6EE]"
                       >
                         <span className="block text-[11px] text-[#7A7060]">
-                          {uiLanguage === "zh" ? "← 街角对话场景" : "← Tiny conversation scenes"}
+                          {`← ${sceneMenuTitle}`}
                         </span>
                       </button>
                       <div className="mt-2 space-y-1.5">
@@ -2088,7 +2091,7 @@ export default function ChatPage() {
                     className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
                   >
                     <span className="block text-[12px] font-medium text-[#2D4A1F]">{topicIdeasTitle}</span>
-                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">{topicIdeasSubtitle}</span>
+                    <span className="block mt-0.5 text-[10px] text-[#7A7060]">{topicIdeasMenuSubtitle}</span>
                   </button>
                   {isTopicIdeasOpen && (
                     <div className="mt-1 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/55 p-2">
@@ -2174,10 +2177,10 @@ export default function ChatPage() {
                     className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F3EDE0]"
                   >
                     <span className="block text-[12px] font-medium text-[#9A5555]">
-                      {uiLanguage === "zh" ? "重新开始" : "Start over"}
+                      {restartMenuTitle}
                     </span>
                     <span className="block mt-0.5 text-[10px] text-[#7A7060]">
-                      {uiLanguage === "zh" ? "清空当前对话，重新开始聊天" : "Clear chat and start fresh"}
+                      {restartMenuSubtitle}
                     </span>
                   </button>
                 </div>
