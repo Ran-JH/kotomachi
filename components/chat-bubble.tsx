@@ -325,38 +325,30 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     cardStyle: React.CSSProperties;
     placement: "top" | "bottom";
   } = (() => {
-    const gap = 10;
-    const margin = 12;
+    const gap = 12;
+    const margin = 16;
     const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
     const viewportHeight = typeof window === "undefined" ? 720 : window.innerHeight;
     const isMobile = viewportWidth < 768;
     const width = isMobile
-      ? Math.min(360, viewportWidth - margin * 2)
+      ? Math.min(352, viewportWidth - margin * 2)
       : Math.min(400, Math.max(340, viewportWidth - margin * 2));
     const anchorCenter = anchorRect.left + anchorRect.width / 2;
-    const left = clampNumber(anchorCenter, margin + width / 2, viewportWidth - margin - width / 2);
+    const left = clampNumber(anchorCenter - width / 2, margin, viewportWidth - width - margin);
     const spaceAbove = Math.max(0, anchorRect.top - margin - gap);
     const spaceBelow = Math.max(0, viewportHeight - anchorRect.bottom - margin - gap);
-    const placement = spaceAbove < (isMobile ? 190 : 240) && spaceBelow >= spaceAbove ? "bottom" : "top";
-    const availableHeight = placement === "bottom" ? spaceBelow : spaceAbove;
-    const top = placement === "bottom" ? anchorRect.bottom + gap : anchorRect.top - gap;
-
-    if (isMobile) {
-      return {
-        placement: "bottom",
-        style: {
-          position: "fixed",
-          left: "50%",
-          top: `${Math.max(12, anchorRect.bottom + gap)}px`,
-          width: `${Math.min(360, viewportWidth - margin * 2)}px`,
-          transform: "translateX(-50%)",
-          zIndex: 90,
-        },
-        cardStyle: {
-          maxHeight: `${Math.min(Math.max(260, viewportHeight * 0.78), viewportHeight - 24)}px`,
-        },
-      };
-    }
+    const estimatedHeight = isMobile ? 360 : 420;
+    const placement = spaceBelow < estimatedHeight && spaceAbove > spaceBelow ? "top" : "bottom";
+    const availableHeight = Math.max(
+      220,
+      Math.min(
+        placement === "bottom" ? spaceBelow : spaceAbove,
+        viewportHeight - margin * 2,
+      ),
+    );
+    const top = placement === "bottom"
+      ? clampNumber(anchorRect.bottom + gap, margin, viewportHeight - availableHeight - margin)
+      : clampNumber(anchorRect.top - availableHeight - gap, margin, viewportHeight - availableHeight - margin);
 
     return {
       placement,
@@ -365,11 +357,10 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
         left: `${left}px`,
         top: `${top}px`,
         width: `${width}px`,
-        transform: placement === "bottom" ? "translateX(-50%)" : "translate(-50%, -100%)",
         zIndex: 90,
       },
       cardStyle: {
-        maxHeight: `${Math.min(Math.max(220, viewportHeight * 0.6), Math.max(210, availableHeight - 12))}px`,
+        maxHeight: `${Math.min(availableHeight, isMobile ? viewportHeight * 0.7 : 512)}px`,
       },
     };
   })();
@@ -408,12 +399,12 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
     <div ref={popoverRef} style={popoverLayout.style}>
       {popoverLayout.placement === "bottom" && (
         <div className="flex justify-center -mb-px">
-          <div className="h-2 w-2 translate-y-1 rotate-45 border-l border-t border-[rgba(40,35,26,0.1)] bg-[#FAF6EE]" />
+          <div className="h-2 w-2 translate-y-1 rotate-45 border-l border-t border-[rgba(40,35,26,0.12)] bg-[#FCF8F0]" />
         </div>
       )}
       {/* popover 鍗＄墖锛欶igma card 搴曡壊 + 绮捐嚧闃村奖 */}
       <div
-        className="overflow-y-auto overscroll-contain rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3.5 py-3 shadow-[0_4px_16px_rgba(40,35,26,0.08),0_1px_3px_rgba(40,35,26,0.06)] md:rounded-2xl md:px-4 md:py-3.5"
+        className="max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain rounded-xl border border-[rgba(40,35,26,0.12)] bg-[#FCF8F0] px-3.5 py-3 shadow-[0_10px_28px_rgba(40,35,26,0.12),0_2px_6px_rgba(40,35,26,0.07)] md:rounded-2xl md:px-4 md:py-3.5"
         style={popoverLayout.cardStyle}
       >
         {loading ? (
@@ -530,7 +521,7 @@ function WordPopover({ npcId, messageId, selectedText, fullSentence, anchorRect,
       {/* 灏忎笁瑙?*/}
       {popoverLayout.placement === "top" && (
         <div className="flex justify-center -mt-px">
-          <div className="w-2 h-2 bg-[#FAF6EE] border-r border-b border-[rgba(40,35,26,0.1)] rotate-45 -translate-y-1" />
+          <div className="w-2 h-2 bg-[#FCF8F0] border-r border-b border-[rgba(40,35,26,0.12)] rotate-45 -translate-y-1" />
         </div>
       )}
     </div>,
