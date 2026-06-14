@@ -93,6 +93,11 @@ interface LocalChatMarker {
   createdAt: string;
 }
 
+type SavedPanelIntent = {
+  type: "default" | "wordReview";
+  token: number;
+};
+
 type PreSendTone = "neutral" | "casual" | "polite";
 
 type PreSendSuggestion = {
@@ -284,6 +289,7 @@ export default function ChatPage() {
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>("zh");
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
+  const [savedPanelIntent, setSavedPanelIntent] = useState<SavedPanelIntent | null>(null);
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isInputActionsOpen, setIsInputActionsOpen] = useState(false);
   const [isScenePickerOpen, setIsScenePickerOpen] = useState(false);
@@ -307,17 +313,25 @@ export default function ChatPage() {
   const copy = getUiCopy(uiLanguage);
   const savedExpressionCount = savedItems.filter((item) => item.type === "expression").length;
   const savedWordCount = savedItems.filter((item) => item.type === "word").length;
+  const reviewableWordCount = savedItems.filter(
+    (item) => item.type === "word" && !item.masteredAt
+  ).length;
   const savedTotalCount = savedExpressionCount + savedWordCount;
+  const savedEntryTitle = uiLanguage === "zh" ? copy.sidebar.savedTitle : "Saved items";
+  const savedWordReviewTitle = uiLanguage === "zh" ? "复习单词" : "Review words";
   const savedEntrySubtitle = savedTotalCount === 0
     ? (uiLanguage === "zh" ? "还没有收藏" : "No saved items yet")
     : (uiLanguage === "zh"
       ? `已保存 ${savedTotalCount} 个表达和词语`
-      : `${savedTotalCount} saved words & expressions`);
+      : `${savedTotalCount} saved expressions and words`);
+  const reviewWordsEntrySubtitle = reviewableWordCount > 0
+    ? (uiLanguage === "zh" ? `待复习 ${reviewableWordCount} 个` : `${reviewableWordCount} to review`)
+    : (uiLanguage === "zh" ? "暂无待复习词" : "No words to review");
   const reviewEntrySubtitle = allSummaryCards.length === 0
     ? (uiLanguage === "zh" ? "还没有回顾卡" : "No review cards yet")
     : (uiLanguage === "zh"
       ? `已生成 ${allSummaryCards.length} 张回顾卡`
-      : `${allSummaryCards.length} review cards`);
+      : `${allSummaryCards.length} cards created`);
   const savedPanelSummary = uiLanguage === "zh"
     ? `已保存 ${savedExpressionCount} 个表达，${savedWordCount} 个词语`
     : `${savedExpressionCount} expressions, ${savedWordCount} words saved`;
@@ -533,15 +547,22 @@ export default function ChatPage() {
     saveUiLanguage(language);
   };
 
-  const handleOpenSavedPanel = () => {
+  const handleOpenSavedPanel = (
+    intent: SavedPanelIntent["type"] = "default",
+    closeOnNavigate = false,
+  ) => {
     setIsReviewPanelOpen(false);
     setSelectedSummaryCard(null);
     setSavedItems(loadSavedItems());
+    // Use a fresh token so repeated clicks can re-apply the intended panel state.
+    setSavedPanelIntent({ type: intent, token: Date.now() });
     setIsSavedPanelOpen(true);
+    if (closeOnNavigate) setIsSidebarOpen(false);
   };
 
   const handleOpenReviewPanel = (closeOnNavigate = false) => {
     setIsSavedPanelOpen(false);
+    setSavedPanelIntent(null);
     setSelectedSummaryCard(null);
     setIsReviewPanelOpen(true);
     if (closeOnNavigate) setIsSidebarOpen(false);
@@ -1625,17 +1646,41 @@ export default function ChatPage() {
             </h2>
             <button
               type="button"
-              onClick={() => { handleOpenSavedPanel(); if (closeOnNavigate) setIsSidebarOpen(false); }}
+              onClick={() => handleOpenSavedPanel("default", closeOnNavigate)}
               className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
-                isSavedPanelOpen
+                isSavedPanelOpen && savedPanelIntent?.type !== "wordReview"
                   ? "bg-[rgba(255,255,255,0.09)]"
                   : "hover:bg-[rgba(255,255,255,0.05)]"
               }`}
             >
-              <span className={`text-[13px] block ${isSavedPanelOpen ? "text-[#C9A84C] font-medium" : "text-[#D4C8A8]/90"}`}>
-                {copy.sidebar.savedTitle}
+              <span className={`text-[13px] block ${
+                isSavedPanelOpen && savedPanelIntent?.type !== "wordReview"
+                  ? "text-[#C9A84C] font-medium"
+                  : "text-[#D4C8A8]/90"
+              }`}>
+                {savedEntryTitle}
               </span>
               <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/55 block">{savedEntrySubtitle}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenSavedPanel("wordReview", closeOnNavigate)}
+              className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                isSavedPanelOpen && savedPanelIntent?.type === "wordReview"
+                  ? "bg-[rgba(255,255,255,0.09)]"
+                  : "hover:bg-[rgba(255,255,255,0.05)]"
+              }`}
+            >
+              <span className={`text-[13px] block ${
+                isSavedPanelOpen && savedPanelIntent?.type === "wordReview"
+                  ? "text-[#C9A84C] font-medium"
+                  : "text-[#D4C8A8]/90"
+              }`}>
+                {savedWordReviewTitle}
+              </span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-[#D4C8A8]/55 block">
+                {reviewWordsEntrySubtitle}
+              </span>
             </button>
             <button
               type="button"
@@ -2200,7 +2245,11 @@ export default function ChatPage() {
             copy={copy}
             items={savedItems}
             onDelete={handleDeleteSavedItem}
-            onClose={() => setIsSavedPanelOpen(false)}
+            onClose={() => {
+              setIsSavedPanelOpen(false);
+              setSavedPanelIntent(null);
+            }}
+            savedPanelIntent={savedPanelIntent}
           />
         </>
       )}

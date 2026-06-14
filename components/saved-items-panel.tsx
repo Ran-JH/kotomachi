@@ -21,12 +21,17 @@ import { SavedWordCompletionSummary } from "@/components/saved-word-completion-s
 type FilterType = "all" | "expression" | "word";
 type WordCardMode = "queue" | "detail";
 type ReviewSessionLimit = 5 | 10 | "all";
+type SavedPanelIntent = {
+  type: "default" | "wordReview";
+  token: number;
+};
 
 interface SavedItemsPanelProps {
   copy: UiCopy;
   items: SavedItem[];
   onDelete: (id: string) => void;
   onClose: () => void;
+  savedPanelIntent?: SavedPanelIntent | null;
 }
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -722,6 +727,7 @@ export function SavedItemsPanel({
   items,
   onDelete,
   onClose,
+  savedPanelIntent,
 }: SavedItemsPanelProps) {
   const isEn = copy.summary.title === "Review Card";
   const reviewFiveLabel = isEn ? "Review 5" : "看 5 个";
@@ -929,6 +935,26 @@ export function SavedItemsPanel({
     setReviewSessionAvailableCount(0);
     setReviewSessionStartMeta({});
   };
+
+  useEffect(() => {
+    if (!savedPanelIntent) {
+      return;
+    }
+
+    openingWordIdRef.current = null;
+    setSelectedWordId(null);
+    setIsWordReviewMode(false);
+    resetReviewState();
+
+    if (savedPanelIntent.type === "wordReview") {
+      setFilter("word");
+      setIsReviewEntryOpen(wordCount > 0);
+      return;
+    }
+
+    setFilter("all");
+    setIsReviewEntryOpen(false);
+  }, [savedPanelIntent?.token]);
 
   const handleEnterWordReview = (limit: ReviewSessionLimit) => {
     if (reviewableWords.length === 0) return;
