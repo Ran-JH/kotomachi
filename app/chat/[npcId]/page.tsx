@@ -1076,7 +1076,8 @@ export default function ChatPage() {
   const onboardingHintTitle = uiLanguage === "zh" ? "可以随便开口" : "Start however you can";
   const onboardingHintLine1 = copy.chat.onboardingHintLine1;
   const onboardingHintLine2 = copy.chat.onboardingHintLine2;
-  const onboardingHintLine3 = uiLanguage === "zh"
+  const onboardingHintLine3 = copy.chat.onboardingHintLine3;
+  const onboardingHintLine4 = uiLanguage === "zh"
     ? "不知道说什么时，可以点 + 找话题。"
     : "If you are not sure what to say, tap + for topic ideas.";
   const dismissOnboardingHintLabel = uiLanguage === "zh" ? "关闭提示" : "Hide hint";
@@ -1780,6 +1781,7 @@ export default function ChatPage() {
                     <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine1}</p>
                     <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine2}</p>
                     <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine3}</p>
+                    <p className="mt-1 text-[10px] leading-relaxed text-[#7A7060]">{onboardingHintLine4}</p>
                   </div>
                 )}
                 <p className="text-[12px] font-medium text-[#2D4A1F]">{starterHeading}</p>
