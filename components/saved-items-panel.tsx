@@ -283,7 +283,7 @@ function ExpressionCard({
           <span className="mb-0.5 block text-[8px] font-medium text-[#7A7060]/50">
             {copy.sidebar.savedOriginalLabel}
           </span>
-          <p className="line-clamp-2 text-[10px] leading-relaxed text-[#7A7060]/75">
+          <p className="line-clamp-2 text-[10px] leading-relaxed text-[#4A4438]/90">
             {item.original}
           </p>
         </div>
@@ -294,7 +294,7 @@ function ExpressionCard({
           <span className="mb-0.5 block text-[8px] font-medium text-[#7A7060]/50">
             {copy.sidebar.savedNoteLabel}
           </span>
-          <p className="line-clamp-2 text-[10px] leading-relaxed text-[#7A7060]/70">
+          <p className="line-clamp-2 text-[10px] leading-relaxed text-[#4A4438]/88">
             {item.note}
           </p>
         </div>
@@ -372,7 +372,7 @@ function WordCard({
             {item.word}
           </p>
           {item.reading && (
-            <p className="text-[10px] leading-relaxed text-[#7A7060]/65">{item.reading}</p>
+            <p className="text-[10px] leading-relaxed text-[#5E5648]/88">{item.reading}</p>
           )}
         </div>
 
@@ -394,11 +394,11 @@ function WordCard({
       </div>
 
       {item.meaning && (
-        <p className="mt-2 text-[11px] leading-relaxed text-[#28231A]/85">{item.meaning}</p>
+        <p className="mt-2 text-[11px] leading-relaxed text-[#3B352C]">{item.meaning}</p>
       )}
 
       {item.example && (
-        <p className="mt-1.5 line-clamp-2 text-[9px] italic leading-relaxed text-[#7A7060]/55">
+        <p className="mt-1.5 line-clamp-2 text-[9px] italic leading-relaxed text-[#6B6254]/82">
           {item.example}
         </p>
       )}
