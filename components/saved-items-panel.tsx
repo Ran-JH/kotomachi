@@ -12,6 +12,8 @@ import {
 import { normalizeStructureNote } from "@/lib/feedback-types";
 import { getNpcDisplayName, isNpcId, type NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
+import type { UiLanguage } from "@/lib/ui-language";
+import { SelectableLookupText } from "@/components/selectable-lookup-text";
 import { TrashIcon } from "@/components/ui-icons";
 import {
   type WordNpcFilter,
@@ -373,16 +375,23 @@ function getWordCardLabels(isEn: boolean) {
       };
 }
 
+function hasActiveTextSelection(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.getSelection()?.toString().trim());
+}
+
 function ExpressionCard({
   item,
   copy,
   isEn,
+  uiLanguage,
   onDelete,
   onOpen,
 }: {
   item: SavedExpression;
   copy: UiCopy;
   isEn: boolean;
+  uiLanguage: UiLanguage;
   onDelete: () => void;
   onOpen: () => void;
 }) {
@@ -397,7 +406,10 @@ function ExpressionCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpen}
+      onClick={() => {
+        if (hasActiveTextSelection()) return;
+        onOpen();
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -413,6 +425,7 @@ function ExpressionCard({
           event.stopPropagation();
           onDelete();
         }}
+        data-lookup-disabled="true"
         className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[8px] text-[#7A7060]/40 transition-colors hover:bg-[#E8E0CE] hover:text-[#7A7060]"
         aria-label={copy.sidebar.savedDelete}
       >
@@ -420,18 +433,31 @@ function ExpressionCard({
         <span>{copy.sidebar.savedDelete}</span>
       </button>
 
-      <p className="pr-14 text-[14px] font-semibold leading-[1.7] text-[#2D4A1F]">
-        {item.suggestion}
-      </p>
+      <SelectableLookupText
+        npcId={item.npcId}
+        uiLanguage={uiLanguage}
+        sourceText={item.suggestion}
+        className="pr-14"
+      >
+        <p className="text-[14px] font-semibold leading-[1.7] text-[#2D4A1F]">
+          {item.suggestion}
+        </p>
+      </SelectableLookupText>
 
       {item.original && (
         <div className="mt-2.5 rounded-lg bg-[#F3EDE0] px-3 py-2">
           <span className="mb-0.5 block text-[8px] font-medium text-[#7A7060]/50">
             {copy.sidebar.savedOriginalLabel}
           </span>
-          <p className="line-clamp-2 text-[10px] leading-relaxed text-[#4A4438]/90">
-            {item.original}
-          </p>
+          <SelectableLookupText
+            npcId={item.npcId}
+            uiLanguage={uiLanguage}
+            sourceText={item.original}
+          >
+            <p className="line-clamp-2 text-[10px] leading-relaxed text-[#4A4438]/90">
+              {item.original}
+            </p>
+          </SelectableLookupText>
         </div>
       )}
 
@@ -452,9 +478,15 @@ function ExpressionCard({
             {structureTitle}
           </span>
           {structureNote.pattern && (
-            <p className="font-ja break-words text-[11px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
-              {structureNote.pattern}
-            </p>
+            <SelectableLookupText
+              npcId={item.npcId}
+              uiLanguage={uiLanguage}
+              sourceText={structureNote.pattern}
+            >
+              <p className="font-ja break-words text-[11px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
+                {structureNote.pattern}
+              </p>
+            </SelectableLookupText>
           )}
           {structureNote.explanation && (
             <p className="mt-1 break-words text-[10px] leading-relaxed text-[#4A4438]/88 [overflow-wrap:anywhere]">
@@ -462,12 +494,16 @@ function ExpressionCard({
             </p>
           )}
           {structureNote.examples?.map((example, index) => (
-            <p
+            <SelectableLookupText
               key={`${item.id}-structure-example-${index}`}
-              className="mt-1 break-words text-[9px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]"
+              npcId={item.npcId}
+              uiLanguage={uiLanguage}
+              sourceText={example}
             >
-              {structureExampleLabel}: {example}
-            </p>
+              <p className="mt-1 break-words text-[9px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]">
+                {structureExampleLabel}: {example}
+              </p>
+            </SelectableLookupText>
           ))}
         </div>
       )}
@@ -500,11 +536,13 @@ function ExpressionCard({
 function ExpressionDetailCard({
   item,
   isEn,
+  uiLanguage,
   onBack,
   onSaveNote,
 }: {
   item: SavedExpression;
   isEn: boolean;
+  uiLanguage: UiLanguage;
   onBack: () => void;
   onSaveNote: (expressionId: string, note: string) => void;
 }) {
@@ -552,9 +590,15 @@ function ExpressionDetailCard({
               <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
                 {labels.suggestion}
               </p>
-              <p className="font-ja break-words text-[22px] font-semibold leading-tight text-[#2D4A1F] sm:text-[26px]">
-                {item.suggestion}
-              </p>
+              <SelectableLookupText
+                npcId={item.npcId}
+                uiLanguage={uiLanguage}
+                sourceText={item.suggestion}
+              >
+                <p className="font-ja break-words text-[22px] font-semibold leading-tight text-[#2D4A1F] sm:text-[26px]">
+                  {item.suggestion}
+                </p>
+              </SelectableLookupText>
             </div>
 
             <div className="flex shrink-0 flex-wrap justify-end gap-2">
@@ -582,7 +626,13 @@ function ExpressionDetailCard({
             <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
               {labels.original}
             </p>
-            <p className="mt-1 text-[13px] leading-relaxed text-[#3B352C]">{item.original}</p>
+            <SelectableLookupText
+              npcId={item.npcId}
+              uiLanguage={uiLanguage}
+              sourceText={item.original}
+            >
+              <p className="mt-1 text-[13px] leading-relaxed text-[#3B352C]">{item.original}</p>
+            </SelectableLookupText>
           </div>
 
           {item.note && (
@@ -600,9 +650,15 @@ function ExpressionDetailCard({
                 {labels.structure}
               </p>
               {structureNote.pattern && (
-                <p className="mt-1 font-ja break-words text-[13px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
-                  {structureNote.pattern}
-                </p>
+                <SelectableLookupText
+                  npcId={item.npcId}
+                  uiLanguage={uiLanguage}
+                  sourceText={structureNote.pattern}
+                >
+                  <p className="mt-1 font-ja break-words text-[13px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
+                    {structureNote.pattern}
+                  </p>
+                </SelectableLookupText>
               )}
               {structureNote.explanation && (
                 <p className="mt-2 text-[12px] leading-relaxed text-[#4A4438]/88 [overflow-wrap:anywhere]">
@@ -610,12 +666,16 @@ function ExpressionDetailCard({
                 </p>
               )}
               {structureNote.examples?.map((example, index) => (
-                <p
+                <SelectableLookupText
                   key={`${item.id}-detail-structure-example-${index}`}
-                  className="mt-2 text-[11px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]"
+                  npcId={item.npcId}
+                  uiLanguage={uiLanguage}
+                  sourceText={example}
                 >
-                  {labels.example}: {example}
-                </p>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]">
+                    {labels.example}: {example}
+                  </p>
+                </SelectableLookupText>
               ))}
             </div>
           )}
@@ -634,12 +694,14 @@ function ExpressionDetailCard({
               onChange={(event) => setDraftNote(event.target.value)}
               rows={4}
               placeholder={labels.notePlaceholder}
+              data-lookup-disabled="true"
               className="mt-3 w-full rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-2.5 text-[12px] leading-relaxed text-[#3B352C] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10"
             />
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleSaveNote}
+                data-lookup-disabled="true"
                 className="rounded-full bg-[#2D4A1F] px-4 py-2 text-[11px] font-medium text-[#F3EDE0] transition-colors hover:bg-[#243A19]"
               >
                 {labels.saveNote}
@@ -647,6 +709,7 @@ function ExpressionDetailCard({
               <button
                 type="button"
                 onClick={() => setDraftNote(userNote)}
+                data-lookup-disabled="true"
                 className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
               >
                 {labels.cancelEdit}
@@ -708,12 +771,14 @@ function WordCard({
   item,
   copy,
   isEn,
+  uiLanguage,
   onDelete,
   onOpen,
 }: {
   item: SavedWord;
   copy: UiCopy;
   isEn: boolean;
+  uiLanguage: UiLanguage;
   onDelete: () => void;
   onOpen: () => void;
 }) {
@@ -726,7 +791,10 @@ function WordCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpen}
+      onClick={() => {
+        if (hasActiveTextSelection()) return;
+        onOpen();
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -742,6 +810,7 @@ function WordCard({
           event.stopPropagation();
           onDelete();
         }}
+        data-lookup-disabled="true"
         className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[8px] text-[#7A7060]/40 transition-colors hover:bg-[#E8E0CE] hover:text-[#7A7060]"
         aria-label={copy.sidebar.savedDelete}
       >
@@ -750,14 +819,20 @@ function WordCard({
       </button>
 
       <div className="pr-14">
-        <div className="flex flex-wrap items-baseline gap-2.5">
-          <p className="text-[14px] font-semibold leading-relaxed text-[#2D4A1F]">
-            {item.word}
-          </p>
-          {readings.length > 0 && (
-            <p className="text-[10px] leading-relaxed text-[#5E5648]/88">{readings.join(" / ")}</p>
-          )}
-        </div>
+        <SelectableLookupText
+          npcId={item.npcId}
+          uiLanguage={uiLanguage}
+          sourceText={item.example || item.word}
+        >
+          <div className="flex flex-wrap items-baseline gap-2.5">
+            <p className="text-[14px] font-semibold leading-relaxed text-[#2D4A1F]">
+              {item.word}
+            </p>
+            {readings.length > 0 && (
+              <p className="text-[10px] leading-relaxed text-[#5E5648]/88">{readings.join(" / ")}</p>
+            )}
+          </div>
+        </SelectableLookupText>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5 pr-2">
           <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
@@ -781,9 +856,16 @@ function WordCard({
       )}
 
       {item.example && (
-        <p className="mt-1.5 line-clamp-2 text-[9px] italic leading-relaxed text-[#6B6254]/82">
-          {item.example}
-        </p>
+        <SelectableLookupText
+          npcId={item.npcId}
+          uiLanguage={uiLanguage}
+          sourceText={item.example}
+          className="mt-1.5"
+        >
+          <p className="line-clamp-2 text-[9px] italic leading-relaxed text-[#6B6254]/82">
+            {item.example}
+          </p>
+        </SelectableLookupText>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -1106,6 +1188,7 @@ export function SavedItemsPanel({
   savedPanelIntent,
 }: SavedItemsPanelProps) {
   const isEn = copy.summary.title === "Review Card";
+  const lookupUiLanguage: UiLanguage = isEn ? "en" : "zh";
   const reviewFiveLabel = isEn ? "Review 5" : "看 5 个";
   const reviewTenLabel = isEn ? "Review 10" : "看 10 个";
   const backToChatLabel = isEn ? "← Back to chat" : "← 返回聊天";
@@ -1869,6 +1952,7 @@ export function SavedItemsPanel({
             <ExpressionDetailCard
               item={selectedExpression}
               isEn={isEn}
+              uiLanguage={lookupUiLanguage}
               onBack={handleBackToSavedItems}
               onSaveNote={handleSaveExpressionNote}
             />
@@ -1892,6 +1976,7 @@ export function SavedItemsPanel({
                       item={item}
                       copy={copy}
                       isEn={isEn}
+                      uiLanguage={lookupUiLanguage}
                       onDelete={() => onDelete(item.id)}
                       onOpen={() => handleOpenWordCard(item.id)}
                     />
@@ -1915,6 +2000,7 @@ export function SavedItemsPanel({
                       item={item}
                       copy={copy}
                       isEn={isEn}
+                      uiLanguage={lookupUiLanguage}
                       onDelete={() => onDelete(item.id)}
                       onOpen={() => handleOpenExpressionCard(item.id)}
                     />
@@ -1936,6 +2022,7 @@ export function SavedItemsPanel({
                       item={item}
                       copy={copy}
                       isEn={isEn}
+                      uiLanguage={lookupUiLanguage}
                       onDelete={() => onDelete(item.id)}
                       onOpen={() => handleOpenExpressionCard(item.id)}
                     />
@@ -1949,6 +2036,7 @@ export function SavedItemsPanel({
                       item={item}
                       copy={copy}
                       isEn={isEn}
+                      uiLanguage={lookupUiLanguage}
                       onDelete={() => onDelete(item.id)}
                       onOpen={() => handleOpenWordCard(item.id)}
                     />

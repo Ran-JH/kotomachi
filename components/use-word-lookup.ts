@@ -47,8 +47,14 @@ function findSelectionElement(node: Node | null): Element | null {
   return node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
 }
 
-function isLookupDisabled(element: Element | null): boolean {
-  return element?.closest(LOOKUP_DISABLED_SELECTOR) != null;
+function isLookupDisabled(
+  element: Element | null,
+  rootElement?: HTMLElement | null,
+): boolean {
+  const disabledAncestor = element?.closest(LOOKUP_DISABLED_SELECTOR);
+  if (!disabledAncestor) return false;
+
+  return rootElement ? rootElement.contains(disabledAncestor) : true;
 }
 
 export function useWordLookupSelection(options: UseWordLookupSelectionOptions) {
@@ -75,7 +81,12 @@ export function useWordLookupSelection(options: UseWordLookupSelectionOptions) {
     if (!insideRoot && !insideMessageText) return;
 
     // Filter obvious interactive controls so future reuse does not trigger lookup by accident.
-    if (isLookupDisabled(eventElement) || isLookupDisabled(anchorElement)) return;
+    if (
+      isLookupDisabled(eventElement, rootElement) ||
+      isLookupDisabled(anchorElement, rootElement)
+    ) {
+      return;
+    }
 
     const anchorRect = range.getBoundingClientRect();
     if (!anchorRect || (anchorRect.width === 0 && anchorRect.height === 0)) return;

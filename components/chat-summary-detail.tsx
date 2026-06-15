@@ -1,5 +1,7 @@
 import type { SessionSummaryCard } from "@/lib/session-summary";
 import type { UiCopy } from "@/lib/ui-copy";
+import type { UiLanguage } from "@/lib/ui-language";
+import { SelectableLookupText } from "@/components/selectable-lookup-text";
 
 function formatSummaryDate(value: string): string {
   const date = new Date(value);
@@ -66,6 +68,7 @@ export function ChatSummaryDetail({
 }: ChatSummaryDetailProps) {
   if (!isOpen) return null;
   const isEn = copy.summary.title === "Review Card";
+  const lookupUiLanguage: UiLanguage = isEn ? "en" : "zh";
   const backToListLabel = isEn ? "← Back to list" : "← 返回列表";
   const backToChatLabel = isEn ? "← Back to chat" : "← 返回聊天";
   const emptyPanelText = isEn
@@ -102,6 +105,7 @@ export function ChatSummaryDetail({
       <button
         type="button"
         aria-label={copy.summary.close}
+        data-lookup-disabled="true"
         className="absolute inset-0 bg-[#28231A]/10"
         onClick={onClose}
       />
@@ -111,6 +115,7 @@ export function ChatSummaryDetail({
             <button
               type="button"
               onClick={onClose}
+              data-lookup-disabled="true"
               className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
             >
               {backToChatLabel}
@@ -121,6 +126,7 @@ export function ChatSummaryDetail({
                 <button
                   type="button"
                   onClick={onBackToList}
+                  data-lookup-disabled="true"
                   className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
                 >
                   {backToListLabel}
@@ -131,6 +137,7 @@ export function ChatSummaryDetail({
           <button
             type="button"
             onClick={onClose}
+            data-lookup-disabled="true"
             className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-xs text-[#7A7060] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
             aria-label={copy.common.close}
           >
@@ -155,7 +162,14 @@ export function ChatSummaryDetail({
             <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 text-[#28231A] sm:px-6">
               <section className="rounded-xl bg-[#FAF6EE]/85 border border-[rgba(40,35,26,0.06)] px-4 py-3.5">
                 <SectionTitle jp={copy.summary.topicJp} zh={copy.summary.topic} />
-                <p className="font-ja mt-2 text-[14px] leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
+                <SelectableLookupText
+                  npcId={card.npcId}
+                  uiLanguage={lookupUiLanguage}
+                  sourceText={card.topicSummary}
+                  className="mt-2"
+                >
+                  <p className="font-ja text-[14px] leading-relaxed text-[#4A4438]">{card.topicSummary}</p>
+                </SelectableLookupText>
               </section>
 
               {card.reusableExpressions.length > 0 && (
@@ -164,7 +178,13 @@ export function ChatSummaryDetail({
                   <div className="mt-3 space-y-2.5">
                     {card.reusableExpressions.map((item, index) => (
                       <div key={`${item.expression}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3">
-                        <p className="font-ja text-sm font-medium leading-[1.8] text-[#28231A]">{item.expression}</p>
+                        <SelectableLookupText
+                          npcId={card.npcId}
+                          uiLanguage={lookupUiLanguage}
+                          sourceText={item.expression}
+                        >
+                          <p className="font-ja text-sm font-medium leading-[1.8] text-[#28231A]">{item.expression}</p>
+                        </SelectableLookupText>
                         {item.note && <p className="font-ui mt-1.5 text-[11px] leading-relaxed text-[#6B6254]">{item.note}</p>}
                       </div>
                     ))}
@@ -184,11 +204,25 @@ export function ChatSummaryDetail({
                         <div className="mt-2.5 space-y-3">
                           <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
                             <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.original}</p>
-                            <p className="font-ui mt-1 text-[13px] leading-relaxed text-[#4A4438]">{item.original}</p>
+                            <SelectableLookupText
+                              npcId={card.npcId}
+                              uiLanguage={lookupUiLanguage}
+                              sourceText={item.original}
+                              className="mt-1"
+                            >
+                              <p className="font-ui text-[13px] leading-relaxed text-[#4A4438]">{item.original}</p>
+                            </SelectableLookupText>
                           </div>
                           <div className="rounded-md bg-[#F3EDE0]/75 border-l-2 border-[#C9A84C]/55 px-2.5 py-2.5">
                             <p className="font-ui text-[11px] font-semibold text-[#7A7060]">{copy.summary.suggestion}</p>
-                            <p className="font-ja mt-1 text-[16px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
+                            <SelectableLookupText
+                              npcId={card.npcId}
+                              uiLanguage={lookupUiLanguage}
+                              sourceText={item.suggestion}
+                              className="mt-1"
+                            >
+                              <p className="font-ja text-[16px] font-medium leading-[1.85] text-[#2D4A1F]">{item.suggestion}</p>
+                            </SelectableLookupText>
                           </div>
                           {shouldShowLearningNote(item.note) && (
                             <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
@@ -210,24 +244,45 @@ export function ChatSummaryDetail({
                     {card.reviewWords.map((item, index) => (
                       <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3.5">
                         <div className="flex items-baseline justify-between gap-2">
-                          <p className="font-ja text-[15px] font-medium text-[#28231A]">{item.word}</p>
+                          <SelectableLookupText
+                            npcId={card.npcId}
+                            uiLanguage={lookupUiLanguage}
+                            sourceText={item.example || item.word}
+                            className="min-w-0"
+                          >
+                            <p className="font-ja text-[15px] font-medium text-[#28231A]">{item.word}</p>
+                          </SelectableLookupText>
                           <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source, copy)}</span>
                         </div>
                         {item.reading && (
-                          <p className="mt-1.5 text-[11px] text-[#7A7060]">
-                            <span className="font-ui font-medium">{copy.summary.readingLabel}</span>
-                            <span className="font-ja ml-1">{item.reading}</span>
-                          </p>
+                          <SelectableLookupText
+                            npcId={card.npcId}
+                            uiLanguage={lookupUiLanguage}
+                            sourceText={item.example || item.word}
+                            className="mt-1.5"
+                          >
+                            <p className="text-[11px] text-[#7A7060]">
+                              <span className="font-ui font-medium">{copy.summary.readingLabel}</span>
+                              <span className="font-ja ml-1">{item.reading}</span>
+                            </p>
+                          </SelectableLookupText>
                         )}
                         <p className="mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">
                           <span className="font-ui font-medium text-[#7A7060]">{copy.summary.meaningLabel}</span>
                           <span className="font-ui ml-1">{item.meaning}</span>
                         </p>
                         {item.example && (
-                          <p className="mt-1.5 text-[12px] leading-relaxed text-[#6B6254]">
-                            <span className="font-ui font-medium text-[#7A7060]">{copy.summary.exampleLabel}</span>
-                            <span className="font-ja ml-1">{item.example}</span>
-                          </p>
+                          <SelectableLookupText
+                            npcId={card.npcId}
+                            uiLanguage={lookupUiLanguage}
+                            sourceText={item.example}
+                            className="mt-1.5"
+                          >
+                            <p className="text-[12px] leading-relaxed text-[#6B6254]">
+                              <span className="font-ui font-medium text-[#7A7060]">{copy.summary.exampleLabel}</span>
+                              <span className="font-ja ml-1">{item.example}</span>
+                            </p>
+                          </SelectableLookupText>
                         )}
                       </div>
                     ))}
@@ -238,7 +293,14 @@ export function ChatSummaryDetail({
               {card.nextTalkPrompt && (
                 <section className="rounded-xl bg-[#E8E0CE]/58 border border-[rgba(40,35,26,0.06)] px-4 py-4">
                   <SectionTitle jp={copy.summary.nextTopicJp} zh={copy.summary.nextTopic} />
-                  <p className="font-ja mt-2 text-[14px] leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
+                  <SelectableLookupText
+                    npcId={card.npcId}
+                    uiLanguage={lookupUiLanguage}
+                    sourceText={card.nextTalkPrompt}
+                    className="mt-2"
+                  >
+                    <p className="font-ja text-[14px] leading-relaxed text-[#4A4438]">{card.nextTalkPrompt}</p>
+                  </SelectableLookupText>
                 </section>
               )}
             </div>
@@ -247,6 +309,7 @@ export function ChatSummaryDetail({
               <button
                 type="button"
                 onClick={() => onDelete(card.id)}
+                data-lookup-disabled="true"
                 className="font-ui rounded-md px-2 py-1 text-[11px] text-[#7A7060] hover:bg-[#E8E0CE]/70 hover:text-[#8A5A45] transition-colors"
               >
                 {copy.summary.delete}
