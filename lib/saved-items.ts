@@ -26,6 +26,9 @@ export interface SavedExpression {
   suggestion: string;
   level: "casual" | "neutral" | "polite" | "summary_upgrade";
   note?: string;
+  userNote?: string;
+  reviewCount?: number;
+  lastReviewedAt?: string;
   source: "feedback" | "summary_card";
   sourceMessageId?: string;
   summaryCardId?: string;
@@ -237,6 +240,67 @@ export function updateSavedWordMastered(
     return {
       ...item,
       masteredAt,
+    };
+  });
+
+  if (!changed) {
+    return items;
+  }
+
+  saveSavedItems(next);
+  return next;
+}
+
+export function markSavedExpressionReviewed(
+  id: string,
+  reviewedAt = new Date().toISOString()
+): SavedItem[] {
+  const items = loadSavedItems();
+  let changed = false;
+
+  const next = items.map((item) => {
+    if (item.id !== id || item.type !== "expression") {
+      return item;
+    }
+
+    changed = true;
+    return {
+      ...item,
+      lastReviewedAt: reviewedAt,
+      reviewCount: (item.reviewCount ?? 0) + 1,
+    };
+  });
+
+  if (!changed) {
+    return items;
+  }
+
+  saveSavedItems(next);
+  return next;
+}
+
+export function updateSavedExpressionUserNote(id: string, userNote: string): SavedItem[] {
+  const items = loadSavedItems();
+  const trimmedNote = userNote.trim();
+  let changed = false;
+
+  const next = items.map((item) => {
+    if (item.id !== id || item.type !== "expression") {
+      return item;
+    }
+
+    changed = true;
+
+    if (!trimmedNote) {
+      return {
+        ...item,
+        userNote: undefined,
+      };
+    }
+
+    return {
+      ...item,
+      userNote: trimmedNote,
     };
   });
 

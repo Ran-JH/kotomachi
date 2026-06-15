@@ -3,165 +3,82 @@ import {
   normalizeStructureNote,
   type FeedbackLevel,
   type FeedbackResponse,
-  type StructureNote,
 } from "@/lib/feedback-types";
 import { createChatCompletion } from "@/lib/llm";
 
 export const runtime = "nodejs";
 
-/** 兼容旧字段 explain，统一为 analysis */
-function pickAnalysis(raw: Partial<FeedbackLevel> | undefined): string {
-  if (typeof raw?.analysis === "string" && raw.analysis.trim()) {
-    return raw.analysis.trim();
-  }
-  const legacy = raw as { explain?: string } | undefined;
-  if (typeof legacy?.explain === "string" && legacy.explain.trim()) {
-    return legacy.explain.trim();
-  }
-  return "";
-}
-
-function cleanAsrArtifacts(value: string): string {
-  return value
-    .replace(
-      /([ぁ-んァ-ヶ一-龠々ー]{1,8})[-‐‑‒–—]\s*([ぁ-んァ-ヶ一-龠々ー]{1,24})/g,
-      (match, before: string, after: string) => after.startsWith(before) ? after : match,
-    )
-    .replace(/\b(\w+)\s+\1\b/gi, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isDecorativeCodePoint(codePoint: number): boolean {
-  return (
-    (codePoint >= 0x1f300 && codePoint <= 0x1faff) ||
-    (codePoint >= 0x2600 && codePoint <= 0x27bf)
-  );
-}
-
-function stripDecorations(value: string): string {
-  let result = "";
-  for (const char of value) {
-    const codePoint = char.codePointAt(0);
-    if (codePoint === undefined) continue;
-    if (isDecorativeCodePoint(codePoint)) continue;
-    if (char === "\uFF0A" || char === "*" || char === "_" || char === "`" || char === "#" || char === ">") continue;
-    result += char;
-  }
-  return result
-    .replace(/\[[^\]]*\]/g, "")
-    .replace(/\uFF3B[^\uFF3D]*\uFF3D/g, "")
-    .replace(/(?:\uFF08\u7B11\uFF09|\(\u7B11\)|www+|[w\uFF57]{3,})/gi, "")
-    .replace(/[~\u301C\uFF5E]{2,}/g, "\u301C")
-    .trim();
-}
-
-function normalizeNativeSay(value: string): string {
-  return stripDecorations(cleanAsrArtifacts(value).replace(/^["「『]|["」』]$/g, ""));
-}
-
-function compactExpression(value: string): string {
-  return value.replace(/[、。！？!?…\s]/g, "");
-}
-
-function sameExpression(a: string, b: string): boolean {
-  return compactExpression(a) === compactExpression(b);
-}
-
-function containsAsrArtifact(value: string): boolean {
-  return /[ぁ-んァ-ヶ一-龠々ー]{1,8}[-‐‑‒–—]\s*[ぁ-んァ-ヶ一-龠々ー]{1,24}/.test(value);
-}
-
-function containsLatinFragment(value: string): boolean {
-  return /[A-Za-z]{2,}/.test(value);
-}
-
-function extractLatinTokens(value: string): string[] {
-  return value.match(/[A-Za-z]{2,}/g) ?? [];
-}
-
-/**
- * 检测是否包含危险的长英文片段（3个或更多连续英文单词）
- */
-function containsLongEnglishPhrase(value: string): boolean {
-  // 匹配3个或更多连续英文单词
-  const multiWordPattern = /[A-Za-z]+\s+[A-Za-z]+\s+[A-Za-z]+/;
-  if (multiWordPattern.test(value)) {
-    return true;
-  }
-  // 检测是否有过长的连续字母（超过4个）且不是日语常用英文词
-  const longWordPattern = /[A-Za-z]{5,}/g;
-  const matches = value.match(longWordPattern);
-  if (!matches) return false;
-  
-  // 允许的安全英文词
-  const safeWords = new Set([
-    "LINE", "SNS", "AI", "カフェ", "CAFE", "JAPAN", "TOKYO", "OSAKA",
-    "APP", "WEB", "MAIL", "NET", "PC", "TV", "CD", "DVD", "OK", "NG",
-  ]);
-  
-  // 检查是否有任何非安全的长词
-  return matches.some(word => !safeWords.has(word.toUpperCase()));
-}
-
-/**
- * 检测是否包含用户原句中的连续英文片段
- */
-function containsOriginalEnglishFragment(value: string, originalText: string): boolean {
-  // 从原句中提取英文单词
-  const englishWords = originalText.match(/[A-Za-z]{2,}/g) || [];
-  if (englishWords.length < 3) return false;
-  
-  // 检查是否包含连续的多个英文单词
-  for (let i = 0; i < englishWords.length - 1; i++) {
-    const phrase = `${englishWords[i]} ${englishWords[i + 1]}`;
-    if (value.toLowerCase().includes(phrase.toLowerCase())) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function extractJsonObject(raw: string): string | null {
-  const fencedMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  const candidate = fencedMatch?.[1]?.trim() || raw.trim();
-  const firstBrace = candidate.indexOf("{");
-  const lastBrace = candidate.lastIndexOf("}");
-
-  if (firstBrace < 0 || lastBrace <= firstBrace) {
-    return null;
-  }
-
-  return candidate.slice(firstBrace, lastBrace + 1);
-}
-
-function parseFeedbackResponseText(raw: string): Partial<FeedbackResponse> {
-  const jsonText = extractJsonObject(raw);
-  if (!jsonText) {
-    throw new Error("feedback_response_missing_json_object");
-  }
-
-  return JSON.parse(jsonText) as Partial<FeedbackResponse>;
-}
-
-function includesAny(value: string, words: string[]): boolean {
-  return words.some((word) => value.toLowerCase().includes(word.toLowerCase()));
-}
-
-function feedbackLevel(
-  nativeSay: string,
-  analysis: string,
-  structureNote?: StructureNote
-): FeedbackLevel {
-  return {
-    nativeSay,
-    analysis,
-    ...(structureNote ? { structureNote } : {}),
-  };
-}
+type UiLanguage = "zh" | "en";
+type FeedbackLevelKey = keyof FeedbackResponse;
 
 const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren"] as const;
 const VALID_NPC_ID_SET = new Set<string>(VALID_NPC_IDS);
+const FEEDBACK_LEVEL_KEYS: FeedbackLevelKey[] = ["casual", "business", "formal"];
+
+const SYSTEM_PROMPT = `You are the Expression Hint assistant for Kotomachi.
+The user opened Expression Hint because they want a best-effort rewrite of what they just said into natural, reusable Japanese.
+Do not act like a strict teacher. Do not reject rough spoken input.
+
+Return strict JSON only. No markdown code block. Use this shape:
+{
+  "casual": {
+    "nativeSay": "natural casual Japanese",
+    "analysis": "short learner-friendly explanation in the user's UI language",
+    "structureNote": {
+      "pattern": "optional reusable Japanese pattern",
+      "explanation": "optional short explanation in the user's UI language",
+      "examples": ["up to 2 short Japanese examples"]
+    }
+  },
+  "business": {
+    "nativeSay": "natural neutral/polite Japanese",
+    "analysis": "short learner-friendly explanation in the user's UI language"
+  },
+  "formal": {
+    "nativeSay": "natural more formal Japanese",
+    "analysis": "short learner-friendly explanation in the user's UI language"
+  }
+}
+
+Hard requirements:
+- Keep all three levels: casual, business, formal.
+- nativeSay must be a natural Japanese sentence.
+- The user's input may be messy spoken Japanese with fillers like 「えっと」「あの」, repeated fragments, speech recognition mistakes, mixed Chinese/English, proper nouns, product names, company names, titles, acronyms, or organization names. Do not reject it. Do a best-effort rewrite.
+- Translate ordinary English or Chinese wording used as a placeholder into natural Japanese when possible.
+- But proper nouns, event names, tournament names, organization names, company names, product names, app names, platform names, model names, titles, personal names, place names, and acronyms may be kept, transliterated into katakana, or rewritten naturally in Japanese.
+- If a Latin token is the topic itself rather than a placeholder for missing Japanese, do not reject the sentence just because that token is in Latin letters.
+- nativeSay should be mostly Japanese overall, but it may contain a small number of necessary Latin proper nouns or acronyms.
+- Do not keep ordinary English phrases or long English sentence fragments in nativeSay. Translate those into Japanese.
+- Do not reject or fail just because the user's message contains an acronym or proper noun written in Latin letters.
+- If meaning is partly unclear, infer conservatively and avoid overcorrecting.
+
+structureNote rules:
+- structureNote is optional.
+- structureNote is rare and optional.
+- Do not include structureNote by default.
+- Across the three levels, include structureNote for at most one level in most cases. If unsure, omit it.
+- Only include structureNote when there is a concrete reusable Japanese pattern that would help the learner make future sentences.
+- For messy, fragmented, or unclear input, usually omit structureNote.
+- Do not create structureNote for ordinary wording improvements, filler cleanup, word order cleanup, or general smoothing.
+- Do not explain ordinary vocabulary in structureNote.
+- Keep structureNote short and practical.
+
+Bad cases for structureNote:
+- only removing fillers like 「えっと」
+- only fixing word order
+- only changing vocabulary
+- only making the sentence smoother
+- input is too fragmented to identify a reusable pattern
+
+Good reusable pattern examples:
+- 「〜てもいいですか」
+- 「〜てみたいです」
+- 「〜ことがあります」
+- 「〜ようにしています」
+- 「〜という感じです」
+- 「〜たことがあります」
+
+Do not output any extra fields.`;
 
 function parseNpcId(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -171,376 +88,415 @@ function parseNpcId(value: unknown): string | null {
 function getNpcExpressionContext(npcId: string | null): string {
   switch (npcId) {
     case "aoi":
-      return "Current conversation partner: Aoi, a same-age student friend. Keep casual suggestions friendly and natural, but not romantic, clingy, or overly intimate.";
+      return "Current conversation partner: Aoi, a same-age friend. Keep casual suggestions friendly and natural.";
     case "haruka":
-      return "Current conversation partner: Haruka, a graduate-school senior. Suggestions should be lightly polite, academic-life friendly, and not professor-like.";
+      return "Current conversation partner: Haruka, a graduate-school senior. Suggestions should be lightly polite and natural.";
     case "kimura":
-      return "Current conversation partner: Kimura, a friendly convenience-store staff member. Suggestions may lean toward everyday service-counter and casual neighborhood language.";
+      return "Current conversation partner: Kimura, a convenience-store staff member. Suggestions may lean toward everyday service-counter language.";
     case "misaki":
-      return "Current conversation partner: Misaki, a calm cafe staff member. Suggestions should feel gentle, lightly polite, and suitable for a cafe conversation.";
+      return "Current conversation partner: Misaki, a calm cafe staff member. Suggestions should feel gentle and lightly polite.";
     case "taisho":
-      return "Current conversation partner: Taisho, an izakaya owner with a regular-customer distance. Suggestions may feel warm and familiar, but not preachy or like life advice. Avoid symbol-like shorthand such as 「〆」 in the suggestion text; prefer 「締め」「しめ」「おつまみ」「つまみ」「一品」 or 「軽くつまめるもの」 when natural.";
+      return "Current conversation partner: Taisho, an izakaya owner. Suggestions may feel warm and familiar, but not preachy.";
     case "nana":
-      return "Current conversation partner: Nana, a life-support lounge helper for newcomers in Japan. Suggestions should help users ask everyday life questions clearly and politely, without legal, rental, immigration, medical, or financial conclusions.";
+      return "Current conversation partner: Nana, a life-support helper for newcomers in Japan. Suggestions should help users speak clearly and politely.";
     case "ren":
-      return "Current conversation partner: Ren, a lightly familiar sojourner staying in Kotomachi for a while. Suggestions should stay natural and low-pressure, fit travel, cities, walking, plans, preferences, comparisons, and reasons, avoid over-formality, and must not sound like travel-guide copy, route planning, budget advice, or a Japanese teacher.";
+      return "Current conversation partner: Ren, a lightly familiar sojourner. Suggestions should stay natural and low-pressure.";
     default:
       return "No specific NPC context. Use general Japanese register guidance.";
   }
 }
 
-const SAFE_HINT_LATIN_WORDS = new Set([
-  "LINE",
-  "SNS",
-  "AI",
-  "CAFE",
-  "JAPAN",
-  "TOKYO",
-  "OSAKA",
-  "APP",
-  "WEB",
-  "MAIL",
-  "NET",
-  "PC",
-  "TV",
-  "CD",
-  "DVD",
-  "OK",
-  "NG",
-]);
-
-function hasUnsafeLatinWord(value: string): boolean {
-  return extractLatinTokens(value).some((token) => {
-    const upper = token.toUpperCase();
-    if (SAFE_HINT_LATIN_WORDS.has(upper)) {
-      return false;
-    }
-
-    // Allow short acronyms / team names such as VNL, BVNL, NBA, USA.
-    if (/^[A-Z]{2,6}$/.test(token)) {
-      return false;
-    }
-
-    // Allow short lowercase fragments that often appear in speech or STT.
-    if (/^[a-z]{2,4}$/.test(token)) {
-      return false;
-    }
-
-    return token.length >= 5;
-  });
-}
-
-function isSafeHintExpression(value: string, originalText: string): boolean {
-  const normalized = normalizeNativeSay(value);
-  if (!normalized) return false;
-  if (isPrimarilyEnglish(normalized)) return false;
-  if (hasUnsafeLatinWord(normalized)) return false;
-  if (containsLongEnglishPhrase(normalized) && !containsLatinFragment(originalText)) return false;
-  if (containsOriginalEnglishFragment(normalized, originalText)) return false;
-  return true;
-}
-
-/**
- * 检测是否主要是英文内容
- */
-function isPrimarilyEnglish(text: string): boolean {
-  const englishChars = (text.match(/[A-Za-z]/g) || []).length;
-  const japaneseChars = (text.match(/[ぁ-んァ-ヶ一-龠々ー]/g) || []).length;
-  const totalChars = text.length;
-
-  // 如果英文占比超过 60%，且日语字符很少，则认为是英文
-  if (totalChars === 0) return false;
-  if (japaneseChars === 0 && englishChars >= 2) return true;
-  if (englishChars > 0 && japaneseChars === 0) return true;
-  if (englishChars > japaneseChars * 2) return true;
-  return false;
-}
-
-function buildIntentFallback(userText: string): FeedbackResponse {
-  const cleaned = cleanAsrArtifacts(userText);
-
-  if (includesAny(cleaned, ["寝たい", "眠", "sleep", "tired"]) && includesAny(cleaned, ["言わない", "もう", "今すぐ"])) {
-    return {
-      casual: feedbackLevel(
-        "もう言わないで。今すぐ寝たい。",
-        "【场合】朋友之间可以直接说「もう言わないで」，语气清楚但不说教。【原句】原句里有 ASR 断裂时，重点是“别再说了、我现在想睡”，所以整理成短句会更自然。",
-      ),
-      business: feedbackLevel(
-        "すみません、もうこの話は大丈夫です。今すぐ休みたいです。",
-        "【场合】普通自然的说法会先用「すみません」缓冲，再表达想结束话题。【原句】这里不需要解释自己为什么累，直接说「休みたいです」比断裂表达更清楚。",
-      ),
-      formal: feedbackLevel(
-        "申し訳ありませんが、この件はいったんここまでにして、休ませていただきたいです。",
-        "【场合】正式场合要避免太直接的命令感，用「いったんここまで」「休ませていただきたいです」更稳。【原句】保留“想停止对话并休息”的意图，但语气更克制。",
-      ),
-    };
-  }
-
-  if (includesAny(cleaned, ["test", "テスト", "試験", "preparation", "準備", "confirm", "finished"])) {
-    return {
-      casual: feedbackLevel(
-        "テストの準備が終わったって確認できて、ちょっと安心した。",
-        "【场合】跟朋友说时可以用「ちょっと安心した」，自然表达松一口气的感觉。【原句】英文残句的核心是“确认准备已经完成，所以放松了”，不需要逐词翻译。",
-      ),
-      business: feedbackLevel(
-        "テストの準備が終わったことを確認できて、少し安心しました。",
-        "【场合】普通自然的说法用「確認できて」「安心しました」，适合同学、老师或日常说明。【原句】把长英文整理成一条因果清楚的日语句子，会更容易听懂。",
-      ),
-      formal: feedbackLevel(
-        "試験の準備が完了していることを確認でき、安心いたしました。",
-        "【场合】更礼貌时用「試験」「完了していること」「安心いたしました」会更正式。【原句】意思仍是确认准备完成后的安心感，只是词汇和句尾更郑重。",
-      ),
-    };
-  }
-
-  if (includesAny(cleaned, ["哲学", "philosophy"]) && includesAny(cleaned, ["寝たい", "眠", "難", "むずか"])) {
-    return {
-      casual: feedbackLevel(
-        "哲学って難しいから、聞いてると眠くなっちゃうよね。",
-        "【场合】朋友之间可以用「〜ちゃうよね」表达共感，轻松又自然。【原句】原句有些词序混乱，但意图像是在说“哲学很难，听着会想睡”。",
-      ),
-      business: feedbackLevel(
-        "哲学は少し難しいので、聞いていると眠くなってしまいますね。",
-        "【场合】普通自然的说法用「少し難しいので」和「〜てしまいますね」，礼貌但不僵硬。【原句】把零散表达整理成原因和结果，会更像日常说明。",
-      ),
-      formal: feedbackLevel(
-        "哲学は内容が難解なため、聞いていると眠くなってしまうことがあります。",
-        "【场合】正式一点可以用「難解なため」「ことがあります」，适合较认真地说明感受。【原句】保留“哲学难、容易困”的意思，但避免口语里的混乱感。",
-      ),
-    };
-  }
-
-  if (includesAny(cleaned, ["レポート", "書かないと", "書かなきゃ"])) {
-    return {
-      casual: feedbackLevel(
-        "明日レポート書かなきゃ。",
-        "【场合】朋友之间常把「書かないといけない」缩成「書かなきゃ」，轻松自然。【原句】原句本身没问题，カジュアル档只需要把句尾变得更口语。",
-      ),
-      business: feedbackLevel(
-        "明日レポートを書かないといけません。",
-        "【场合】普通自然的说法保留完整结构和丁寧語，适合日常说明。【原句】这句已经很清楚，这一档主要调整为更稳的礼貌句尾。",
-      ),
-      formal: feedbackLevel(
-        "明日までにレポートを作成する必要があります。",
-        "【场合】正式场合用「作成する必要があります」更书面、更稳。【原句】意思不变，但词汇从日常的「書く」换成了较正式的「作成する」。",
-      ),
-    };
-  }
-
-  return {
-    casual: feedbackLevel("", ""),
-    business: feedbackLevel("", ""),
-    formal: feedbackLevel("", ""),
-  };
-}
-
-function normalizeLevel(
-  raw: Partial<FeedbackLevel> | undefined,
-  fallbackSay: string,
-  fallbackAnalysis: string,
-  originalText: string
-): FeedbackLevel {
-  const candidateNativeSay = typeof raw?.nativeSay === "string" && raw.nativeSay.trim()
-    ? normalizeNativeSay(raw.nativeSay)
-    : fallbackSay;
-
-  let nativeSay = candidateNativeSay;
-
-  if (!isSafeHintExpression(nativeSay, originalText)) {
-    const canKeepBestEffort =
-      Boolean(candidateNativeSay) &&
-      !isPrimarilyEnglish(candidateNativeSay) &&
-      !(containsLongEnglishPhrase(candidateNativeSay) && !containsLatinFragment(originalText));
-
-    nativeSay = canKeepBestEffort ? candidateNativeSay : "";
-  }
-
-  // 安全检查：如果输出是英文或无效，设为空字符串（不展示）
-  if (isPrimarilyEnglish(nativeSay)) {
-    nativeSay = "";
-  }
-
-  const structureNote = normalizeStructureNote(raw?.structureNote);
-
-  return {
-    nativeSay,
-    analysis: pickAnalysis(raw) || fallbackAnalysis,
-    ...(structureNote ? { structureNote } : {}),
-  };
+function containsJapanese(text: string): boolean {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
 }
 
 function containsChinese(text: string): boolean {
   return /[\u4e00-\u9fff]/.test(text);
 }
 
-function toEnglishAnalysis(level: "casual" | "business" | "formal", _userText: string): string {
-  if (level === "casual") {
-    return `Usage: casual chat with friends. Why this works: it keeps your intent and makes the line short and natural. Original note: your message can be understood, but this version sounds smoother in everyday Japanese.`;
+function isPrimarilyEnglish(text: string): boolean {
+  const englishChars = (text.match(/[A-Za-z]/g) || []).length;
+  const japaneseChars = (text.match(/[\u3040-\u30ff\u3400-\u9fff]/g) || []).length;
+  const latinTokens = text.match(/[A-Za-z0-9][A-Za-z0-9._-]*/g) ?? [];
+  const acronymLikeTokens = latinTokens.filter((token) => isLikelyAcronymToken(token)).length;
+
+  if (!text.trim()) return false;
+  if (japaneseChars === 0 && englishChars > 0) return true;
+  if (containsJapanese(text) && acronymLikeTokens > 0 && latinTokens.length <= acronymLikeTokens + 1) {
+    return false;
   }
-  if (level === "business") {
-    return `Usage: neutral polite Japanese for daily interactions. Why this works: it keeps the same meaning while improving sentence flow and tone. Original note: your intent stays the same, with clearer wording for normal social contexts.`;
-  }
-  return `Usage: formal situations such as customer-facing or respectful contexts. Why this works: it uses a more complete polite register while preserving your original intent. Original note: this version sounds more composed than casual phrasing.`;
+
+  return englishChars > japaneseChars * 2 && japaneseChars < 8;
 }
 
-function localizeAnalysisText(
-  analysis: string,
-  uiLanguage: "zh" | "en",
-  level: "casual" | "business" | "formal",
-  userText: string
-): string {
-  const cleaned = analysis
-    .replace(/\[(?:场合|場合|usage|scene)\]\s*/gi, "")
-    .replace(/\[(?:原句|理由|補足|备注|備考|why|reason|note|analysis)\]\s*/gi, "")
+function cleanAsrArtifacts(value: string): string {
+  return value
+    .replace(/\b(\w+)\s+\1\b/gi, "$1")
+    .replace(/[ \u3000]+/g, " ")
+    .replace(/、{2,}/g, "、")
+    .replace(/。{2,}/g, "。")
     .trim();
+}
 
-  if (uiLanguage === "en") {
-    if (!cleaned || containsChinese(cleaned)) {
-      return toEnglishAnalysis(level, userText);
-    }
-    return cleaned;
+function stripDecorations(value: string): string {
+  return value
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^["'`「『]+|["'`」』]+$/g, "")
+    .replace(/[【】<>]/g, "")
+    .trim();
+}
+
+function normalizeNativeSay(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return cleanAsrArtifacts(stripDecorations(value));
+}
+
+function compactExpression(value: string): string {
+  return value.replace(/\s+/g, "").replace(/[。、！？!?]/g, "").trim().toLowerCase();
+}
+
+function sameExpression(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return compactExpression(a) === compactExpression(b);
+}
+
+function isLikelyAcronymToken(token: string): boolean {
+  const cleaned = token.replace(/[^A-Za-z0-9]/g, "");
+  if (!cleaned) return false;
+
+  if (!/^[A-Za-z0-9]{2,8}$/.test(cleaned)) {
+    return false;
   }
 
-  return cleaned;
+  if (cleaned === cleaned.toUpperCase()) {
+    return true;
+  }
+
+  if (/^[A-Za-z]{2,6}$/.test(cleaned) && !/[aeiouAEIOU]/.test(cleaned)) {
+    return true;
+  }
+
+  if (/[A-Za-z]/.test(cleaned) && /\d/.test(cleaned)) {
+    return true;
+  }
+
+  return false;
+}
+
+function containsLongEnglishPhrase(text: string): boolean {
+  const latinTokens = text.match(/[A-Za-z0-9][A-Za-z0-9._-]*/g) ?? [];
+  const ordinaryEnglishTokens = latinTokens.filter((token) => !isLikelyAcronymToken(token));
+
+  if (ordinaryEnglishTokens.length < 3) {
+    return false;
+  }
+
+  return /[A-Za-z]{2,}(?:\s+[A-Za-z]{2,}){2,}/.test(text);
+}
+
+function looksLikeMetadata(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith("{") || trimmed.startsWith("```")) return true;
+
+  const lower = trimmed.toLowerCase();
+  return (
+    lower.includes('"nativesay"') ||
+    lower.includes('"analysis"') ||
+    lower.includes("output json") ||
+    lower.includes("as an ai")
+  );
+}
+
+function pickAnalysis(raw: unknown): string {
+  if (typeof raw === "string" && raw.trim()) {
+    return raw.trim();
+  }
+
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return "";
+  }
+
+  const source = raw as Record<string, unknown>;
+  const fields = ["analysis", "explain", "summary", "why", "note", "explanation", "zh", "en"];
+
+  for (const key of fields) {
+    if (typeof source[key] === "string" && source[key].trim()) {
+      return source[key].trim();
+    }
+  }
+
+  return "";
+}
+
+function isSafeHintExpression(nativeSay: string): boolean {
+  const text = nativeSay.trim();
+  if (!text) return false;
+  if (!containsJapanese(text)) return false;
+  if (looksLikeMetadata(text)) return false;
+  if (isPrimarilyEnglish(text)) return false;
+  if (containsLongEnglishPhrase(text)) return false;
+  return true;
+}
+
+function sanitizeUserTextForFallback(userText: string): string {
+  const cleaned = cleanAsrArtifacts(userText)
+    .replace(/(えっと|あの|その)(\s*[、,]?\s*\1)+/g, "$1")
+    .replace(/(?:^|[。！？!?]\s*)(えっと|あの|その)(?=\s*[。！？!?]|$)/g, "")
+    .trim();
+
+  return cleaned.replace(/[、,]\s*$/, "").trim();
+}
+
+function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
+  return { nativeSay, analysis };
+}
+
+function buildGenericFallback(userText: string): FeedbackResponse {
+  const cleaned = sanitizeUserTextForFallback(userText);
+  const safeBase = containsJapanese(cleaned)
+    ? cleaned
+    : "この内容を自然な日本語に言い直すと、もう少し短く整理して伝える言い方になります。";
+
+  return {
+    casual: feedbackLevel(
+      safeBase,
+      "先保留你的原意，把断裂和重复尽量整理成可以继续对话的表达。"
+    ),
+    business: feedbackLevel(
+      sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
+      "这次输入信息比较多，也混有停顿或专名，所以先保守整理，避免误改原意。"
+    ),
+    formal: feedbackLevel(
+      sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
+      "正式一点时通常要再拆清重点；这次先保守保留主要信息，不做过度推断。"
+    ),
+  };
+}
+
+function buildHardFallback(): FeedbackResponse {
+  return {
+    casual: feedbackLevel(
+      "言いたいことを短く言うと、こんな感じです。",
+      "这次先用最保守的方式给出可继续参考的表达。"
+    ),
+    business: feedbackLevel(
+      "もう少し整理して言うと、このような言い方になります。",
+      "这次先保留可显示的表达结果，避免因为解析失败而整条提示消失。"
+    ),
+    formal: feedbackLevel(
+      "少し丁寧に言うと、このように表現できます。",
+      "这是一条最后兜底的正式表达，用来保证非空输入时仍能看到结果。"
+    ),
+  };
+}
+
+function toEnglishAnalysis(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return "This version sounds more natural and easier to follow.";
+  }
+
+  if (!containsChinese(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.includes("正式")) {
+    return "This version is phrased more formally and keeps the meaning conservative.";
+  }
+  if (trimmed.includes("礼貌")) {
+    return "This version is a bit more polite while keeping the same core meaning.";
+  }
+  if (trimmed.includes("原意")) {
+    return "This version keeps your original meaning and lightly tidies the sentence.";
+  }
+  if (trimmed.includes("停顿") || trimmed.includes("专名")) {
+    return "The input has pauses or named terms, so this version keeps the main information without overcorrecting.";
+  }
+
+  return "This version sounds more natural and easier to follow.";
+}
+
+function localizeAnalysisText(text: string, uiLanguage: UiLanguage): string {
+  const trimmed = text.trim();
+
+  if (uiLanguage === "en") {
+    return toEnglishAnalysis(trimmed);
+  }
+
+  if (!trimmed) {
+    return "这样说更自然，也更容易让对方理解。";
+  }
+
+  if (containsChinese(trimmed)) {
+    return trimmed;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower.includes("formal")) {
+    return "这样说更正式，也会显得更完整。";
+  }
+  if (lower.includes("polite")) {
+    return "这样说更礼貌，同时仍然自然。";
+  }
+  if (lower.includes("natural")) {
+    return "这样说更自然，更像日语里会直接说的方式。";
+  }
+
+  return "这样说更自然，也更容易让对方理解。";
+}
+
+function localizeStructureNote(
+  note: ReturnType<typeof normalizeStructureNote>,
+  uiLanguage: UiLanguage
+) {
+  if (!note) return undefined;
+
+  const explanation = note.explanation
+    ? localizeAnalysisText(note.explanation, uiLanguage)
+    : undefined;
+
+  return {
+    ...(note.pattern ? { pattern: note.pattern } : {}),
+    ...(explanation ? { explanation } : {}),
+    ...(note.examples?.length ? { examples: note.examples } : {}),
+  };
+}
+
+function normalizeLevel(
+  level: unknown,
+  fallbackSay: string,
+  fallbackAnalysis: string
+): FeedbackLevel {
+  const fallbackNative = normalizeNativeSay(fallbackSay) || "自然な日本語に言い直すと、こういう形になります。";
+  const fallbackAnalysisText =
+    pickAnalysis(fallbackAnalysis) || "这样说更自然，也更容易让对方理解。";
+
+  if (!level || typeof level !== "object" || Array.isArray(level)) {
+    return feedbackLevel(fallbackNative, fallbackAnalysisText);
+  }
+
+  const source = level as Record<string, unknown>;
+  const candidateNative = normalizeNativeSay(source.nativeSay);
+  const nativeSay = isSafeHintExpression(candidateNative) ? candidateNative : fallbackNative;
+  const analysis = pickAnalysis(source.analysis) || fallbackAnalysisText;
+  const structureNote = normalizeStructureNote(source.structureNote);
+
+  return {
+    nativeSay,
+    analysis,
+    ...(structureNote ? { structureNote } : {}),
+  };
+}
+
+function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
+  let keptOne = false;
+  const limited = {} as FeedbackResponse;
+
+  for (const key of FEEDBACK_LEVEL_KEYS) {
+    const level = response[key];
+    const note = normalizeStructureNote(level.structureNote);
+
+    if (!keptOne && note) {
+      limited[key] = {
+        nativeSay: level.nativeSay,
+        analysis: level.analysis,
+        structureNote: note,
+      };
+      keptOne = true;
+      continue;
+    }
+
+    limited[key] = {
+      nativeSay: level.nativeSay,
+      analysis: level.analysis,
+    };
+  }
+
+  return limited;
+}
+
+function localizeFeedbackResponse(response: FeedbackResponse, uiLanguage: UiLanguage): FeedbackResponse {
+  const localized = {} as FeedbackResponse;
+
+  for (const key of FEEDBACK_LEVEL_KEYS) {
+    const level = response[key];
+    const structureNote = localizeStructureNote(normalizeStructureNote(level.structureNote), uiLanguage);
+
+    localized[key] = {
+      nativeSay: level.nativeSay,
+      analysis: localizeAnalysisText(level.analysis, uiLanguage),
+      ...(structureNote ? { structureNote } : {}),
+    };
+  }
+
+  return localized;
+}
+
+function hasValidExpressions(response: FeedbackResponse): boolean {
+  return FEEDBACK_LEVEL_KEYS.some((key) => {
+    const nativeSay = response[key]?.nativeSay?.trim();
+    return Boolean(nativeSay && containsJapanese(nativeSay));
+  });
+}
+
+function extractJsonObject(raw: string): string {
+  const trimmed = raw.trim();
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim();
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+}
+
+function parseFeedbackResponseText(raw: string): Partial<FeedbackResponse> {
+  return JSON.parse(extractJsonObject(raw)) as Partial<FeedbackResponse>;
 }
 
 function buildFallbackResponse(userText: string): FeedbackResponse {
-  return buildIntentFallback(userText);
+  return buildGenericFallback(userText);
 }
 
-function localizeFeedbackResponse(
-  response: FeedbackResponse,
-  uiLanguage: "zh" | "en",
-  userText: string
-): FeedbackResponse {
-  return {
-    casual: {
-      nativeSay: response.casual.nativeSay,
-      analysis: localizeAnalysisText(response.casual.analysis, uiLanguage, "casual", userText),
-      ...(response.casual.structureNote ? { structureNote: response.casual.structureNote } : {}),
-    },
-    business: {
-      nativeSay: response.business.nativeSay,
-      analysis: localizeAnalysisText(response.business.analysis, uiLanguage, "business", userText),
-      ...(response.business.structureNote ? { structureNote: response.business.structureNote } : {}),
-    },
-    formal: {
-      nativeSay: response.formal.nativeSay,
-      analysis: localizeAnalysisText(response.formal.analysis, uiLanguage, "formal", userText),
-      ...(response.formal.structureNote ? { structureNote: response.formal.structureNote } : {}),
-    },
-  };
-}
-
-function needsFallback(response: FeedbackResponse, userText: string): boolean {
-  const values = [response.casual.nativeSay, response.business.nativeSay, response.formal.nativeSay];
-  const hasBadText = values.some((value) => 
-    containsAsrArtifact(value) || 
-    containsLongEnglishPhrase(value) || 
-    containsOriginalEnglishFragment(value, userText)
-  );
-  return hasBadText;
-}
-
-function repairFeedbackResponse(response: FeedbackResponse, userText: string): FeedbackResponse {
-  if (needsFallback(response, userText)) return buildIntentFallback(userText);
-
-  const fallback = buildIntentFallback(userText);
-  return {
-    casual: response.casual,
-    business: sameExpression(response.business.nativeSay, response.casual.nativeSay)
-      ? fallback.business
-      : response.business,
-    formal:
-      sameExpression(response.formal.nativeSay, response.casual.nativeSay) ||
-      sameExpression(response.formal.nativeSay, response.business.nativeSay)
-        ? fallback.formal
-        : response.formal,
-  };
-}
-
-/**
- * 检查响应是否有效（至少有一档有内容）
- */
-function hasValidExpressions(response: FeedbackResponse): boolean {
-  return Boolean(
-    response.casual.nativeSay.trim() ||
-    response.business.nativeSay.trim() ||
-    response.formal.nativeSay.trim()
-  );
-}
-
-const SYSTEM_PROMPT = `你是「言街」的日语表达顾问，气质像 ChatGPT 一样克制、清晰，像朋友一样温和，绝不说教、不打击用户。
-
-用户主动点击了 💡，想对比「同一句话」在三种日本社交场合下的地道说法，并理解因果。
-
-请严格只输出 JSON（不要 markdown 代码块），结构如下：
-{
-  "casual": {
-    "nativeSay": "轻松闲聊场合的地道日文（偏タメ口或柔软丁寧語）",
-    "analysis": "用中国大白话写一段双层分析，必须包含两层意思，建议用【场合】和【原句】两个小标题引导：① 为什么在这个场合要这么说；② 用户原先的日文在这个场合里具体哪里不太行（语体、距离感、敬语、生硬度等）。语气温和，像陪练朋友。"
-  },
-  "business": {
-    "nativeSay": "职场社交场合的地道日文（便利店/同事/邻居/协作，礼貌但不僵硬）",
-    "analysis": "同上双层分析"
-  },
-  "formal": {
-    "nativeSay": "正式交际场合的地道日文（面试/客户/上级/书面，敬语完整）",
-    "analysis": "同上双层分析"
+function buildFinalResponse(source: FeedbackResponse, uiLanguage: UiLanguage, userText: string): FeedbackResponse {
+  const primary = limitStructureNotes(localizeFeedbackResponse(source, uiLanguage));
+  if (hasValidExpressions(primary)) {
+    return primary;
   }
+
+  const fallback = limitStructureNotes(localizeFeedbackResponse(buildFallbackResponse(userText), uiLanguage));
+  if (hasValidExpressions(fallback)) {
+    return fallback;
+  }
+
+  return limitStructureNotes(localizeFeedbackResponse(buildHardFallback(), uiLanguage));
 }
-
-硬性要求：
-- 三档 nativeSay 必须彼此不同，且都保留用户原意
-- 先在心里判断用户真实意图，再写三档。不要逐词硬翻译，不要把 ASR 断裂、重复、口吃照抄进 nativeSay
-- casual 要像朋友/熟人说话；business 要像日常礼貌语；formal 要用更完整的敬语。不要只改标点或只加 です/ます
-- 每档 analysis 80～180 字，好懂、可扫读，禁止堆砌语法术语
-- analysis 必须说明真实学习点，例如语气差异、使用场景、句尾自然度、词汇选择、为什么这样说更自然
-- 不要说「你错了」，不要考试批改口吻，改用「这里会有点…」「更自然的做法是…」
-- 不要写内部解释，例如「系统暂时可能生成完整建议」
-- 【关键】nativeSay 必须是完全自然的日语，绝对不要包含用户原句中的英文长片段（如 "i just feel", "these days", "warmer and damper"）或连续英文字母超过3个的非日语常用词
-- nativeSay 只能包含：日语假名、汉字、日语标点，以及极少量日语中常用的英文缩写（如 LINE、SNS、AI、カフェ）
-- nativeSay 不要包含 emoji、颜文字、markdown、括号动作描写；不要用 😅、😊、😂、w、www、（笑） 来表达情绪
-
-【重要】混合语言处理规则：
-- 用户的句子中经常混入英语或中文词汇，这是因为他们还不会对应的日语表达才用母语/英语替代的
-- 绝对不要简单说"不要用英语/中文"或"应该用日语"——这毫无帮助
-- 必须在 analysis 中重点教学：这个英语/中文词在日语里怎么说，给出具体的日语表达，并用简短的话解释用法和语境
-- nativeSay 中必须把所有英语/中文替换为地道的日语表达，完全不要保留原句中的英文片段
-- 例如用户说"今日は tired"，analysis 应写"tired 在日语里说 疲れた（つかれた），跟朋友可以说 今日疲れちゃった，更随意的话 疲れたー 就行"
-
-参考意图处理：
-- "もう言わないで、私は今すぐって寝たいにな-になった。" 表示「别再说了，我现在马上想睡/想休息」
-- "Sorry i feel feel relaxed..." 表示「确认考试准备已经完成，所以安心了」
-- "哲学が...寝たい..." 一类句子通常是在说「哲学很难/听着容易困」
-- "明日レポートを書かないといけない。" 本身自然，只需要按三档调整语气，不要过度改写
-
-- 不要输出 wordTips 或任何额外字段
-- You may optionally add a "structureNote" object to each level.
-- Only include "structureNote" when the suggested expression contains a clearly reusable Japanese pattern or sentence structure that helps the learner produce similar sentences later.
-- Do not force a structure note for every expression.
-- Do not explain ordinary vocabulary in structureNote.
-- Keep structureNote short and practical, not a long grammar lesson.
-- Do not include JLPT labels unless it is genuinely natural and necessary.
-- structureNote.pattern: the reusable Japanese pattern, such as 「〜てみたいです」 or 「〜てもいいですか」.
-- structureNote.explanation: one short learner-friendly explanation. Use the user's UI language.
-- structureNote.examples: up to 2 short Japanese example sentences using the same pattern.
-- The user's message may be messy spoken Japanese, with filler words such as 「えっと」「あの」, repeated fragments, English names, acronyms, or speech recognition mistakes. Do not reject such input.
-- Produce best-effort natural Japanese suggestions.
-- Keep proper nouns, team names, English acronyms, and unclear fragments when needed, but make the sentence natural.
-- If the intended meaning is partially unclear, infer conservatively and avoid overcorrecting.
-- structureNote is optional. If the sentence is fragmented or there is no clear reusable pattern, omit structureNote.
-- Never fail the whole response just because no structureNote is available.
-`;
 
 export async function POST(req: NextRequest) {
-  let userText = "";
-  let uiLanguage: "zh" | "en" = "zh";
+  let requestBody: unknown;
 
   try {
-    const body = await req.json();
-    userText = (body.userText ?? "").trim();
-    uiLanguage = body.uiLanguage === "en" ? "en" : "zh";
+    requestBody = await req.json();
+  } catch {
+    return NextResponse.json({ error: "请求体无效" }, { status: 400 });
+  }
+
+  const body = requestBody as Record<string, unknown>;
+  const userText = typeof body.userText === "string" ? body.userText.trim() : "";
+  const uiLanguage: UiLanguage = body.uiLanguage === "en" ? "en" : "zh";
+
+  if (!userText) {
+    return NextResponse.json({ error: "文本不能为空" }, { status: 400 });
+  }
+
+  try {
     const npcId = parseNpcId(body.npcId);
     const npcExpressionContext = getNpcExpressionContext(npcId);
     const systemPrompt = `${SYSTEM_PROMPT}
@@ -550,33 +506,24 @@ ${npcExpressionContext}
 
 Use this only to fine-tune nuance and naturalness. Do not change the user's intended meaning.
 Keep the existing three levels: casual, business/natural, formal.
-Do not add emoji, kaomoji, markdown, or action descriptions.
-Do not copy long English fragments from the original user input verbatim, but short acronyms, team names, and proper nouns are allowed when they help keep the sentence natural.`;
-
-    if (!userText) {
-      return NextResponse.json({ error: "文本不能为空" }, { status: 400 });
-    }
+Do not add emoji, kaomoji, markdown, or action descriptions.`;
 
     const raw = await createChatCompletion(
       [
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `用户刚才说的日语（原句）：
-${userText}
+          content: `Original user text: ${userText}
 
 uiLanguage: ${uiLanguage}
 
 Language rules:
-- If uiLanguage is "en": usage / scene / reason / note / analysis must be in English only.
-- If uiLanguage is "zh": usage / scene / reason / note / analysis must be in Chinese only.
-- All suggested expressions must remain Japanese.
-- Japanese examples must remain Japanese.
-- The original user message must remain unchanged.
-- Do not translate suggested Japanese expressions into English.
-- Do not add Chinese explanations when uiLanguage is "en".
-- If you include structureNote.explanation, use English only when uiLanguage is "en" and Chinese only when uiLanguage is "zh".
-- If you include structureNote.examples, keep them as short Japanese examples and return at most 2.`,
+- If uiLanguage is "en", analysis and structureNote.explanation must be in English only.
+- If uiLanguage is "zh", analysis and structureNote.explanation must be in Chinese only.
+- All suggested expressions and structureNote.examples must remain Japanese.
+- Do not fail just because the input is fragmented.
+- structureNote is optional. If there is no clear reusable pattern, omit it.
+- Never fail the whole response just because no structureNote is available.`,
         },
       ],
       { temperature: 0.5, jsonMode: true }
@@ -586,91 +533,38 @@ Language rules:
     try {
       parsed = parseFeedbackResponseText(raw);
     } catch (parseError) {
-      console.warn("[api/feedback] Failed to parse feedback response", {
-        message: parseError instanceof Error ? parseError.message : "unknown",
-        responsePreview: raw.slice(0, 300),
+      console.warn("[api/feedback] Using fallback expression hints", {
+        reason: parseError instanceof Error ? parseError.message : "parse_failed",
         userTextLength: userText.length,
+        rawPreview: raw.slice(0, 240),
       });
-
-      const fallbackResponse = buildFallbackResponse(userText);
-      const localizedFallback = localizeFeedbackResponse(fallbackResponse, uiLanguage, userText);
-
-      if (hasValidExpressions(localizedFallback)) {
-        return NextResponse.json(localizedFallback);
-      }
-
-    return NextResponse.json({ error: "琛ㄨ揪鎻愮ず鐢熸垚澶辫触" }, { status: 500 });
+      return NextResponse.json(buildFinalResponse(buildFallbackResponse(userText), uiLanguage, userText));
     }
 
-    const response: FeedbackResponse = {
-      casual: normalizeLevel(
-        parsed.casual,
-        "",
-        "【场合】闲聊重在亲近感。【原句】你的句子能懂，换更软的说法会更像日本朋友。",
-        userText
-      ),
-      business: normalizeLevel(
-        parsed.business,
-        "",
-        "【场合】职场社交要礼貌得体。【原句】你的句子能懂，稍微调整语体会更自然。",
-        userText
-      ),
-      formal: normalizeLevel(
-        parsed.formal,
-        "",
-        "【场合】正式场合要稳重、完整。【原句】你的句子能懂，敬语和结构可以再讲究一点。",
-        userText
-      ),
+    const fallback = buildFallbackResponse(userText);
+    const normalized: FeedbackResponse = {
+      casual: normalizeLevel(parsed.casual, fallback.casual.nativeSay, fallback.casual.analysis),
+      business: normalizeLevel(parsed.business, fallback.business.nativeSay, fallback.business.analysis),
+      formal: normalizeLevel(parsed.formal, fallback.formal.nativeSay, fallback.formal.analysis),
     };
 
-    const repaired = repairFeedbackResponse(response, userText);
-    const localized = localizeFeedbackResponse(repaired, uiLanguage, userText);
-    if (!hasValidExpressions(localized)) {
-      const fallbackResponse = buildFallbackResponse(userText);
-      const localizedFallback = localizeFeedbackResponse(fallbackResponse, uiLanguage, userText);
+    const finalResponse = buildFinalResponse(normalized, uiLanguage, userText);
 
-      console.warn("[api/feedback] Falling back after invalid normalized response", {
+    if (!hasValidExpressions(finalResponse)) {
+      console.warn("[api/feedback] Using fallback expression hints", {
+        reason: "no_valid_expressions_after_normalization",
         userTextLength: userText.length,
-        responsePreview: raw.slice(0, 300),
+        rawPreview: raw.slice(0, 240),
       });
-
-      if (hasValidExpressions(localizedFallback)) {
-        return NextResponse.json(localizedFallback);
-      }
-
-      return NextResponse.json({ error: "琛ㄨ揪鎻愮ず鐢熸垚澶辫触" }, { status: 500 });
+      return NextResponse.json(buildFinalResponse(buildFallbackResponse(userText), uiLanguage, userText));
     }
 
-    // 如果三档都无效，返回错误状态
-    if (!hasValidExpressions(localized)) {
-      return NextResponse.json({ error: "无法生成有效的表达提示" }, { status: 400 });
-    }
-
-    return NextResponse.json(localized);
+    return NextResponse.json(finalResponse);
   } catch (error) {
-    console.warn("[api/feedback] failed", {
-      message: error instanceof Error ? error.message : "unknown",
+    console.warn("[api/feedback] Using fallback expression hints", {
+      reason: error instanceof Error ? error.message : "unknown",
       userTextLength: userText.length,
     });
-    const fallback = buildFallbackResponse(userText || "（空）");
-    const localizedFallback = localizeFeedbackResponse(fallback, uiLanguage, userText);
-    if (hasValidExpressions(localizedFallback)) {
-      return NextResponse.json(localizedFallback);
-    }
-    const legacyLocalizedFallback: FeedbackResponse = {
-      casual: {
-        nativeSay: fallback.casual.nativeSay,
-        analysis: localizeAnalysisText(fallback.casual.analysis, uiLanguage, "casual", userText),
-      },
-      business: {
-        nativeSay: fallback.business.nativeSay,
-        analysis: localizeAnalysisText(fallback.business.analysis, uiLanguage, "business", userText),
-      },
-      formal: {
-        nativeSay: fallback.formal.nativeSay,
-        analysis: localizeAnalysisText(fallback.formal.analysis, uiLanguage, "formal", userText),
-      },
-    };
-    return NextResponse.json({ error: "表达提示生成失败" }, { status: 500 });
+    return NextResponse.json(buildFinalResponse(buildFallbackResponse(userText), uiLanguage, userText));
   }
 }

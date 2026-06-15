@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  markSavedExpressionReviewed,
   markSavedWordReviewed,
+  updateSavedExpressionUserNote,
   updateSavedWordMastered,
   updateSavedWordNote,
   type SavedExpression,
@@ -20,6 +22,9 @@ import {
 import { SavedWordCompletionSummary } from "@/components/saved-word-completion-summary";
 
 type FilterType = "all" | "expression" | "word";
+type ExpressionReviewFilter = "all" | "unreviewed" | "reviewed" | "withUserNote" | "withStructure";
+type ExpressionNpcFilter = WordNpcFilter;
+type ExpressionSort = "newest" | "oldest" | "reviewAsc" | "reviewDesc";
 type WordCardMode = "queue" | "detail";
 type ReviewSessionLimit = 5 | 10 | "all";
 type SavedPanelIntent = {
@@ -186,6 +191,36 @@ function sortWordItems(words: SavedWord[], wordSort: WordSort): SavedWord[] {
   });
 }
 
+function sortExpressionItems(
+  expressions: SavedExpression[],
+  expressionSort: ExpressionSort
+): SavedExpression[] {
+  return expressions.slice().sort((a, b) => {
+    const aCreatedAt = toTimestamp(a.createdAt);
+    const bCreatedAt = toTimestamp(b.createdAt);
+    const aReviewCount = a.reviewCount ?? 0;
+    const bReviewCount = b.reviewCount ?? 0;
+
+    switch (expressionSort) {
+      case "oldest":
+        return aCreatedAt - bCreatedAt;
+      case "reviewAsc":
+        if (aReviewCount !== bReviewCount) {
+          return aReviewCount - bReviewCount;
+        }
+        return bCreatedAt - aCreatedAt;
+      case "reviewDesc":
+        if (aReviewCount !== bReviewCount) {
+          return bReviewCount - aReviewCount;
+        }
+        return bCreatedAt - aCreatedAt;
+      case "newest":
+      default:
+        return bCreatedAt - aCreatedAt;
+    }
+  });
+}
+
 function getWordReviewSummaryLabel(item: SavedWord, isEn: boolean): string {
   const count = item.reviewCount ?? 0;
   if (count <= 0) {
@@ -210,6 +245,74 @@ function getWordListReviewBadge(item: SavedWord, isEn: boolean): string {
   }
 
   return `已复习 ${count} 次`;
+}
+
+function hasStructureContent(item: SavedExpression): boolean {
+  const structureNote = normalizeStructureNote(item.structureNote);
+  return Boolean(
+    structureNote?.pattern?.trim() ||
+      structureNote?.explanation?.trim() ||
+      structureNote?.examples?.some((example) => example.trim()),
+  );
+}
+
+function getExpressionListReviewBadge(item: SavedExpression, isEn: boolean): string {
+  const count = item.reviewCount ?? 0;
+  if (count <= 0) {
+    return isEn ? "Not reviewed" : "未复习";
+  }
+
+  if (isEn) {
+    return count === 1 ? "Reviewed 1 time" : `Reviewed ${count} times`;
+  }
+
+  return `已复习 ${count} 次`;
+}
+
+function getExpressionReviewSummaryLabel(item: SavedExpression, isEn: boolean): string {
+  return getExpressionListReviewBadge(item, isEn);
+}
+
+function getExpressionDetailLabels(isEn: boolean) {
+  return isEn
+    ? {
+        detailTitle: "Expression card",
+        backToSaved: "Back to saved items",
+        original: "Original",
+        suggestion: "Suggested expression",
+        level: "Tone",
+        analysis: "Why this works",
+        structure: "Structure",
+        structureBadge: "Structure note",
+        example: "Example",
+        myNote: "My note",
+        noNoteYet: "No note yet",
+        saveNote: "Save",
+        cancelEdit: "Reset",
+        from: "From",
+        saved: "Saved",
+        lastReviewed: (value: string) => `Last reviewed: ${value}`,
+        notePlaceholder: "Add a note about usage, tone, or context",
+      }
+    : {
+        detailTitle: "表达卡片",
+        backToSaved: "返回收藏",
+        original: "原句",
+        suggestion: "建议表达",
+        level: "语气",
+        analysis: "表达说明",
+        structure: "表达结构",
+        structureBadge: "有结构说明",
+        example: "例句",
+        myNote: "我的笔记",
+        noNoteYet: "还没有笔记",
+        saveNote: "保存",
+        cancelEdit: "恢复",
+        from: "来源",
+        saved: "保存时间",
+        lastReviewed: (value: string) => `上次看过：${value}`,
+        notePlaceholder: "写一点你想记住的用法、语气或场景",
+      };
 }
 
 function getWordCardLabels(isEn: boolean) {
@@ -276,22 +379,41 @@ function ExpressionCard({
   copy,
   isEn,
   onDelete,
+  onOpen,
 }: {
   item: SavedExpression;
   copy: UiCopy;
   isEn: boolean;
   onDelete: () => void;
+  onOpen: () => void;
 }) {
   const structureNote = normalizeStructureNote(item.structureNote);
   const structureTitle = isEn ? "Structure" : "表达结构";
   const structureBadge = isEn ? "Structure note" : "有结构说明";
   const structureExampleLabel = isEn ? "Example" : "例";
+  const reviewBadge = getExpressionListReviewBadge(item, isEn);
+  const showSourceBadge = item.source && item.source !== "feedback";
 
   return (
-    <div className="relative rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3.5">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="relative cursor-pointer rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-4 py-3.5 transition-colors hover:bg-[#F7F1E6] focus:outline-none focus:ring-2 focus:ring-[#2D4A1F]/20"
+      aria-label={isEn ? `Open expression card for ${item.suggestion}` : `打开 ${item.suggestion} 的表达卡片`}
+    >
       <button
         type="button"
-        onClick={onDelete}
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
         className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[8px] text-[#7A7060]/40 transition-colors hover:bg-[#E8E0CE] hover:text-[#7A7060]"
         aria-label={copy.sidebar.savedDelete}
       >
@@ -326,7 +448,7 @@ function ExpressionCard({
       )}
 
       {structureNote && (
-        <div className="mt-2 rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0] px-3 py-2.5">
+        <div className="mt-2 rounded-lg border border-[rgba(40,35,26,0.06)] bg-[#FCF8F0]/75 px-3 py-2.5">
           <span className="mb-1 block text-[8px] font-medium text-[#7A7060]/70">
             {structureTitle}
           </span>
@@ -352,18 +474,16 @@ function ExpressionCard({
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
+          {reviewBadge}
+        </span>
         <span className="inline-block rounded-full bg-[#2D4A1F]/10 px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/70">
           {copy.sidebar.savedExpressionBadge}
         </span>
         <span className="inline-block rounded-full bg-[#C9A84C]/12 px-2.5 py-0.5 text-[8px] font-medium text-[#8B7430]/75">
           {LEVEL_LABELS[item.level] ?? item.level}
         </span>
-        {item.source === "feedback" && (
-          <span className="inline-block rounded-full bg-[#7A7060]/8 px-2.5 py-0.5 text-[8px] font-medium text-[#7A7060]/55">
-            {copy.sidebar.savedBadgeFeedback}
-          </span>
-        )}
-        {item.source === "summary_card" && (
+        {showSourceBadge && item.source === "summary_card" && (
           <span className="inline-block rounded-full bg-[#7A7060]/8 px-2.5 py-0.5 text-[8px] font-medium text-[#7A7060]/55">
             {copy.sidebar.savedBadgeSummary}
           </span>
@@ -373,6 +493,213 @@ function ExpressionCard({
             {structureBadge}
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ExpressionDetailCard({
+  item,
+  isEn,
+  onBack,
+  onSaveNote,
+}: {
+  item: SavedExpression;
+  isEn: boolean;
+  onBack: () => void;
+  onSaveNote: (expressionId: string, note: string) => void;
+}) {
+  const labels = getExpressionDetailLabels(isEn);
+  const locale = isEn ? "en-US" : "zh-CN";
+  const structureNote = normalizeStructureNote(item.structureNote);
+  const userNote = item.userNote?.trim() ?? "";
+  const reviewSummary = getExpressionReviewSummaryLabel(item, isEn);
+  const lastReviewedText = item.lastReviewedAt
+    ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
+    : null;
+  const npcLabel = getWordReviewNpcLabel(item.npcId, isEn);
+  const [draftNote, setDraftNote] = useState(userNote);
+
+  useEffect(() => {
+    // 切换表达详情时重置输入框，避免把上一张卡片的草稿带过来。
+    setDraftNote(item.userNote ?? "");
+  }, [item.id, item.userNote]);
+
+  const handleSaveNote = () => {
+    onSaveNote(item.id, draftNote);
+    setDraftNote(draftNote.trim());
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+        >
+          ← {labels.backToSaved}
+        </button>
+
+        <h3 className="ml-auto text-right font-ui text-sm font-semibold text-[#2D4A1F]">
+          {labels.detailTitle}
+        </h3>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] p-4 sm:p-5">
+        <div className="border-b border-[rgba(40,35,26,0.08)] pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.suggestion}
+              </p>
+              <p className="font-ja break-words text-[22px] font-semibold leading-tight text-[#2D4A1F] sm:text-[26px]">
+                {item.suggestion}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
+                {reviewSummary}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-[#C9A84C]/12 px-3 py-1 text-[10px] font-medium text-[#8B7430]/80">
+                {LEVEL_LABELS[item.level] ?? item.level}
+              </span>
+              {hasStructureContent(item) && (
+                <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-3 py-1 text-[10px] font-medium text-[#6D624F]">
+                  {labels.structureBadge}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {lastReviewedText && (
+            <p className="mt-3 text-[11px] leading-relaxed text-[#7A7060]">{lastReviewedText}</p>
+          )}
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <div className="rounded-2xl bg-[#F3EDE0] p-4">
+            <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+              {labels.original}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-[#3B352C]">{item.original}</p>
+          </div>
+
+          {item.note && (
+            <div className="rounded-2xl bg-[#F7F2E8] p-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.analysis}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#3B352C]">{item.note}</p>
+            </div>
+          )}
+
+          {structureNote && (
+            <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0] p-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.structure}
+              </p>
+              {structureNote.pattern && (
+                <p className="mt-1 font-ja break-words text-[13px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
+                  {structureNote.pattern}
+                </p>
+              )}
+              {structureNote.explanation && (
+                <p className="mt-2 text-[12px] leading-relaxed text-[#4A4438]/88 [overflow-wrap:anywhere]">
+                  {structureNote.explanation}
+                </p>
+              )}
+              {structureNote.examples?.map((example, index) => (
+                <p
+                  key={`${item.id}-detail-structure-example-${index}`}
+                  className="mt-2 text-[11px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]"
+                >
+                  {labels.example}: {example}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#F7F2E8] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.myNote}
+              </p>
+              {!userNote && (
+                <span className="text-[10px] text-[#7A7060]/80">{labels.noNoteYet}</span>
+              )}
+            </div>
+            <textarea
+              value={draftNote}
+              onChange={(event) => setDraftNote(event.target.value)}
+              rows={4}
+              placeholder={labels.notePlaceholder}
+              className="mt-3 w-full rounded-xl border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-2.5 text-[12px] leading-relaxed text-[#3B352C] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10"
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSaveNote}
+                className="rounded-full bg-[#2D4A1F] px-4 py-2 text-[11px] font-medium text-[#F3EDE0] transition-colors hover:bg-[#243A19]"
+              >
+                {labels.saveNote}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraftNote(userNote)}
+                className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+              >
+                {labels.cancelEdit}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-2xl bg-[#F3EDE0] p-4 sm:grid-cols-2">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.level}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4A4438]">
+                {LEVEL_LABELS[item.level] ?? item.level}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.from}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4A4438]">{npcLabel}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {labels.saved}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4A4438]">
+                {formatSavedTime(item.createdAt, locale)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {isEn ? "Source type" : "来源类型"}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#4A4438]">
+                {item.source === "summary_card"
+                  ? (isEn ? "Summary card" : "总结卡片")
+                  : (isEn ? "Expression hint" : "表达提示")}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
+        >
+          {labels.backToSaved}
+        </button>
       </div>
     </div>
   );
@@ -790,12 +1117,26 @@ export function SavedItemsPanel({
   const noFilteredWordsLabel = isEn
     ? "No words match these filters. Try another filter."
     : "没有符合条件的词。可以换一个筛选条件看看。";
+  const noFilteredExpressionsLabel = isEn
+    ? "No saved expressions match this filter yet."
+    : "这里暂时没有符合条件的表达。";
+  const expressionNpcFilterLabel = isEn ? "Person in town" : "街区里的人";
+  const expressionSortLabel = isEn ? "Sort" : "排序";
+  const expressionCountLabel = (shownCount: number, totalExpressionCount: number) =>
+    isEn
+      ? `Showing ${shownCount} / ${totalExpressionCount} expressions`
+      : `显示 ${shownCount} / ${totalExpressionCount} 个表达`;
   const allMasteredWordsLabel = isEn
     ? "All saved words are marked as mastered. You can view them with the Mastered filter or undo the tag to review them again."
     : "这些词都已经标记为已掌握。可以在「已掌握」筛选里查看，也可以撤销后再复习。";
 
   const [panelItems, setPanelItems] = useState<SavedItem[]>(items);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [expressionReviewFilter, setExpressionReviewFilter] =
+    useState<ExpressionReviewFilter>("all");
+  const [expressionNpcFilter, setExpressionNpcFilter] = useState<ExpressionNpcFilter>("all");
+  const [expressionSort, setExpressionSort] = useState<ExpressionSort>("newest");
+  const [selectedExpressionId, setSelectedExpressionId] = useState<string | null>(null);
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
   const [isWordReviewMode, setIsWordReviewMode] = useState(false);
   const [reviewQueueIds, setReviewQueueIds] = useState<string[]>([]);
@@ -812,12 +1153,28 @@ export function SavedItemsPanel({
   const [wordReviewFilter, setWordReviewFilter] = useState<WordReviewFilter>("all");
   const [wordNpcFilter, setWordNpcFilter] = useState<WordNpcFilter>("all");
   const [wordSort, setWordSort] = useState<WordSort>("newest");
+  const openingExpressionIdRef = useRef<string | null>(null);
   const openingWordIdRef = useRef<string | null>(null);
   const reviewEntryRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setPanelItems(items);
   }, [items]);
+
+  useEffect(() => {
+    if (!selectedExpressionId) {
+      openingExpressionIdRef.current = null;
+      return;
+    }
+
+    const stillExists = panelItems.some(
+      (item) => item.type === "expression" && item.id === selectedExpressionId
+    );
+    if (!stillExists) {
+      setSelectedExpressionId(null);
+      openingExpressionIdRef.current = null;
+    }
+  }, [panelItems, selectedExpressionId]);
 
   useEffect(() => {
     if (!selectedWordId) {
@@ -863,11 +1220,15 @@ export function SavedItemsPanel({
     };
   }, [isReviewEntryOpen]);
 
-  const expressionCount = panelItems.filter((item) => item.type === "expression").length;
+  const allExpressionItems = useMemo(
+    () => panelItems.filter((item): item is SavedExpression => item.type === "expression"),
+    [panelItems]
+  );
   const allWordItems = useMemo(
     () => panelItems.filter((item): item is SavedWord => item.type === "word"),
     [panelItems]
   );
+  const expressionCount = allExpressionItems.length;
   const reviewableWords = useMemo(
     () => allWordItems.filter((item) => !item.masteredAt),
     [allWordItems]
@@ -906,11 +1267,36 @@ export function SavedItemsPanel({
     return sortWordItems(nextWords, wordSort);
   }, [allWordItems, wordNpcFilter, wordReviewFilter, wordSort]);
 
+  const filteredExpressionItems = useMemo(() => {
+    let nextExpressions = allExpressionItems.slice();
+
+    if (expressionReviewFilter === "unreviewed") {
+      nextExpressions = nextExpressions.filter((item) => (item.reviewCount ?? 0) <= 0);
+    } else if (expressionReviewFilter === "reviewed") {
+      nextExpressions = nextExpressions.filter((item) => (item.reviewCount ?? 0) > 0);
+    } else if (expressionReviewFilter === "withUserNote") {
+      nextExpressions = nextExpressions.filter((item) => Boolean(item.userNote?.trim()));
+    } else if (expressionReviewFilter === "withStructure") {
+      nextExpressions = nextExpressions.filter((item) => hasStructureContent(item));
+    }
+
+    if (expressionNpcFilter !== "all") {
+      nextExpressions = nextExpressions.filter((item) => item.npcId === expressionNpcFilter);
+    }
+
+    return sortExpressionItems(nextExpressions, expressionSort);
+  }, [allExpressionItems, expressionNpcFilter, expressionReviewFilter, expressionSort]);
+
   const listItems = useMemo(() => {
     if (filter === "all") return panelItems;
-    if (filter === "expression") return panelItems.filter((item) => item.type === "expression");
+    if (filter === "expression") return filteredExpressionItems;
     return filteredWordItems;
-  }, [filter, filteredWordItems, panelItems]);
+  }, [filter, filteredExpressionItems, filteredWordItems, panelItems]);
+
+  const selectedExpression = useMemo(
+    () => allExpressionItems.find((item) => item.id === selectedExpressionId) ?? null,
+    [allExpressionItems, selectedExpressionId]
+  );
 
   const selectedWord = useMemo(
     () => allWordItems.find((item) => item.id === selectedWordId) ?? null,
@@ -961,6 +1347,19 @@ export function SavedItemsPanel({
     { key: "expression", label: copy.sidebar.savedExpressions, count: expressionCount },
     { key: "word", label: copy.sidebar.savedWords, count: wordCount },
   ];
+  const expressionFilters: { key: ExpressionReviewFilter; label: string }[] = [
+    { key: "all", label: isEn ? "All" : "全部" },
+    { key: "unreviewed", label: isEn ? "Unreviewed" : "未复习" },
+    { key: "reviewed", label: isEn ? "Reviewed" : "已复习" },
+    { key: "withUserNote", label: isEn ? "With notes" : "有笔记" },
+    { key: "withStructure", label: isEn ? "With structure" : "有结构说明" },
+  ];
+  const expressionSortOptions: { value: ExpressionSort; label: string }[] = [
+    { value: "newest", label: isEn ? "Newest saved" : "最近保存" },
+    { value: "oldest", label: isEn ? "Oldest saved" : "最早保存" },
+    { value: "reviewAsc", label: isEn ? "Fewest reviews" : "复习次数少到多" },
+    { value: "reviewDesc", label: isEn ? "Most reviews" : "复习次数多到少" },
+  ];
 
   const npcOptions = useMemo(
     () => [
@@ -991,6 +1390,8 @@ export function SavedItemsPanel({
       return;
     }
 
+    openingExpressionIdRef.current = null;
+    setSelectedExpressionId(null);
     openingWordIdRef.current = null;
     setSelectedWordId(null);
     setIsWordReviewMode(false);
@@ -1039,8 +1440,27 @@ export function SavedItemsPanel({
   };
 
   const handleBackToSavedItems = () => {
+    openingExpressionIdRef.current = null;
+    setSelectedExpressionId(null);
     openingWordIdRef.current = null;
     setSelectedWordId(null);
+    setIsReviewEntryOpen(false);
+  };
+
+  const handleOpenExpressionCard = (expressionId: string) => {
+    // Treat one list-open action as a single review so fast double clicks do not double count.
+    if (openingExpressionIdRef.current === expressionId || selectedExpressionId === expressionId) {
+      return;
+    }
+
+    openingExpressionIdRef.current = expressionId;
+
+    const updatedItems = markSavedExpressionReviewed(expressionId);
+
+    setPanelItems(updatedItems);
+    setSelectedWordId(null);
+    openingWordIdRef.current = null;
+    setSelectedExpressionId(expressionId);
     setIsReviewEntryOpen(false);
   };
 
@@ -1056,9 +1476,18 @@ export function SavedItemsPanel({
     const updatedWords = updatedItems.filter((item): item is SavedWord => item.type === "word");
 
     setPanelItems(updatedItems);
+    setSelectedExpressionId(null);
+    openingExpressionIdRef.current = null;
     setSelectedWordId(wordId);
     setReviewSessionWords(updatedWords);
     setIsReviewEntryOpen(false);
+  };
+
+  const handleSaveExpressionNote = (expressionId: string, note: string) => {
+    const updatedItems = updateSavedExpressionUserNote(expressionId, note);
+
+    // 表达详情和列表都基于 panelItems，保存后这里统一回写。
+    setPanelItems(updatedItems);
   };
 
   const handleSaveWordNote = (wordId: string, note: string) => {
@@ -1157,7 +1586,7 @@ export function SavedItemsPanel({
           )}
         </header>
 
-        {!isWordReviewMode && !selectedWord && (
+        {!isWordReviewMode && !selectedWord && !selectedExpression && (
           <div className="shrink-0 border-b border-[rgba(40,35,26,0.06)] bg-[#FAF6EE]/60 px-6 py-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap gap-2">
@@ -1255,6 +1684,68 @@ export function SavedItemsPanel({
                 onWordSortChange={setWordSort}
               />
             )}
+
+            {filter === "expression" && (
+              <div className="mt-2 space-y-2.5">
+                <p className="text-[9px] text-[#7A7060]/70">
+                  {expressionCountLabel(filteredExpressionItems.length, expressionCount)}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {expressionFilters.map((filterItem) => (
+                    <button
+                      key={filterItem.key}
+                      type="button"
+                      onClick={() => setExpressionReviewFilter(filterItem.key)}
+                      className={`whitespace-nowrap rounded-full px-3 py-1 text-[9px] font-medium transition-colors ${
+                        expressionReviewFilter === filterItem.key
+                          ? "bg-[#2D4A1F] text-[#F3EDE0] shadow-sm"
+                          : "bg-[#E8E0CE]/60 text-[#7A7060] hover:bg-[#E8E0CE]"
+                      }`}
+                    >
+                      {filterItem.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex min-w-0 flex-col gap-1 text-[9px] font-medium text-[#7A7060]">
+                    <span>{expressionNpcFilterLabel}</span>
+                    <select
+                      value={expressionNpcFilter}
+                      onChange={(event) =>
+                        setExpressionNpcFilter(event.target.value as ExpressionNpcFilter)
+                      }
+                      className="w-full rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1.5 text-[10px] text-[#4A4438] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10"
+                    >
+                      {npcOptions.map((option) => (
+                        <option key={`expression-npc-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex min-w-0 flex-col gap-1 text-[9px] font-medium text-[#7A7060]">
+                    <span>{expressionSortLabel}</span>
+                    <select
+                      value={expressionSort}
+                      onChange={(event) =>
+                        setExpressionSort(event.target.value as ExpressionSort)
+                      }
+                      className="w-full rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1.5 text-[10px] text-[#4A4438] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10"
+                    >
+                      {expressionSortOptions.map((option) => (
+                        <option key={`expression-sort-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+              </div>
+            )}
           </div>
         )}
 
@@ -1308,6 +1799,13 @@ export function SavedItemsPanel({
               onSaveNote={handleSaveWordNote}
               onToggleMastered={handleToggleWordMastered}
             />
+          ) : selectedExpression ? (
+            <ExpressionDetailCard
+              item={selectedExpression}
+              isEn={isEn}
+              onBack={handleBackToSavedItems}
+              onSaveNote={handleSaveExpressionNote}
+            />
           ) : filter === "word" ? (
             wordCount === 0 ? (
               <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
@@ -1335,6 +1833,29 @@ export function SavedItemsPanel({
                 })}
               </div>
             )
+          ) : filter === "expression" ? (
+            listItems.length === 0 ? (
+              <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
+                {noFilteredExpressionsLabel}
+              </p>
+            ) : (
+              <div className="space-y-3.5">
+                {listItems.map((item) => {
+                  if (item.type !== "expression") return null;
+
+                  return (
+                    <ExpressionCard
+                      key={item.id}
+                      item={item}
+                      copy={copy}
+                      isEn={isEn}
+                      onDelete={() => onDelete(item.id)}
+                      onOpen={() => handleOpenExpressionCard(item.id)}
+                    />
+                  );
+                })}
+              </div>
+            )
           ) : listItems.length === 0 ? (
             <p className="py-12 text-center text-[10px] leading-relaxed text-[#7A7060]/50">
               {copy.sidebar.savedEmpty}
@@ -1350,6 +1871,7 @@ export function SavedItemsPanel({
                       copy={copy}
                       isEn={isEn}
                       onDelete={() => onDelete(item.id)}
+                      onOpen={() => handleOpenExpressionCard(item.id)}
                     />
                   );
                 }
