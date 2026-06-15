@@ -44,6 +44,8 @@ const NPC_SCENE_HINTS: Record<NpcId, string> = {
     "生活サポートラウンジ。当前更适合聊租房、役所、费用、垃圾分类、如何礼貌地发问，以及把一句话说清楚。",
   ren:
     "言街駅前 / 川沿い / guesthouse まわり。当前更适合低压力地聊旅行、城市、散步、想去的地方、去过的地方、计划、比较、偏好和理由，不要变成旅行攻略。",
+  mao:
+    "コミュニティスペース / 軽い仕事 / バイト前後の場面。現在は、確認・お願い・進捗共有・少し言い方に迷うこと・お客様に聞かれたときの相談・シフトの相談・帰る前後の短いあいさつに寄せる。職業相談、HR、上司の評価、硬いビジネス敬語練習にはしない。",
 };
 
 const NPC_TOPIC_SEED_HINTS: Record<NpcId, string[]> = {
@@ -97,6 +99,15 @@ const NPC_TOPIC_SEED_HINTS: Record<NpcId, string[]> = {
     "好きな街の話をしたいです。",
     "言街のどんなところが好きですか？",
   ],
+  mao: [
+    "先輩に確認したいことがあります。",
+    "ここまでできたんですが、一度見てもらえますか。",
+    "すみません、もう少し時間がかかりそうです。",
+    "お客様に聞かれたんですが、どう答えればいいですか。",
+    "来週のシフトを少し相談してもいいですか。",
+    "何か手伝えることはありますか。",
+    "お先に失礼します。今日はありがとうございました。",
+  ],
 };
 
 const NPC_REGISTER_HINTS: Record<NpcId, string[]> = {
@@ -135,6 +146,11 @@ const NPC_REGISTER_HINTS: Record<NpcId, string[]> = {
     "优先生成能聊地方、计划、偏好、比较和理由的一句话，不要写成攻略提问。",
     "不要把用户的话改写成路线规划、预算、交通、酒店、排行榜这类旅行攻略文案。",
   ],
+  mao: [
+    "Mao uses light workplace polite Japanese. Keep suggestions short, usable, and natural for a part-time or internship-like situation.",
+    "Prefer confirmations, requests, brief progress updates, soft apologies, asking for help, shift talk, or leaving-after-work lines.",
+    "Avoid stiff business keigo, HR advice, career coaching, performance review language, or teacher-like correction.",
+  ],
 };
 
 const FALLBACK_IDEAS: Record<NpcId, string[]> = {
@@ -172,6 +188,13 @@ const FALLBACK_IDEAS: Record<NpcId, string[]> = {
     "最近、行ってみたい場所があります。",
     "知らない街を歩くのが好きです。",
     "旅行の計画を立てるのが少し苦手です。",
+  ],
+  mao: [
+    "先輩に確認したいことがあります。",
+    "ここまでできたんですが、一度見てもらえますか。",
+    "すみません、もう少し時間がかかりそうです。",
+    "何か手伝えることはありますか。",
+    "お先に失礼します。今日はありがとうございました。",
   ],
 };
 

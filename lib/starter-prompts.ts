@@ -107,7 +107,12 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "先輩に確認したいことがあります。", category: "npc_flavor" },
     { text: "仕事の日本語って、まだ少し難しいです。", category: "npc_flavor" },
     { text: "ここまでできたんですが、一度見てもらえますか。", category: "npc_flavor" },
+    { text: "すみません、もう少し時間がかかりそうです。", category: "npc_flavor" },
+    { text: "お客様に聞かれたんですが、どう答えればいいですか。", category: "npc_flavor" },
+    { text: "来週のシフトを少し相談してもいいですか。", category: "npc_flavor" },
+    { text: "何か手伝えることはありますか。", category: "npc_flavor" },
     { text: "お先に失礼します。今日はありがとうございました。", category: "npc_flavor" },
+    { text: "今日はちょっと疲れました。でも、少し慣れてきた気もします。", category: "npc_flavor" },
   ],
 };
 
@@ -279,9 +284,10 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
   if (npcId === "mao") {
     return pickBySeed(
       [
-        "今日、確認したいことはありますか？",
+        "今日は、バイトや軽い仕事の場面で、確認したいことを一つだけ真央に聞いてみませんか。",
+        "先輩に確認したいことがあります。",
         "仕事の場面で、少し言い方に迷うことはありますか？",
-        "ここまで進んだこと、短く話してみますか？",
+        "ここまで進んだことを、短く真央に話してみませんか。",
       ],
       seed,
     );

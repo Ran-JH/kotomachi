@@ -1340,6 +1340,8 @@ export function SavedItemsPanel({
     ? `${wordCount - reviewableWordCount} mastered words will not appear by default`
     : `已掌握 ${wordCount - reviewableWordCount} 个，不会默认进入复习`;
   const totalCount = expressionCount + wordCount;
+  const savedPanelIntentToken = savedPanelIntent?.token ?? null;
+  const savedPanelIntentType = savedPanelIntent?.type ?? null;
 
   const filteredWordItems = useMemo(() => {
     let nextWords = allWordItems.slice();
@@ -1493,7 +1495,7 @@ export function SavedItemsPanel({
   };
 
   useEffect(() => {
-    if (!savedPanelIntent) {
+    if (!savedPanelIntentToken) {
       return;
     }
 
@@ -1504,7 +1506,7 @@ export function SavedItemsPanel({
     setIsWordReviewMode(false);
     resetReviewState();
 
-    if (savedPanelIntent.type === "wordReview") {
+    if (savedPanelIntentType === "wordReview") {
       setFilter("word");
       setIsReviewEntryOpen(wordCount > 0);
       return;
@@ -1512,7 +1514,7 @@ export function SavedItemsPanel({
 
     setFilter("all");
     setIsReviewEntryOpen(false);
-  }, [savedPanelIntent?.token]);
+  }, [savedPanelIntentToken, savedPanelIntentType, wordCount]);
 
   const handleEnterWordReview = (limit: ReviewSessionLimit) => {
     if (reviewableWords.length === 0) return;
