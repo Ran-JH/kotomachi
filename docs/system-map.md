@@ -256,18 +256,24 @@ Notes / risks:
 - Review 是 soft landing，不是 grading。
 - 只能总结真实 evidence，不能 fabricate。
 
-#### Word explanation
+#### Word explanation / Selectable Lookup
 
 Primary files:
 - `app/api/explain/route.ts`
-- `components/chat-bubble.tsx`
+- `components/chat-bubble.tsx` (WordPopover)
 
 Supporting files:
 - `lib/saved-items.ts`
+- `lib/use-word-lookup.ts` (hook)
+- `components/selectable-lookup-text.tsx` (wrapper)
 
 Notes / risks:
 - 代码中的真实 route 是 `/api/explain`，不是 `/api/word-explanation`。
 - 这是按需查词，不应扩展成主动教学流。
+- **SelectableLookupText 是显式 opt-in wrapper，不是全局监听**。
+- 只包学习文本，不包功能 UI。
+- 过滤元素包括：`button`, `select`, `input`, `textarea`, `a`, `[role="button"]`, `[data-lookup-disabled="true"]`。
+- 已覆盖：聊天消息、Expression Hint、Saved Items Panel、Review Card。
 
 #### Nana NPC
 

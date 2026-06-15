@@ -7,28 +7,114 @@
 
 ## 0. Current Status / 当前阶段
 
-Kotomachi 当前处于 **MVP v1.x + 6 NPC + conversation rhythm v0 baseline + ongoing polish** 阶段。
+Kotomachi 当前处于 **真实使用测试 + 小 bug 收口 + 文档沉淀** 阶段。
 
 - [x] 可以运行
 - [x] 可以自用
 - [x] 可以给少量朋友测试
 - [x] 核心学习闭环已经打通
-- [x] 已覆盖 5 个不同关系语境 / register 的 NPC
-- [x] Conversation Rhythm v0 已完成第一轮落地：
-  - opening mode 已稳定；
-  - continuation mode topic ideas 已强化；
-  - soft landing Review Cards 已改进；
-- [x] 世界状态 / 日期 / 季节规则已统一；
-- [x] prompt safety / 上下文一致性已强化；
-- [x] 后续重点继续稳定体验、基于 bad case 迭代、准备产品化扩展。
+- [x] 6 个 NPC 已就位（美咲、木村、大将、遥、葵、七海）
+- [x] 收藏词复习功能已完成
+- [x] Expression Hints structureNote 已完成
+- [x] 学习文本区域划词查词已扩展
 
 这不是正式商业上线状态，也不是 App Store / Play Store 产品。
 
 ---
 
-## 1. 已完成的核心能力
+## 1. Done / 已完成
 
-### 1.1 首页与入口
+### 1.1 Saved Words Review v0
+
+- [x] 收藏词可以进入复习/查看流程
+- [x] reviewCount / lastReviewedAt
+- [x] 用户笔记 note
+- [x] mastered / 已掌握标记
+- [x] 已掌握词默认不进入待复习队列
+- [x] 可撤销已掌握
+- [x] 筛选：全部、未复习、已复习、有笔记、已掌握
+- [x] NPC 筛选
+- [x] 排序：最近保存、最早保存、复习次数少到多、复习次数多到少
+- [x] Smart review session：看 5 个、看 10 个、全部待复习
+- [x] 左边栏复习单词入口
+- [x] 0 待复习时用引导文案
+
+### 1.2 Saved Expressions basic management
+
+- [x] Expression Hint 中的表达可以收藏
+- [x] 保存 original / suggestion / level / source / npcId
+- [x] structureNote 可以随表达保存
+- [x] 表达列表支持筛选/排序
+- [x] 表达没有"已掌握"，更适合用"有结构说明"等维度筛选
+
+### 1.3 Expression Hint structureNote
+
+- [x] structureNote 包含 pattern / explanation / examples
+- [x] 默认展开显示
+- [x] 不做独立大语法模块，而是依附具体表达建议
+
+### 1.4 Selectable Lookup across learning text
+
+- [x] 原 ChatBubble 查词已抽离为可复用能力
+- [x] 覆盖聊天消息、Expression Hint、Saved Items Panel、Review Card
+- [x] 只作用于学习文本，不作用于按钮/tab/select/input 等 UI 控件
+
+### 1.5 Voice input confirm-before-send
+
+- [x] 语音识别结果填入输入框
+- [x] 用户确认/编辑后手动发送
+- [x] STT 识别中不显示 NPC 回复中
+- [x] STT 成功后不额外显示"已识别到输入框"提示
+
+### 1.6 Audio playback state fixes
+
+- [x] NPC 语音播放中再次点击可停止/暂停
+- [x] 播放另一个 NPC 音频时停止前一个
+- [x] 播放结束或错误时清理状态
+
+### 1.7 Mobile + menu polish
+
+- [x] 移动端 + 菜单和键盘交互更稳定
+- [x] 街角场景面板不再左右裁切
+- [x] 移动端菜单层级更清楚
+- [x] 桌面端不加 overlay/mask
+
+### 1.8 原有已完成能力
+
+- [x] 首页与入口（Hybrid homepage、场景分组、NPC 卡片、继续聊天、今日灵感）
+- [x] 聊天与教学分层（NPC 聊天、混合输入、表达提示、查词、回顾卡、收藏）
+- [x] 学习资产与积累感（收藏数量反馈、侧边栏学习入口）
+- [x] 语音与移动端（TTS、STT、用户语音回听、PWA 支持）
+- [x] 世界观与连续性（6 NPC、life arc、共享世界状态）
+- [x] Guided Scenarios（自由聊天 + 引导场景双入口）
+
+---
+
+## 2. Deferred / 暂缓
+
+- [ ] 大型语法模块
+- [ ] 全站 selection listener
+- [ ] Saved Word 精准回跳原聊天消息
+- [ ] 继续深挖 VNL 单点 safety filter 问题
+- [ ] 大规模 NPC prompt 重写
+- [ ] 新的大功能堆叠
+
+---
+
+## 3. Next / 下一阶段
+
+### 3.1 维护导向
+
+- [ ] 真实使用测试
+- [ ] bad case collection
+- [ ] 小范围 bugfix
+- [ ] 移动端 selection 体验观察
+- [ ] 保存词来源显示/上下文显示优化
+- [ ] README / portfolio polish
+
+---
+
+## 4. 原有详细能力清单
 
 - [x] Hybrid homepage v1
 - [x] 雨后街区 hero 氛围层
