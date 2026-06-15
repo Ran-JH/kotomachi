@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   FEEDBACK_LEVEL_META,
   type FeedbackLevelKey,
@@ -20,6 +21,7 @@ import { getCachedFeedback, setCachedFeedback, removeCachedFeedback, toCachedFee
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
 import { buildClientApiUrl } from "@/lib/client-api-url";
+import { SelectableLookupText } from "@/components/selectable-lookup-text";
 import { WordPopover } from "@/components/word-popover";
 import { LightbulbIcon, TranslateIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
 import { useWordLookupSelection } from "@/components/use-word-lookup";
@@ -429,6 +431,7 @@ function FeedbackDrawer({
           <button
             type="button"
             onClick={onClose}
+            data-lookup-disabled="true"
             className="absolute top-4 right-4 w-6 h-6 rounded-full text-[#7A7060] hover:bg-[rgba(40,35,26,0.06)] hover:text-[#28231A] text-xs leading-none flex items-center justify-center transition-colors"
             aria-label={copy.feedback.close}
           >
@@ -442,6 +445,7 @@ function FeedbackDrawer({
             <button
               type="button"
               onClick={onRegenerate}
+              data-lookup-disabled="true"
               className="mt-1.5 self-start px-2 py-0.5 rounded border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[9px] text-[#7A7060] hover:text-[#2D4A1F] hover:border-[rgba(40,35,26,0.2)] transition-colors"
             >
               {copy.feedback.regenerate}
@@ -470,6 +474,7 @@ function FeedbackDrawer({
                 }
                 void playUserRecording();
               }}
+              data-lookup-disabled="true"
               aria-label={isUserRecordingPlaying ? pauseLabel : copy.feedback.userRecording}
               title={isUserRecordingPlaying ? pauseLabel : copy.feedback.userRecording}
               className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2D4A1F] text-[#F3EDE0] py-2 text-[10px] font-medium hover:bg-[#2D4A1F]/90 transition-colors"
@@ -525,6 +530,7 @@ function FeedbackDrawer({
                       <button
                         type="button"
                         onClick={() => handleToggleSaveExpression(meta.key)}
+                        data-lookup-disabled="true"
                         className={`shrink-0 px-2 py-1 rounded-md border text-[9px] font-medium transition-colors whitespace-nowrap ${
                           savedKeys[meta.key]
                             ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
@@ -542,6 +548,7 @@ function FeedbackDrawer({
                           }
                           void playLevelSample(meta.key, level.nativeSay);
                         }}
+                        data-lookup-disabled="true"
                         aria-pressed={isTtsActive}
                         className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[9px] font-medium text-[#2D4A1F]/90 hover:border-[rgba(40,35,26,0.2)] transition-colors whitespace-nowrap"
                         title={isTtsActive ? pauseLabel : copy.feedback.listen}
@@ -559,9 +566,18 @@ function FeedbackDrawer({
                     </header>
                     <div className="mt-2.5 rounded-lg bg-[#F3EDE0]/60 border-l-2 border-[#C9A84C]/55 px-3 py-2.5">
                       <span className="text-[9px] font-medium text-[#7A7060] tracking-wide">{copy.feedback.recommended}</span>
-                      <p className="font-ja mt-1 text-[15px] sm:text-[16px] font-medium text-[#2D4A1F] leading-[1.8] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                        {level.nativeSay}
-                      </p>
+                      <SelectableLookupText
+                        npcId={npcId}
+                        uiLanguage={uiLanguage}
+                        sourceText={level.nativeSay}
+                        onPlayAudio={(word) => {
+                          void fetchAndPlayTts(word, npcId, `feedback-lookup:${meta.key}:${word}`).catch(() => undefined);
+                        }}
+                      >
+                        <p className="font-ja mt-1 text-[15px] sm:text-[16px] font-medium text-[#2D4A1F] leading-[1.8] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                          {level.nativeSay}
+                        </p>
+                      </SelectableLookupText>
                     </div>
                     {ttsErrorKey === meta.key && (
                       <p className="mt-1.5 px-1 text-[9px] text-[#9A6B2F]">
@@ -600,6 +616,7 @@ function FeedbackDrawer({
                           type="button"
                           aria-expanded={isExpanded}
                           onClick={() => setExpandedAnalysisKey(isExpanded ? null : meta.key)}
+                          data-lookup-disabled="true"
                           className="block text-[9px] font-medium text-[#C9A84C] hover:text-[#2D4A1F] transition-colors"
                         >
                           {isExpanded ? copy.feedback.hideDetails : copy.feedback.showDetails}
@@ -614,9 +631,18 @@ function FeedbackDrawer({
                                 {structureTitle}
                               </p>
                               {structureNote.pattern && (
-                                <p className="font-ja mt-1 break-words text-[12px] font-medium text-[#2D4A1F] [overflow-wrap:anywhere]">
-                                  {structureNote.pattern}
-                                </p>
+                                <SelectableLookupText
+                                  npcId={npcId}
+                                  uiLanguage={uiLanguage}
+                                  sourceText={structureNote.pattern}
+                                  onPlayAudio={(word) => {
+                                    void fetchAndPlayTts(word, npcId, `feedback-structure:${meta.key}:${word}`).catch(() => undefined);
+                                  }}
+                                >
+                                  <p className="font-ja mt-1 break-words text-[12px] font-medium text-[#2D4A1F] [overflow-wrap:anywhere]">
+                                    {structureNote.pattern}
+                                  </p>
+                                </SelectableLookupText>
                               )}
                               {structureNote.explanation && (
                                 <p className="mt-1.5 break-words text-[10px] text-[#4A4438] [overflow-wrap:anywhere]">
@@ -624,12 +650,20 @@ function FeedbackDrawer({
                                 </p>
                               )}
                               {structureNote.examples?.map((example, index) => (
-                                <p
+                                <SelectableLookupText
                                   key={`${meta.key}-structure-example-${index}`}
-                                  className="mt-1 break-words text-[9px] text-[#7A7060] [overflow-wrap:anywhere]"
+                                  npcId={npcId}
+                                  uiLanguage={uiLanguage}
+                                  sourceText={example}
+                                  onPlayAudio={(word) => {
+                                    void fetchAndPlayTts(word, npcId, `feedback-example:${meta.key}:${index}:${word}`).catch(() => undefined);
+                                  }}
+                                  className="mt-1"
                                 >
-                                  {structureExampleLabel}: {example}
-                                </p>
+                                  <p className="break-words text-[9px] text-[#7A7060] [overflow-wrap:anywhere]">
+                                    {structureExampleLabel}: {example}
+                                  </p>
+                                </SelectableLookupText>
                               ))}
                             </div>
                           </div>
