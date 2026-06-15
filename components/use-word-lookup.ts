@@ -37,7 +37,7 @@ interface UseWordLookupSelectionOptions {
   textSelector?: string;
 }
 
-function toElement(target: EventTarget | null): Element | null {
+function toElement(target: EventTarget | null | undefined): Element | null {
   if (!target) return null;
   return target instanceof Element ? target : null;
 }
