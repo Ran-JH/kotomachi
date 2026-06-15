@@ -41,6 +41,16 @@ function getSceneMicroEpisode(scene: ConversationScene, uiLanguage: UiLanguage):
   return scene.microEpisodeZh ?? scene.microEpisodeEn ?? "";
 }
 
+function pickRandomSceneIndex(currentIndex: number, total: number): number {
+  if (total <= 1) {
+    return currentIndex;
+  }
+
+  // Use an offset so we always move to a different scene without looping forever.
+  const offset = 1 + Math.floor(Math.random() * (total - 1));
+  return (currentIndex + offset) % total;
+}
+
 export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
   const [ideas, setIdeas] = useState<Array<{ npcId: NpcId; idea: string }>>([]);
   const [featuredScenes, setFeaturedScenes] = useState<ConversationScene[]>([]);
@@ -81,7 +91,7 @@ export function InspirationSection({ uiLanguage }: InspirationSectionProps) {
 
   const handleChangeFeaturedScene = () => {
     if (!canChangeFeaturedScene) return;
-    setFeaturedSceneIndex((current) => (current + 1) % featuredScenes.length);
+    setFeaturedSceneIndex((current) => pickRandomSceneIndex(current, featuredScenes.length));
   };
 
   return (
