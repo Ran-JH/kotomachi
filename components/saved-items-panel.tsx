@@ -14,7 +14,6 @@ import { getNpcDisplayName, isNpcId, type NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
 import { TrashIcon } from "@/components/ui-icons";
 import {
-  SavedWordsFilterControls,
   type WordNpcFilter,
   type WordReviewFilter,
   type WordSort,
@@ -1120,12 +1119,24 @@ export function SavedItemsPanel({
   const noFilteredExpressionsLabel = isEn
     ? "No saved expressions match this filter yet."
     : "这里暂时没有符合条件的表达。";
-  const expressionNpcFilterLabel = isEn ? "Person in town" : "街区里的人";
-  const expressionSortLabel = isEn ? "Sort" : "排序";
   const expressionCountLabel = (shownCount: number, totalExpressionCount: number) =>
     isEn
       ? `Showing ${shownCount} / ${totalExpressionCount} expressions`
       : `显示 ${shownCount} / ${totalExpressionCount} 个表达`;
+  const wordCountLabel = (shownCount: number, totalWordCount: number) =>
+    isEn
+      ? `Showing ${shownCount} / ${totalWordCount} words`
+      : `显示 ${shownCount} / ${totalWordCount} 个词语`;
+  const npcFilterLabel = isEn ? "Person in town" : "街区里的人";
+  const sortLabel = isEn ? "Sort" : "排序";
+  const savedFilterCountClass = "text-[9px] text-[#7A7060]/70";
+  const savedFilterChipRowClass = "flex flex-wrap gap-2";
+  const savedFilterChipClass =
+    "whitespace-nowrap rounded-full px-3 py-1 text-[9px] font-medium transition-colors";
+  const savedFilterGridClass = "grid gap-2 sm:grid-cols-2";
+  const savedFilterLabelClass = "flex min-w-0 flex-col gap-1 text-[9px] font-medium text-[#7A7060]";
+  const savedFilterSelectClass =
+    "w-full rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1.5 text-[10px] text-[#4A4438] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10";
   const allMasteredWordsLabel = isEn
     ? "All saved words are marked as mastered. You can view them with the Mastered filter or undo the tag to review them again."
     : "这些词都已经标记为已掌握。可以在「已掌握」筛选里查看，也可以撤销后再复习。";
@@ -1347,6 +1358,13 @@ export function SavedItemsPanel({
     { key: "expression", label: copy.sidebar.savedExpressions, count: expressionCount },
     { key: "word", label: copy.sidebar.savedWords, count: wordCount },
   ];
+  const wordFilters: { key: WordReviewFilter; label: string }[] = [
+    { key: "all", label: isEn ? "All" : "全部" },
+    { key: "unreviewed", label: isEn ? "Unreviewed" : "未复习" },
+    { key: "reviewed", label: isEn ? "Reviewed" : "已复习" },
+    { key: "withNotes", label: isEn ? "With notes" : "有笔记" },
+    { key: "mastered", label: isEn ? "Mastered" : "已掌握" },
+  ];
   const expressionFilters: { key: ExpressionReviewFilter; label: string }[] = [
     { key: "all", label: isEn ? "All" : "全部" },
     { key: "unreviewed", label: isEn ? "Unreviewed" : "未复习" },
@@ -1355,6 +1373,12 @@ export function SavedItemsPanel({
     { key: "withStructure", label: isEn ? "With structure" : "有结构说明" },
   ];
   const expressionSortOptions: { value: ExpressionSort; label: string }[] = [
+    { value: "newest", label: isEn ? "Newest saved" : "最近保存" },
+    { value: "oldest", label: isEn ? "Oldest saved" : "最早保存" },
+    { value: "reviewAsc", label: isEn ? "Fewest reviews" : "复习次数少到多" },
+    { value: "reviewDesc", label: isEn ? "Most reviews" : "复习次数多到少" },
+  ];
+  const wordSortOptions: { value: WordSort; label: string }[] = [
     { value: "newest", label: isEn ? "Newest saved" : "最近保存" },
     { value: "oldest", label: isEn ? "Oldest saved" : "最早保存" },
     { value: "reviewAsc", label: isEn ? "Fewest reviews" : "复习次数少到多" },
@@ -1671,33 +1695,75 @@ export function SavedItemsPanel({
             </div>
 
             {filter === "word" && wordCount > 0 && (
-              <SavedWordsFilterControls
-                isEn={isEn}
-                wordReviewFilter={wordReviewFilter}
-                wordNpcFilter={wordNpcFilter}
-                wordSort={wordSort}
-                totalCount={wordCount}
-                filteredCount={filteredWordItems.length}
-                npcOptions={npcOptions}
-                onWordReviewFilterChange={setWordReviewFilter}
-                onWordNpcFilterChange={setWordNpcFilter}
-                onWordSortChange={setWordSort}
-              />
+              <div className="mt-2 space-y-2.5">
+                <p className={savedFilterCountClass}>
+                  {wordCountLabel(filteredWordItems.length, wordCount)}
+                </p>
+
+                <div className={savedFilterChipRowClass}>
+                  {wordFilters.map((filterItem) => (
+                    <button
+                      key={filterItem.key}
+                      type="button"
+                      onClick={() => setWordReviewFilter(filterItem.key)}
+                      className={`${savedFilterChipClass} ${
+                        wordReviewFilter === filterItem.key
+                          ? "bg-[#2D4A1F] text-[#F3EDE0] shadow-sm"
+                          : "bg-[#E8E0CE]/60 text-[#7A7060] hover:bg-[#E8E0CE]"
+                      }`}
+                    >
+                      {filterItem.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={savedFilterGridClass}>
+                  <label className={savedFilterLabelClass}>
+                    <span>{npcFilterLabel}</span>
+                    <select
+                      value={wordNpcFilter}
+                      onChange={(event) => setWordNpcFilter(event.target.value as WordNpcFilter)}
+                      className={savedFilterSelectClass}
+                    >
+                      {npcOptions.map((option) => (
+                        <option key={`word-npc-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className={savedFilterLabelClass}>
+                    <span>{sortLabel}</span>
+                    <select
+                      value={wordSort}
+                      onChange={(event) => setWordSort(event.target.value as WordSort)}
+                      className={savedFilterSelectClass}
+                    >
+                      {wordSortOptions.map((option) => (
+                        <option key={`word-sort-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
             )}
 
             {filter === "expression" && (
               <div className="mt-2 space-y-2.5">
-                <p className="text-[9px] text-[#7A7060]/70">
+                <p className={savedFilterCountClass}>
                   {expressionCountLabel(filteredExpressionItems.length, expressionCount)}
                 </p>
 
-                <div className="flex flex-wrap gap-2">
+                <div className={savedFilterChipRowClass}>
                   {expressionFilters.map((filterItem) => (
                     <button
                       key={filterItem.key}
                       type="button"
                       onClick={() => setExpressionReviewFilter(filterItem.key)}
-                      className={`whitespace-nowrap rounded-full px-3 py-1 text-[9px] font-medium transition-colors ${
+                      className={`${savedFilterChipClass} ${
                         expressionReviewFilter === filterItem.key
                           ? "bg-[#2D4A1F] text-[#F3EDE0] shadow-sm"
                           : "bg-[#E8E0CE]/60 text-[#7A7060] hover:bg-[#E8E0CE]"
@@ -1708,15 +1774,15 @@ export function SavedItemsPanel({
                   ))}
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="flex min-w-0 flex-col gap-1 text-[9px] font-medium text-[#7A7060]">
-                    <span>{expressionNpcFilterLabel}</span>
+                <div className={savedFilterGridClass}>
+                  <label className={savedFilterLabelClass}>
+                    <span>{npcFilterLabel}</span>
                     <select
                       value={expressionNpcFilter}
                       onChange={(event) =>
                         setExpressionNpcFilter(event.target.value as ExpressionNpcFilter)
                       }
-                      className="w-full rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1.5 text-[10px] text-[#4A4438] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10"
+                      className={savedFilterSelectClass}
                     >
                       {npcOptions.map((option) => (
                         <option key={`expression-npc-${option.value}`} value={option.value}>
@@ -1726,14 +1792,14 @@ export function SavedItemsPanel({
                     </select>
                   </label>
 
-                  <label className="flex min-w-0 flex-col gap-1 text-[9px] font-medium text-[#7A7060]">
-                    <span>{expressionSortLabel}</span>
+                  <label className={savedFilterLabelClass}>
+                    <span>{sortLabel}</span>
                     <select
                       value={expressionSort}
                       onChange={(event) =>
                         setExpressionSort(event.target.value as ExpressionSort)
                       }
-                      className="w-full rounded-full border border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] px-3 py-1.5 text-[10px] text-[#4A4438] outline-none transition focus:border-[#2D4A1F]/30 focus:ring-2 focus:ring-[#2D4A1F]/10"
+                      className={savedFilterSelectClass}
                     >
                       {expressionSortOptions.map((option) => (
                         <option key={`expression-sort-${option.value}`} value={option.value}>
