@@ -47,8 +47,8 @@ export const HOME_SCENES: HomeScene[] = [
   {
     id: "work",
     title: {
-      zh: "工作 / 打工",
-      en: "Work / Part-time",
+      zh: "工作和兼职",
+      en: "Work and Part-time",
     },
     subtitle: {
       zh: "来到言街的另一端，看看工作场景的正式表达。",

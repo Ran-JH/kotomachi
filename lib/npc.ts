@@ -34,8 +34,7 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   taisho: "/avatars/taisho_avatar.webp",
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
-  // TODO: replace with /avatars/mao_avatar.png
-  mao: "/avatars/aoi_avatar.webp",
+  mao: "/avatars/mao_avatar.webp",
 };
 
 interface ArcState {
