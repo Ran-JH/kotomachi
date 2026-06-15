@@ -44,6 +44,19 @@ export const HOME_SCENES: HomeScene[] = [
     npcIds: ["haruka", "aoi"],
     status: "active",
   },
+  {
+    id: "work",
+    title: {
+      zh: "工作 / 打工",
+      en: "Work / Part-time",
+    },
+    subtitle: {
+      zh: "来到言街的另一端，看看工作场景的正式表达。",
+      en: "Walk to the other end of Kotomachi, and see relatively formal expressions in work scenarios.",
+    },
+    npcIds: ["mao"],
+    status: "active",
+  },
 ];
 
 export function getActiveHomeScenes(): HomeScene[] {

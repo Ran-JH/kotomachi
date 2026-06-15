@@ -262,6 +262,7 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
   { id: "nana", name: "七海", subname: "ななみ", location: "まちの生活サポートラウンジ" },
   { id: "ren", name: "蓮", subname: "れん", location: "言街駅前" },
+  { id: "mao", name: "真央", subname: "まお", location: "コミュニティスペース" },
 ];
 
 import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";

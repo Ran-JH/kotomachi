@@ -13,6 +13,7 @@ const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
   taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
   nana: { name: "七海", kana: "ななみ", place: "まちの生活サポートラウンジ" },
   ren: { name: "蓮", kana: "れん", place: "言街駅前" },
+  mao: { name: "真央", kana: "まお", place: "コミュニティスペース" },
 };
 
 // 这里展示的是“说话感觉 / 关系距离”，不是功能标签。
@@ -24,6 +25,7 @@ const NPC_TONE_LABELS: Record<NpcId, { zh: string; en: string }> = {
   taisho: { zh: "熟客口语", en: "Regular-customer casual" },
   nana: { zh: "轻丁宁", en: "Light polite" },
   ren: { zh: "普通自然", en: "Natural" },
+  mao: { zh: "軽丁寧", en: "Light workplace polite" },
 };
 
 // 首页卡片需要更短、更稳定的短句，避免个别 NPC 文案在小卡上显得拥挤。
@@ -35,6 +37,9 @@ const NPC_HOME_CARD_OVERRIDES: Partial<Record<NpcId, { ja: string; en?: string }
     ja: "旅の途中で、言街にしばらく住んでいる人。",
     en: "A young sojourner who settled in Kotomachi for a while.",
   },
+  mao: {
+    ja: "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
+  },
 };
 
 interface SceneEntrySectionProps {
@@ -43,6 +48,9 @@ interface SceneEntrySectionProps {
 
 export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
   const activeScenes = getActiveHomeScenes();
+  const dailyScene = activeScenes.find((scene) => scene.id === "daily");
+  const studyScene = activeScenes.find((scene) => scene.id === "study_abroad");
+  const workScene = activeScenes.find((scene) => scene.id === "work");
   const isZh = uiLanguage === "zh";
   const heading = isZh ? "今天想去哪儿聊？" : "Where do you want to stop by today?";
   const npcActionLabel = isZh ? "去聊天" : "Start chat";
@@ -56,14 +64,18 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
       </div>
 
       <div className="space-y-4 md:space-y-5">
-        {activeScenes.map((scene) => (
-          <SceneCard
-            key={scene.id}
-            scene={scene}
-            uiLanguage={uiLanguage}
-            npcActionLabel={npcActionLabel}
-          />
-        ))}
+        {dailyScene ? (
+          <SceneCard scene={dailyScene} uiLanguage={uiLanguage} npcActionLabel={npcActionLabel} />
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+          {studyScene ? (
+            <SceneCard scene={studyScene} uiLanguage={uiLanguage} npcActionLabel={npcActionLabel} />
+          ) : null}
+          {workScene ? (
+            <SceneCard scene={workScene} uiLanguage={uiLanguage} npcActionLabel={npcActionLabel} />
+          ) : null}
+        </div>
       </div>
     </section>
   );
@@ -121,6 +133,8 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   const metaLine =
     npcId === "nana"
       ? "ななみ · ラウンジ · 轻丁宁"
+      : npcId === "mao"
+        ? "まお · コミュニティスペース · 軽丁寧"
       : `${info.kana} · ${info.place} · ${toneLabel}`;
 
   return (

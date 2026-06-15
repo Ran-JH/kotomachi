@@ -102,6 +102,13 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "前に行った街の話をしたいです。", category: "npc_flavor" },
     { text: "静かで歩きやすい街が好きです。", category: "npc_flavor" },
   ],
+  mao: [
+    { text: "今日、バイトで少し緊張しました。", category: "npc_flavor" },
+    { text: "先輩に確認したいことがあります。", category: "npc_flavor" },
+    { text: "仕事の日本語って、まだ少し難しいです。", category: "npc_flavor" },
+    { text: "ここまでできたんですが、一度見てもらえますか。", category: "npc_flavor" },
+    { text: "お先に失礼します。今日はありがとうございました。", category: "npc_flavor" },
+  ],
 };
 
 function deterministicIndex(seed: number, len: number, offset: number): number {
@@ -264,6 +271,17 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
         "夜の駅って、少し旅に出たくなる感じがしませんか？",
         "雨の日の街歩きって、好きですか？",
         "週末、近くでも少し出かけたい場所はありますか？",
+      ],
+      seed,
+    );
+  }
+
+  if (npcId === "mao") {
+    return pickBySeed(
+      [
+        "今日、確認したいことはありますか？",
+        "仕事の場面で、少し言い方に迷うことはありますか？",
+        "ここまで進んだこと、短く話してみますか？",
       ],
       seed,
     );

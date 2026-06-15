@@ -1,4 +1,4 @@
-export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren";
+export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren" | "mao";
 
 export const NPC_NAMES: Record<NpcId, string> = {
   aoi: "葵 🎧",
@@ -8,6 +8,7 @@ export const NPC_NAMES: Record<NpcId, string> = {
   taisho: "大将 🍺",
   nana: "七海",
   ren: "蓮 🧭",
+  mao: "真央 🗂️",
 };
 
 export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
@@ -18,6 +19,7 @@ export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
   taisho: "大将",
   nana: "七海",
   ren: "蓮",
+  mao: "真央",
 };
 
 export function getNpcDisplayName(npcId: NpcId): string {
@@ -32,6 +34,8 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   taisho: "/avatars/taisho_avatar.webp",
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
+  // TODO: replace with /avatars/mao_avatar.png
+  mao: "/avatars/aoi_avatar.webp",
 };
 
 interface ArcState {
@@ -517,6 +521,35 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
       ],
     },
   ],
+  mao: [
+    {
+      id: "part_time_adjustment_week",
+      description: "コミュニティスペースでの軽い仕事を、落ち着いて回している週。",
+      states: [
+        {
+          label: "確認多め",
+          thoughts: ["今日は細かい確認が少し多いかも。", "ひとつずつ見れば大丈夫そう。"],
+        },
+        {
+          label: "少し忙しい",
+          thoughts: ["人が続くと、声のかけ方が大事になりますね。", "急がず整えていきたいです。"],
+        },
+        {
+          label: "ひと息",
+          thoughts: ["少し落ち着くと、確認もしやすいですね。", "今なら短く話せそうです。"],
+        },
+        {
+          label: "終わり際",
+          thoughts: ["今日もだいたい回せました。", "最後に抜けがないか見ておきたいです。"],
+        },
+      ],
+      crossMentions: [
+        "七海さんのラウンジ、最近も相談の人が少し多そうでした。",
+        "蓮さん、駅前から戻ってきたみたいで少し落ち着いた顔をしていました。",
+        "美咲さんの店の前、午後はやわらかい空気になりますね。",
+      ],
+    },
+  ],
 };
 
 function loadArcOffset(npcId: NpcId): number {
@@ -903,6 +936,7 @@ const WORLD_STATES: WorldState[] = [
     ambientTexts: ["小雨の夜。", "遠くで傘を閉じる音がした。", "雨の匂いが少し濃い。"],
     reactions: {
       ren: "雨の日の街って、歩く人が少なくて輪郭が見えやすいんだよね。",
+      mao: "雨の日は、案内や確認もいつもより少し丁寧にしたくなりますね。",
       aoi: "雨の日って、学生ラウンジでだらっと話したくなるんだよね。",
       haruka: "雨の日は研究室も少し静かで、集中しやすいですね。",
       misaki: "雨の日は店の空気が少しやわらかくなる気がします。",
@@ -918,6 +952,7 @@ const WORLD_STATES: WorldState[] = [
     ambientTexts: ["空気がむっとしている。", "遠くで蝉が鳴いている。", "冷たい飲み物がほしくなる。"],
     reactions: {
       ren: "暑い日は、遠くまで行くより近くをゆっくり歩くくらいがちょうどいいかも。",
+      mao: "暑い日は、急ぐより先にひとつずつ確認したほうが落ち着きますね。",
       aoi: "この暑さだと、外より中でだらっとしたくなるかも。",
       haruka: "この暑さだと、研究室まで歩くだけで少し疲れますね。",
       misaki: "今日は冷たい一杯のほうが合いそうですね。",
@@ -933,6 +968,7 @@ const WORLD_STATES: WorldState[] = [
     ambientTexts: ["駅前がいつもより静か。", "遠くで電車の音だけがする。", "空気が少し平たい。"],
     reactions: {
       ren: "こういう静かな時間だと、次に行きたい場所のことを考えやすいんだ。",
+      mao: "静かな時間だと、お願いごとや確認の言い方も整えやすいですね。",
       aoi: "こういう静かな空気だと、ちょっと話しやすくない？",
       haruka: "こんな静かな空気だと、文献も少し読みやすいです。",
       misaki: "店も少し静かで、コーヒーの香りがよく残ります。",
@@ -948,6 +984,7 @@ const WORLD_STATES: WorldState[] = [
     ambientTexts: ["遠くで笑い声がした。", "夜風に食べ物の匂いが混じっている。", "駅前がいつもより明るい。"],
     reactions: {
       ren: "夜の駅前って、少しだけどこかへ出たくなる感じがしない？",
+      mao: "少しにぎやかな時間でも、短く確認できるとだいぶ違いますよね。",
       aoi: "こういうにぎやかな空気って、なんとなく誰かと話したくならない？",
       haruka: "少しにぎやかな空気でも、話せる場所はちゃんとありますよ。",
       misaki: "こういう時間は、少しだけ人の流れが変わりますね。",
@@ -963,6 +1000,7 @@ const WORLD_STATES: WorldState[] = [
     ambientTexts: ["風が少し冷たい。", "落ち葉が端にたまっている。", "空が高く見える。"],
     reactions: {
       ren: "少し涼しい街って、歩くだけでも気分が変わるから好きなんだよね。",
+      mao: "少し涼しい日は、終わり際のあいさつまできれいに言えそうな気がします。",
       aoi: "秋って、なんか話しやすい空気になる気がする。",
       haruka: "秋になると、キャンパスを歩くだけでも少し落ち着きますね。",
       misaki: "こういう日は、熱いコーヒーがしっくりきます。",
@@ -978,6 +1016,7 @@ const WORLD_STATES: WorldState[] = [
     ambientTexts: ["空気が重い。", "髪が少しまとまりにくい。", "街全体がゆっくりしている。"],
     reactions: {
       ren: "こういう湿った空気の街も、歩いてみると意外と嫌いじゃないんだ。",
+      mao: "じめじめする日は、短く要点をそろえて話せると助かりますね。",
       aoi: "このじめっとした感じ、妙にだるくならない？",
       haruka: "梅雨の時期って、なんとなく肩も重くなりますよね。",
       misaki: "こういう日は、静かに過ごしたくなります。",
@@ -999,7 +1038,7 @@ export function getWorldContext(localDateContext: LocalDateContext = getLocalDat
 }
 
 export function isNpcId(id: string): id is NpcId {
-  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho" || id === "nana" || id === "ren";
+  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho" || id === "nana" || id === "ren" || id === "mao";
 }
 
 const HOME_CARD_LINES: Record<NpcId, string[]> = {
@@ -1059,6 +1098,9 @@ const HOME_CARD_LINES: Record<NpcId, string[]> = {
   ren: [
     "旅居到言街的年轻男性。常常出门，也常常回来，适合聊旅行、城市和想去的地方。",
     "A young sojourner who settled in Kotomachi for a while. Good for talking about travel, cities, and places you want to visit.",
+  ],
+  mao: [
+    "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
   ],
 };
 
