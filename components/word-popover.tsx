@@ -76,12 +76,17 @@ export function WordPopover({
   const [expanded, setExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const copy = getUiCopy(uiLanguage);
   const displayWord = data?.word?.trim() || selectedText;
   const originalSelection = data?.originalSelection?.trim() || selectedText;
   const wasCorrected = Boolean(data?.wasCorrected && displayWord && displayWord !== originalSelection);
   const displayReadings = data ? getExplainReadings(data) : [];
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,7 +209,7 @@ export function WordPopover({
         position: "fixed",
         left: `${left}px`,
         width: `${width}px`,
-        zIndex: 90,
+        zIndex: 9999,
         ...(placement === "below"
           ? { top: `${clampNumber(anchorRect.bottom + gap, margin, viewportHeight - margin)}px` }
           : { bottom: `${clampNumber(viewportHeight - anchorRect.top + gap, margin, viewportHeight - margin)}px` }),
@@ -219,6 +224,10 @@ export function WordPopover({
   const lookupLabel = uiLanguage === "en" ? "Word lookup" : "查词";
   const readingLabel = uiLanguage === "en" ? "Reading" : "读音";
   const detailLabel = uiLanguage === "en" ? "Detailed explanation" : "详细解释";
+
+  if (!mounted) {
+    return null;
+  }
 
   const handleToggleSave = () => {
     if (!data) return;
