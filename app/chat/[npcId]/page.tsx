@@ -275,6 +275,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState("");
   const [inputMode, setInputMode] = useState<"text" | "voice">("text");
   const [isTyping, setIsTyping] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [memories, setMemories] = useState<string[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -339,6 +340,7 @@ export default function ChatPage() {
     ? `已生成 ${allSummaryCards.length} 张回顾卡`
     : `${allSummaryCards.length} review cards created`;
   const reviewDisabledHint = uiLanguage === "zh" ? "最近聊天太少，先多聊几句再生成" : "Not enough recent chat yet";
+  const transcribingLabel = uiLanguage === "zh" ? "识别中..." : "Transcribing...";
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -577,6 +579,22 @@ export default function ChatPage() {
     setVoiceHint(message);
     if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
     voiceHintTimerRef.current = setTimeout(() => setVoiceHint(null), 4000);
+  };
+
+  const stageVoiceTranscript = (transcript: string) => {
+    const nextTranscript = transcript.trim();
+    if (!nextTranscript) return;
+
+    setVoiceHint(null);
+    setInputMode("text");
+    setInputText((current) => {
+      if (!current.trim()) return nextTranscript;
+      const separator = /\s$/.test(current) ? "" : "\n";
+      return `${current}${separator}${nextTranscript}`;
+    });
+    window.requestAnimationFrame(() => {
+      textInputRef.current?.focus();
+    });
   };
 
   const showSummaryToast = (
@@ -1025,7 +1043,7 @@ export default function ChatPage() {
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: mimeType || recorder.mimeType || "audio/webm" });
-        setIsTyping(true);
+        setIsTranscribing(true);
         try {
           const formData = new FormData(); formData.append("audio", blob);
           const sttRes = await fetch(buildClientApiUrl("/api/stt"), { method: "POST", body: formData });
@@ -1036,18 +1054,19 @@ export default function ChatPage() {
             } else {
               setApiError(copy.chat.sttError);
             }
-            setIsTyping(false);
+            setIsTranscribing(false);
             return;
           }
           if (sttData.code === "NO_SPEECH" || !sttData.text?.trim()) {
             showVoiceHint(copy.chat.noSpeech);
-            setIsTyping(false);
+            setIsTranscribing(false);
             return;
           }
-          await sendToNpc(sttData.text, blob);
+          stageVoiceTranscript(sttData.text);
+          setIsTranscribing(false);
         } catch {
           setApiError(copy.chat.sttError);
-          setIsTyping(false);
+          setIsTranscribing(false);
         }
       };
       recorder.start(); setIsRecording(true);
@@ -1990,7 +2009,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
-              disabled={isTyping}
+              disabled={isTyping || isTranscribing}
               className="w-9 h-9 shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] hover:bg-[#E0D6C5] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:scale-[0.95] flex items-center justify-center text-sm text-[#28231A] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
               aria-label={inputMode === "text" ? copy.chat.switchToVoice : copy.chat.switchToText}
               title={inputMode === "text" ? copy.chat.voiceInput : copy.chat.textInput}
@@ -2245,15 +2264,15 @@ export default function ChatPage() {
                 onMouseLeave={isRecording ? stopRecording : undefined}
                 onTouchStart={(e) => { e.preventDefault(); void startRecording(); }}
                 onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
-                disabled={isTyping}
+                disabled={isTyping || isTranscribing}
                 aria-label={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 title={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
-                  isRecording ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:bg-[#2D4A1F] active:text-[#F3EDE0] active:shadow-[0_4px_12px_rgba(45,74,31,0.3)]"
+                  (isRecording || isTranscribing) ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:bg-[#2D4A1F] active:text-[#F3EDE0] active:shadow-[0_4px_12px_rgba(45,74,31,0.3)]"
                 }`}
               >
                 <MicIcon size={15} />
-                <span>{isRecording ? copy.chat.recordingRelease : copy.chat.holdToTalk}</span>
+                <span>{isTranscribing ? transcribingLabel : isRecording ? copy.chat.recordingRelease : copy.chat.holdToTalk}</span>
               </button>
             )}
           </div>

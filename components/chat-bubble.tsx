@@ -608,7 +608,6 @@ function FeedbackDrawer({
   const [ttsPlayingKey, setTtsPlayingKey] = useState<FeedbackLevelKey | null>(null);
   const [isUserRecordingPlaying, setIsUserRecordingPlaying] = useState(false);
   const [expandedAnalysisKey, setExpandedAnalysisKey] = useState<FeedbackLevelKey | null>(null);
-  const [expandedStructureKeys, setExpandedStructureKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
   const [overflowingAnalysisKeys, setOverflowingAnalysisKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
   const [savedKeys, setSavedKeys] = useState<Partial<Record<FeedbackLevelKey, boolean>>>({});
   const userTempAudioUrlRef = useRef<string | null>(null);
@@ -724,7 +723,6 @@ function FeedbackDrawer({
     if (!open) {
       stopFeedbackAudio();
       setExpandedAnalysisKey(null);
-      setExpandedStructureKeys({});
       setOverflowingAnalysisKeys({});
       setSavedKeys({});
     }
@@ -866,7 +864,6 @@ function FeedbackDrawer({
                 const detailText = analysisSections.details;
                 const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
                 const structureNote = normalizeStructureNote(level.structureNote);
-                const isStructureOpen = Boolean(expandedStructureKeys[meta.key]);
                 const structureTitle = uiLanguage === "en" ? "Structure" : "表达结构";
                 const structureExampleLabel = uiLanguage === "en" ? "Example" : "例";
 
@@ -962,47 +959,33 @@ function FeedbackDrawer({
                         </button>
                       )}
                       {structureNote && (
-                        <div className="rounded-md border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0]">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedStructureKeys((current) => ({
-                                ...current,
-                                [meta.key]: !current[meta.key],
-                              }))
-                            }
-                            aria-expanded={isStructureOpen}
-                            className="flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left"
-                          >
-                            <span className="text-[9px] font-medium text-[#7A7060]">
-                              {structureTitle}
-                            </span>
-                            <span className="text-[9px] font-medium text-[#C9A84C]">
-                              {isStructureOpen ? "-" : "+"}
-                            </span>
-                          </button>
-                          {isStructureOpen && (
-                            <div className="border-t border-[rgba(40,35,26,0.08)] px-2.5 py-2.5 text-[10px] leading-relaxed text-[#4A4438]">
+                        <div className="rounded-lg border border-[rgba(201,168,76,0.18)] bg-[#F6EFD9]/72 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
+                          <div className="flex items-start gap-2.5">
+                            <span className="mt-0.5 h-10 w-1 shrink-0 rounded-full bg-[#C9A84C]/65" aria-hidden="true" />
+                            <div className="min-w-0 flex-1 text-[10px] leading-relaxed text-[#4A4438]">
+                              <p className="text-[9px] font-medium tracking-wide text-[#6F5B22]">
+                                {structureTitle}
+                              </p>
                               {structureNote.pattern && (
-                                <p className="font-ja break-words font-medium text-[#2D4A1F] [overflow-wrap:anywhere]">
+                                <p className="font-ja mt-1 break-words text-[12px] font-medium text-[#2D4A1F] [overflow-wrap:anywhere]">
                                   {structureNote.pattern}
                                 </p>
                               )}
                               {structureNote.explanation && (
-                                <p className="mt-1 break-words [overflow-wrap:anywhere]">
+                                <p className="mt-1.5 break-words text-[10px] text-[#4A4438] [overflow-wrap:anywhere]">
                                   {structureNote.explanation}
                                 </p>
                               )}
                               {structureNote.examples?.map((example, index) => (
                                 <p
                                   key={`${meta.key}-structure-example-${index}`}
-                                  className="mt-1 break-words text-[#7A7060] [overflow-wrap:anywhere]"
+                                  className="mt-1 break-words text-[9px] text-[#7A7060] [overflow-wrap:anywhere]"
                                 >
                                   {structureExampleLabel}: {example}
                                 </p>
                               ))}
                             </div>
-                          )}
+                          </div>
                         </div>
                       )}
                     </div>
