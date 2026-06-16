@@ -65,12 +65,12 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
         </h2>
       </div>
 
-      <div className="space-y-3 md:space-y-5">
+      <div className="w-full max-w-full min-w-0 space-y-3 md:space-y-5">
         {dailyScene ? (
           <SceneCard scene={dailyScene} uiLanguage={uiLanguage} npcActionLabel={npcActionLabel} />
         ) : null}
 
-        <div className="grid gap-3 md:grid-cols-2 md:gap-5">
+        <div className="grid w-full max-w-full min-w-0 gap-3 md:grid-cols-2 md:gap-5">
           {studyScene ? (
             <SceneCard scene={studyScene} uiLanguage={uiLanguage} npcActionLabel={npcActionLabel} />
           ) : null}
@@ -95,13 +95,13 @@ function SceneCard({ scene, uiLanguage, npcActionLabel }: SceneCardProps) {
   const subtitle = isZh ? scene.subtitle.zh : scene.subtitle.en;
 
   return (
-    <div className="rounded-[22px] border border-[rgba(40,35,26,0.06)] bg-[#FAF6EE]/70 px-3.5 py-3.5 shadow-[0_2px_10px_rgba(40,35,26,0.04)] md:rounded-2xl md:px-5 md:py-5">
+    <div className="w-full max-w-full min-w-0 overflow-hidden rounded-[22px] border border-[rgba(40,35,26,0.06)] bg-[#FAF6EE]/70 px-3.5 py-3.5 shadow-[0_2px_10px_rgba(40,35,26,0.04)] md:rounded-2xl md:px-5 md:py-5">
       <div className="mb-2.5 md:mb-4">
         <h3 className="text-sm font-medium text-[#2D4A1F] md:text-base">{title}</h3>
         <p className="mt-0.5 text-[11px] leading-relaxed text-[#7A7060]">{subtitle}</p>
       </div>
 
-      <div className="-mx-1 overflow-x-auto overflow-y-hidden px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-1 min-w-0 max-w-full overflow-x-auto overflow-y-hidden px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex w-max min-w-full snap-x snap-mandatory items-start gap-2.5 pr-2 md:gap-4 md:pr-1">
           {scene.npcIds.map((npcId) => (
             <NpcMiniCard
