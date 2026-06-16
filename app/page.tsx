@@ -55,12 +55,12 @@ export default function Home() {
 
             <div className="relative z-10 min-h-[220px] sm:min-h-[270px] md:min-h-[350px] lg:min-h-[410px] px-4 sm:px-6 md:px-8 py-4 md:py-6 flex flex-col">
               <div className="flex items-start justify-between gap-3 md:gap-6">
-                <div className="min-w-0 pr-1 rounded-2xl px-2.5 py-1.5 md:px-3 md:py-2 bg-[#F6F0E3]/78 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.08)]">
+                <div className="min-w-0 max-w-[calc(100%-3.5rem)] md:max-w-[640px] pr-1 rounded-2xl px-2.5 py-1.5 md:px-3 md:py-2 bg-[#F6F0E3]/78 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.08)]">
                   <h1 className="font-brand text-[24px] sm:text-[30px] md:text-[34px] font-light tracking-[0.14em] md:tracking-[0.22em] text-[#211B14] leading-tight break-words">
                     言街 Kotomachi
                   </h1>
-                  <p className="text-[11px] md:text-[12px] text-[#6D6151] mt-1.5 tracking-wider">
-                    {timeLabel} · {worldContext.atmosphere}
+                  <p className="text-[11px] md:text-[12px] text-[#6D6151] mt-1.5 tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
+                    {timeLabel} · {worldContext.atmosphere} · {ambientText}
                   </p>
                 </div>
                 <LanguageToggle
@@ -68,12 +68,6 @@ export default function Home() {
                   onChange={handleLanguageChange}
                   className="relative z-20 shrink-0 mt-0.5 rounded-full bg-[#F6F0E3]/82 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.09)] p-0.5"
                 />
-              </div>
-
-              <div className="mt-auto pt-6 md:pt-10">
-                <p className="font-brand text-[12px] md:text-[13px] text-[#6F6557]/80 tracking-[0.14em] md:tracking-[0.18em] font-light">
-                  {ambientText}
-                </p>
               </div>
 
               <RumorEntry uiLanguage={uiLanguage} />
