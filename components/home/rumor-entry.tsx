@@ -115,9 +115,9 @@ export function RumorEntry({ uiLanguage }: RumorEntryProps) {
   };
 
   return (
-    <div className="absolute inset-0 z-20">
+    <div className="absolute inset-0 z-20 pointer-events-none">
       <svg
-        className="h-full w-full"
+        className="h-full w-full pointer-events-none"
         viewBox="0 0 1600 600"
         preserveAspectRatio="xMidYMid slice"
         aria-hidden="true"
@@ -128,6 +128,7 @@ export function RumorEntry({ uiLanguage }: RumorEntryProps) {
             y={HOTSPOT_FRAME.y}
             width={HOTSPOT_FRAME.width}
             height={HOTSPOT_FRAME.height}
+            style={{ pointerEvents: "auto" }}
           >
             <button
               type="button"
@@ -157,6 +158,7 @@ export function RumorEntry({ uiLanguage }: RumorEntryProps) {
             y={RUMOR_FRAME.y}
             width={RUMOR_FRAME.width}
             height={RUMOR_FRAME.height}
+            style={{ pointerEvents: "auto" }}
           >
             <div className="h-full w-full">
               <Link
@@ -183,6 +185,7 @@ export function RumorEntry({ uiLanguage }: RumorEntryProps) {
             y={RECEIPT_FRAME.y}
             width={RECEIPT_FRAME.width}
             height={RECEIPT_FRAME.height}
+            style={{ pointerEvents: "auto" }}
           >
             <div className="h-full w-full">
               <div className="relative h-full w-full rotate-[-3deg] rounded-[3px] border border-[rgba(118,102,78,0.28)] bg-[#F7F1E4] px-3 py-3 text-left shadow-[0_18px_38px_rgba(34,28,23,0.22)] before:pointer-events-none before:absolute before:inset-x-2 before:top-2 before:h-px before:bg-[rgba(125,110,90,0.18)] after:pointer-events-none after:absolute after:inset-x-2 after:bottom-2 after:h-px after:bg-[rgba(125,110,90,0.12)]">
