@@ -78,12 +78,14 @@ Report files read, files changed, risks, and manual checks.
 
 Primary files:
 - `app/page.tsx`
+- `components/home/ambient-whisper-strip.tsx`
 - `components/home/scene-entry-section.tsx`
 - `components/home/inspiration-section.tsx`
 - `components/home/continue-section.tsx`
 - `components/home/rumor-entry.tsx`
 
 Supporting files:
+- `lib/ambient-whispers.ts`
 - `lib/home-scenes.ts`
 - `lib/home-continue.ts`
 - `lib/npc.ts`
@@ -106,6 +108,7 @@ Hidden NPC note:
 - A hidden NPC can be a legal `NpcId` in `lib/npc.ts` and API routes without being added to `HOME_SCENES`.
 - If a hidden NPC needs direct access, `/chat/[npcId]` validation and current-page metadata may need a wider source than the visible sidebar/home lists.
 - Homepage rumor-style entry for a hidden NPC should stay outside `SceneEntrySection` and use a client-only time gate to avoid SSR/client local-time mismatch.
+- Homepage ambient whispers are non-clickable flavor text between the hero and visible NPC entry sections; pick the first line client-side to avoid SSR/random hydration mismatch.
 
 Primary files:
 - `lib/npc.ts`

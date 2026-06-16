@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/language-toggle";
+import { AmbientWhisperStrip } from "@/components/home/ambient-whisper-strip";
 import { ContinueSection } from "@/components/home/continue-section";
 import { InspirationSection } from "@/components/home/inspiration-section";
 import { RumorEntry } from "@/components/home/rumor-entry";
@@ -78,10 +79,14 @@ export default function Home() {
               <RumorEntry uiLanguage={uiLanguage} />
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="mt-3 md:mt-4 relative z-20">
-            <SceneEntrySection uiLanguage={uiLanguage} />
-          </div>
+      <AmbientWhisperStrip uiLanguage={uiLanguage} />
+
+      <section className="w-full px-4 md:px-4 pt-3 md:pt-4">
+        <div className="mx-auto w-full max-w-[1320px] relative z-20">
+          <SceneEntrySection uiLanguage={uiLanguage} />
         </div>
       </section>
 
