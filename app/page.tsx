@@ -70,8 +70,9 @@ export default function Home() {
                 />
               </div>
 
-              <RumorEntry uiLanguage={uiLanguage} />
             </div>
+
+            <RumorEntry uiLanguage={uiLanguage} />
           </div>
         </div>
       </section>
