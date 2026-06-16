@@ -60,7 +60,7 @@ export default function Home() {
                     言街 Kotomachi
                   </h1>
                   <p className="text-[11px] md:text-[12px] text-[#6D6151] mt-1.5 tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
-                    {timeLabel} · {worldContext.atmosphere} · {ambientText}
+                    {timeLabel} · {ambientText}
                   </p>
                 </div>
                 <LanguageToggle
