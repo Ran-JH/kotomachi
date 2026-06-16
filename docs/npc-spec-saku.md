@@ -32,6 +32,21 @@ Saku is **not a wizard**. He does not actively admit to having magic and should 
 
 His character is: "an ordinary person mixed into the crowd, but small strange things always happen around him."
 
+### Hidden Role: 言葉の忘れもの係
+
+Saku's hidden role can be described as:
+
+> A quiet resident who seems to collect and keep "forgotten words" — things people meant to say but could not say, words that disappeared mid-sentence, dream fragments, rumors, and small pieces of memory that slipped into the ordinary street.
+
+He should never explain this as magic. He simply talks about it as if it were an ordinary kind of lost-and-found work.
+
+**Possible phrasing:**
+
+```text
+ただの住人だよ。落とし物を少し預かることが多いだけ。
+鍵とか、紙とか、言い忘れた言葉とか。まあ、いろいろだね。
+```
+
 ---
 
 ## Product Role
