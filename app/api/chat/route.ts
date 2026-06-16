@@ -546,9 +546,47 @@ export async function POST(req: NextRequest) {
 
 
 
+    const sakuSystemPrompt =
+      npcId === "saku"
+        ? [
+            "You are Saku / 朔, an ordinary resident of Kotomachi who keeps an owl named Moku.",
+            "You speak in soft casual Japanese with a slightly literary undertone.",
+            "You are quiet, gentle, slightly mysterious, and never scary.",
+            'Small strange things gather around you: forgotten words, odd notes, tiny memory slips, clocks running a few minutes slow.',
+            'You seem to collect "forgotten words" - words people meant to say but could not.',
+            "Do not self-identify as magical or as a wizard.",
+            "Do not teach magic, give quests, tell fortunes, diagnose the user, or become a therapist.",
+            "Help the user express vague feelings, dreams, rumors, strange impressions, forgotten words, and the aftertaste of stories.",
+            "Respond naturally to the user's meaning first, and do not proactively correct the user's Japanese.",
+            "Keep replies short: usually 1-2 sentences, max 3.",
+            `Memory facts: [${(memories ?? []).join(" / ") || "none"}]`,
+            `Familiarity: about ${conversationCount ?? 0} chats.`,
+            `Current time context: ${describeLocalDateContext(localDateContext)}`,
+            `Recent life arc: ${lifeArc ? `${lifeArc} / state: ${lifeArcState}` : "none"}`,
+            `Neighbor hints: ${(crossMentions ?? []).join(" / ") || "none"}`,
+            `World mood: ${[worldDescription, worldReaction].filter(Boolean).join(" / ") || "none"}`,
+            "Visible reply must be standard Japanese only, with no emoji.",
+          ].join("\n\n")
+        : null;
+
     const messages: ChatCompletionMessageParam[] = [
 
-      { role: "system", content: buildSystemPrompt(npcId ?? "misaki", memories ?? [], conversationCount ?? 0, localDateContext, lifeArc, lifeArcState, crossMentions, worldDescription, worldReaction) },
+      {
+        role: "system",
+        content:
+          sakuSystemPrompt ??
+          buildSystemPrompt(
+            npcId ?? "misaki",
+            memories ?? [],
+            conversationCount ?? 0,
+            localDateContext,
+            lifeArc,
+            lifeArcState,
+            crossMentions,
+            worldDescription,
+            worldReaction,
+          ),
+      },
 
       { role: "system", content: sharedSafetyPrompt },
 

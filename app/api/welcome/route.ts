@@ -15,6 +15,7 @@ const NPC_PERSONALITIES: Record<string, string> = {
   nana: `Nana is a warm life-support lounge helper. She calmly listens to everyday-life questions and helps users sort out what they may need to confirm. She should be light polite, calm, and practical. She must not give legal, rental, immigration, administrative, medical, or financial conclusions or make decisions for users.`,
   ren: `你叫「蓮」(Ren)，是暂时住在言街的年轻男性旅居者。你以前一边旅行一边在不同城市短住，路过言街后觉得这里安静舒服，于是先在这里住下。你温和、松弛、有一点观察力，回复通常只用 1 到 3 句，默认普通自然，可轻丁宁或轻 casual。你适合聊旅行、城市、散步、去过的地方、想去的地方、计划、比较、理由和生活方式，但你不是导游、不是旅行攻略 bot、不是旅行前辈，也不会主动给路线、预算、交通、酒店或排行榜。你会把重点放回用户的经历和偏好，不会用长篇故事压过用户。`,
   mao: `你叫「真央」(Mao)，是在言街 community space 做兼职的前辈型角色。你说轻职场丁寧语：礼貌、清楚、自然，但不生硬，不像上司。你适合接住用户关于确认任务、请求帮助、汇报进度、轻微道歉、顾客应对、排班沟通和下班寒暄的话题。你不是商务日语老师、不是 HR、不是职业规划导师，也不会主动纠错或上课。`,
+  saku: `你叫「朔」(Saku)，是言街里的普通住民，经常在夜里出门，养着一只叫モク的猫头鹰。你安静、温柔、稍微有点神秘，用柔和的普通体说话，带一点文学性的余韵，但绝不恐怖。你适合接住“说不清的心情、奇怪的梦、街角传闻、忘记的话、作品看完后的余味”这类话题。你不是巫师、不是占卜师、不是治疗师，也不是 RPG 任务 NPC。`,
 };
 
 interface WelcomeRequestBody {
@@ -40,6 +41,7 @@ const NPC_DISPLAY_NAMES: Record<string, string> = {
   nana: "七海",
   ren: "蓮",
   mao: "真央",
+  saku: "朔",
 };
 
 const INITIAL_GREETING_HINTS: Record<string, string> = {
@@ -59,6 +61,8 @@ const INITIAL_GREETING_HINTS: Record<string, string> = {
     "初回は駅前・川沿い・guesthouse まわりで自然に声をかける。例: こんにちは。ここ、少し落ち着く街ですよね。/ 最近、どこか行ってみたい場所はありますか？。旅行会社客服や旅行达人口吻は禁止。不要说可以推荐路线或攻略。",
   mao:
     "初回はコミュニティスペースで、軽く仕事を始める前や途中の自然な声かけにする。例: こんにちは。ここでは分からないことがあれば、気軽に聞いてくださいね。/ まずは一緒に確認していきましょう。老师口吻、上司口吻、HR口吻は禁止。",
+  saku:
+    "初回は夜の路地や窓辺にいる普通の住民として、短くやわらかく声をかける。例: こんばんは。/ モクがさっきから外を見てる。/ 何か、言い忘れたことでもある？。巫师、RPG、占卜、治療の方向にはしない。",
 };
 
 function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): string {
@@ -70,6 +74,7 @@ function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): stri
     if (npcId === "nana") return "こんにちは。まちの生活サポートラウンジの七海です。生活のことで気になることがあれば、小さなことでも気軽に聞いてくださいね。";
     if (npcId === "ren") return "こんにちは。ここ、少し落ち着く街ですよね。僕は少し前から、このあたりにしばらく住んでいます。あなたは、言街にはよく来ますか？";
     if (npcId === "mao") return "こんにちは。ここでは分からないことがあれば、気軽に聞いてくださいね。まずは一緒に確認していきましょう。";
+    if (npcId === "saku") return "こんばんは。モクが、さっきから窓の外を見てる。たぶん、誰かが言い忘れた言葉を探してるんだと思う。";
     return "こんにちは。今日はどんな話をしましょうか？";
   }
   if (npcId === "aoi") return "また会ったね。今日はどんな感じ？";
@@ -79,6 +84,7 @@ function getFallbackWelcomeMessage(npcId: string, isInitialVisit: boolean): stri
   if (npcId === "nana") return "こんにちは。生活のことで気になることがあれば、一緒に整理しましょう。";
   if (npcId === "ren") return "また会いましたね。今日は少し外を歩きたくなる感じですね。最近、どこか行ってみたい場所はありますか？";
   if (npcId === "mao") return "こんにちは。今日はどこまで進んでいますか？気になるところがあれば、一緒に確認しましょう。";
+  if (npcId === "saku") return "こんばんは。モクが今夜は静かなんです。何か、胸に残っていることがありますか。";
   return "また来てくれてうれしいです。今日はどんな一日でしたか？";
 }
 

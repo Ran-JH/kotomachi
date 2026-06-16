@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createChatCompletion } from "@/lib/llm";
 import { getConversationScene } from "@/lib/conversation-scenes";
@@ -46,6 +46,8 @@ const NPC_SCENE_HINTS: Record<NpcId, string> = {
     "言街駅前 / 川沿い / guesthouse まわり。当前更适合低压力地聊旅行、城市、散步、想去的地方、去过的地方、计划、比较、偏好和理由，不要变成旅行攻略。",
   mao:
     "コミュニティスペース / 軽い仕事 / バイト前後の場面。現在は、確認・お願い・進捗共有・少し言い方に迷うこと・お客様に聞かれたときの相談・シフトの相談・帰る前後の短いあいさつに寄せる。職業相談、HR、上司の評価、硬いビジネス敬語練習にはしない。",
+  saku:
+    "夜の路地 / 窓辺 / 小さなうわさ。現在は、うまく言えない気持ち、変な夢、言い忘れたこと、少し不思議な印象、作品の余韻みたいな話題に寄せる。巫师、占卜、恐怖、RPG の方向にはしない。",
 };
 
 const NPC_TOPIC_SEED_HINTS: Record<NpcId, string[]> = {
@@ -108,6 +110,13 @@ const NPC_TOPIC_SEED_HINTS: Record<NpcId, string[]> = {
     "何か手伝えることはありますか。",
     "お先に失礼します。今日はありがとうございました。",
   ],
+  saku: [
+    "なんとなく変な感じがする夜",
+    "言い忘れたことが残っている感じ",
+    "変な夢のあとに残る気分",
+    "この町で聞いた小さなうわさ",
+    "作品のあと味がまだ残っていること",
+  ],
 };
 
 const NPC_REGISTER_HINTS: Record<NpcId, string[]> = {
@@ -150,6 +159,11 @@ const NPC_REGISTER_HINTS: Record<NpcId, string[]> = {
     "Mao uses light workplace polite Japanese. Keep suggestions short, usable, and natural for a part-time or internship-like situation.",
     "Prefer confirmations, requests, brief progress updates, soft apologies, asking for help, shift talk, or leaving-after-work lines.",
     "Avoid stiff business keigo, HR advice, career coaching, performance review language, or teacher-like correction.",
+  ],
+  saku: [
+    "Use soft natural Japanese with a slightly literary undertone, but keep it short and easy to say.",
+    "Prefer lines about vague feelings, dreams, rumors, forgotten words, and lingering impressions.",
+    "Do not make the user sound magical, scary, prophetic, clinical, or theatrical.",
   ],
 };
 
@@ -195,6 +209,12 @@ const FALLBACK_IDEAS: Record<NpcId, string[]> = {
     "すみません、もう少し時間がかかりそうです。",
     "何か手伝えることはありますか。",
     "お先に失礼します。今日はありがとうございました。",
+  ],
+  saku: [
+    "今日は、なんとなく変な感じがします。",
+    "変な夢を見ました。",
+    "この町で、変なうわさを聞きました。",
+    "何か言い忘れたことがある気がします。",
   ],
 };
 

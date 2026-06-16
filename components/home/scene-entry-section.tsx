@@ -14,6 +14,7 @@ const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
   nana: { name: "七海", kana: "ななみ", place: "まちの生活サポートラウンジ" },
   ren: { name: "蓮", kana: "れん", place: "言街駅前" },
   mao: { name: "真央", kana: "まお", place: "コミュニティスペース" },
+  saku: { name: "朔", kana: "さく", place: "夜の路地" },
 };
 
 // 这里展示的是“说话感觉 / 关系距离”，不是功能标签。
@@ -26,6 +27,7 @@ const NPC_TONE_LABELS: Record<NpcId, { zh: string; en: string }> = {
   nana: { zh: "轻丁宁", en: "Light polite" },
   ren: { zh: "普通自然", en: "Natural" },
   mao: { zh: "軽丁寧", en: "Light workplace polite" },
+  saku: { zh: "柔和 / 少し文学的", en: "Soft / slightly literary" },
 };
 
 // 首页卡片需要更短、更稳定的短句，避免个别 NPC 文案在小卡上显得拥挤。
@@ -135,7 +137,7 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
       ? "ななみ · ラウンジ · 轻丁宁"
       : npcId === "mao"
         ? "まお · コミュニティスペース · 軽丁寧"
-      : `${info.kana} · ${info.place} · ${toneLabel}`;
+        : `${info.kana} · ${info.place} · ${toneLabel}`;
 
   return (
     <Link

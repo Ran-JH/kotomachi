@@ -254,6 +254,18 @@ function saveRevisitWelcomeMarker(
   }
 }
 
+const NPC_META: Record<NpcId, { id: NpcId; name: string; subname: string; location: string }> = {
+  aoi: { id: "aoi", name: "葵", subname: "あおい", location: "学生ラウンジ" },
+  haruka: { id: "haruka", name: "遥", subname: "はるか", location: "研究室" },
+  kimura: { id: "kimura", name: "木村", subname: "きむら", location: "コンビニ" },
+  misaki: { id: "misaki", name: "美咲", subname: "みさき", location: "カフェ" },
+  taisho: { id: "taisho", name: "大将", subname: "たいしょう", location: "居酒屋" },
+  nana: { id: "nana", name: "七海", subname: "ななみ", location: "まちの生活サポートラウンジ" },
+  ren: { id: "ren", name: "蓮", subname: "れん", location: "言街駅前" },
+  mao: { id: "mao", name: "真央", subname: "まお", location: "コミュニティスペース" },
+  saku: { id: "saku", name: "朔", subname: "さく", location: "夜の路地" },
+};
+
 const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[] = [
   { id: "aoi", name: "葵", subname: "あおい", location: "学生ラウンジ" },
   { id: "haruka", name: "遥", subname: "はるか", location: "研究室" },
@@ -264,6 +276,10 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "ren", name: "蓮", subname: "れん", location: "言街駅前" },
   { id: "mao", name: "真央", subname: "まお", location: "コミュニティスペース" },
 ];
+
+function getNpcMeta(npcId: NpcId) {
+  return NPC_META[npcId];
+}
 
 import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";
 
@@ -1596,7 +1612,7 @@ export default function ChatPage() {
       card={selectedSummaryCard}
       copy={copy}
       isOpen={isReviewPanelOpen}
-      getNpcName={(id) => NPC_LIST.find((npc) => npc.id === id)?.name ?? id}
+      getNpcName={(id) => getNpcMeta(id)?.name ?? id}
       onOpenCard={(card) => setSelectedSummaryCard(card)}
       onBackToList={() => setSelectedSummaryCard(null)}
       onClose={() => {
@@ -2372,8 +2388,8 @@ export default function ChatPage() {
               </h3>
               <p className="mt-2.5 text-[13px] text-[#6B6254] leading-relaxed">
                 {uiLanguage === "zh"
-                  ? `会清空当前与${NPC_LIST.find(n => n.id === npcId)?.name}的聊天和临时记忆，但不会删除收藏和回顾卡。`
-                  : `This clears the current chat and temporary memory for ${NPC_LIST.find(n => n.id === npcId)?.name}, but keeps saved items and review cards.`}
+                  ? `会清空当前与${getNpcMeta(npcId)?.name ?? npcId}的聊天和临时记忆，但不会删除收藏和回顾卡。`
+                  : `This clears the current chat and temporary memory for ${getNpcMeta(npcId)?.name ?? npcId}, but keeps saved items and review cards.`}
               </p>
             </div>
             <div className="mt-5 flex items-center justify-end gap-2.5">

@@ -1,7 +1,6 @@
 import { getLastChatTime, loadChatHistory } from "@/lib/memory";
-import { NPC_AVATARS } from "@/lib/npc";
+import { ALL_NPC_IDS, NPC_AVATARS } from "@/lib/npc";
 import type { NpcId } from "@/lib/npc";
-import { getActiveHomeNpcIds } from "@/lib/home-scenes";
 
 export interface RecentChat {
   npcId: NpcId;
@@ -12,7 +11,7 @@ export interface RecentChat {
 }
 
 export function getRecentChats(limit = 2): RecentChat[] {
-  return getActiveHomeNpcIds()
+  return ALL_NPC_IDS
     .map((npcId) => {
       const history = loadChatHistory(npcId);
       const lastTime = getLastChatTime(npcId);

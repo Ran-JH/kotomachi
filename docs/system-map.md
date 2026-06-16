@@ -100,6 +100,10 @@ Notes / risks:
 
 #### NPC profile / character data
 
+Hidden NPC note:
+- A hidden NPC can be a legal `NpcId` in `lib/npc.ts` and API routes without being added to `HOME_SCENES`.
+- If a hidden NPC needs direct access, `/chat/[npcId]` validation and current-page metadata may need a wider source than the visible sidebar/home lists.
+
 Primary files:
 - `lib/npc.ts`
 

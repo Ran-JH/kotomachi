@@ -15,6 +15,7 @@ const NPC_INFO: Record<NpcId, { name: string; place: string }> = {
   nana: { name: "七海", place: "まちの生活サポートラウンジ" },
   ren: { name: "蓮", place: "言街駅前" },
   mao: { name: "真央", place: "コミュニティスペース" },
+  saku: { name: "朔", place: "夜の路地" },
 };
 
 interface ContinueSectionProps {

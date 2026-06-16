@@ -1,4 +1,6 @@
-export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren" | "mao";
+export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren" | "mao" | "saku";
+
+export const ALL_NPC_IDS: NpcId[] = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren", "mao", "saku"];
 
 export const NPC_NAMES: Record<NpcId, string> = {
   aoi: "葵 🎧",
@@ -9,6 +11,7 @@ export const NPC_NAMES: Record<NpcId, string> = {
   nana: "七海",
   ren: "蓮 🧭",
   mao: "真央 🗂️",
+  saku: "朔",
 };
 
 export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
@@ -20,6 +23,7 @@ export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
   nana: "七海",
   ren: "蓮",
   mao: "真央",
+  saku: "朔",
 };
 
 export function getNpcDisplayName(npcId: NpcId): string {
@@ -35,6 +39,8 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
   mao: "/avatars/mao_avatar.webp",
+  // Saku's final avatar asset is not in the repo yet, so baseline uses an existing placeholder.
+  saku: "/avatars/ren_avatar.webp",
 };
 
 interface ArcState {
@@ -547,6 +553,35 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
         "蓮さん、駅前から戻ってきたみたいで少し落ち着いた顔をしていました。",
         "美咲さんの店の前、午後はやわらかい空気になりますね。",
       ],
+      },
+    ],
+  saku: [
+    {
+      id: "forgotten_words_night",
+      description: "言葉の忘れもの係。夜の言街で、言い忘れた言葉や小さな記憶のかけらを探しているらしい。",
+      states: [
+        {
+          label: "静かな見回り",
+          thoughts: ["夜の道を歩いていると、言いそびれた言葉が足もとに落ちている気がする。", "モクが窓の外ばかり見る夜は、誰かが何かを飲みこんだままなのかもしれない。"],
+        },
+        {
+          label: "少し気になる",
+          thoughts: ["思い出せないことは、なくなったんじゃなくて少し遠くにあるだけかもしれない。", "変な夢のあとって、言葉が少しだけ遅れてついてくることがある。"],
+        },
+        {
+          label: "やわらかい夜更け",
+          thoughts: ["うまく言えない気持ちは、急いで名前をつけなくてもいいと思っている。", "話しかけるほどではない違和感が、いちばん長く残ることもある。"],
+        },
+        {
+          label: "灯りの近く",
+          thoughts: ["言い忘れたことは、消えたわけじゃなくて、戻る場所を探しているだけかもしれない。", "モクが落ち着いている夜は、ことばたちもちゃんと帰り道を知っている。"],
+        },
+      ],
+      crossMentions: [
+        "美咲さんの店の明かりは、夜のことばが迷いにくい色をしている。",
+        "蓮さんは、歩きながら景色の余韻を拾うのがうまそうだと思う。",
+        "七海さんのところには、言葉になる前の困りごとが静かに集まっていそうだ。",
+      ],
     },
   ],
 };
@@ -934,6 +969,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "雨の降る日",
     ambientTexts: ["小雨の夜。", "遠くで傘を閉じる音がした。", "雨の匂いが少し濃い。"],
     reactions: {
+      saku: "雨の夜は、言いそびれた言葉がいつもより道の端に寄ってくる気がする。",
       ren: "雨の日の街って、歩く人が少なくて輪郭が見えやすいんだよね。",
       mao: "雨の日は、案内や確認もいつもより少し丁寧にしたくなりますね。",
       aoi: "雨の日って、学生ラウンジでだらっと話したくなるんだよね。",
@@ -950,6 +986,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "蒸し暑い日",
     ambientTexts: ["空気がむっとしている。", "遠くで蝉が鳴いている。", "冷たい飲み物がほしくなる。"],
     reactions: {
+      saku: "蒸し暑い夜は、モクまで少し無口になる。ことばもゆっくり歩いているみたいだ。",
       ren: "暑い日は、遠くまで行くより近くをゆっくり歩くくらいがちょうどいいかも。",
       mao: "暑い日は、急ぐより先にひとつずつ確認したほうが落ち着きますね。",
       aoi: "この暑さだと、外より中でだらっとしたくなるかも。",
@@ -966,6 +1003,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "静かな昼下がり",
     ambientTexts: ["駅前がいつもより静か。", "遠くで電車の音だけがする。", "空気が少し平たい。"],
     reactions: {
+      saku: "静かな日は、言葉にならなかった気持ちの輪郭だけがよく見えることがある。",
       ren: "こういう静かな時間だと、次に行きたい場所のことを考えやすいんだ。",
       mao: "静かな時間だと、お願いごとや確認の言い方も整えやすいですね。",
       aoi: "こういう静かな空気だと、ちょっと話しやすくない？",
@@ -982,6 +1020,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "にぎやかな時間",
     ambientTexts: ["遠くで笑い声がした。", "夜風に食べ物の匂いが混じっている。", "駅前がいつもより明るい。"],
     reactions: {
+      saku: "少しにぎやかな夜ほど、言い忘れたことはかえって小さな声で戻ってくる。",
       ren: "夜の駅前って、少しだけどこかへ出たくなる感じがしない？",
       mao: "少しにぎやかな時間でも、短く確認できるとだいぶ違いますよね。",
       aoi: "こういうにぎやかな空気って、なんとなく誰かと話したくならない？",
@@ -998,6 +1037,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "秋の気配",
     ambientTexts: ["風が少し冷たい。", "落ち葉が端にたまっている。", "空が高く見える。"],
     reactions: {
+      saku: "少し涼しい夜は、忘れていた言葉まで息をしやすそうに見える。",
       ren: "少し涼しい街って、歩くだけでも気分が変わるから好きなんだよね。",
       mao: "少し涼しい日は、終わり際のあいさつまできれいに言えそうな気がします。",
       aoi: "秋って、なんか話しやすい空気になる気がする。",
@@ -1014,6 +1054,7 @@ const WORLD_STATES: WorldState[] = [
     atmosphere: "じめじめした日",
     ambientTexts: ["空気が重い。", "髪が少しまとまりにくい。", "街全体がゆっくりしている。"],
     reactions: {
+      saku: "湿った空気の夜は、夢の続きみたいな話のほうが先に口にのぼることがある。",
       ren: "こういう湿った空気の街も、歩いてみると意外と嫌いじゃないんだ。",
       mao: "じめじめする日は、短く要点をそろえて話せると助かりますね。",
       aoi: "このじめっとした感じ、妙にだるくならない？",
@@ -1037,7 +1078,7 @@ export function getWorldContext(localDateContext: LocalDateContext = getLocalDat
 }
 
 export function isNpcId(id: string): id is NpcId {
-  return id === "aoi" || id === "haruka" || id === "kimura" || id === "misaki" || id === "taisho" || id === "nana" || id === "ren" || id === "mao";
+  return ALL_NPC_IDS.includes(id as NpcId);
 }
 
 const HOME_CARD_LINES: Record<NpcId, string[]> = {
@@ -1100,6 +1141,9 @@ const HOME_CARD_LINES: Record<NpcId, string[]> = {
   ],
   mao: [
     "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
+  ],
+  saku: [
+    "言い忘れた言葉を、どこかで預かっているらしい。",
   ],
 };
 

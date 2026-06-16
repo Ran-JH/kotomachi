@@ -114,6 +114,16 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "お先に失礼します。今日はありがとうございました。", category: "npc_flavor" },
     { text: "今日はちょっと疲れました。でも、少し慣れてきた気もします。", category: "npc_flavor" },
   ],
+  saku: [
+    { text: "今日は、なんとなく変な感じがします。", category: "npc_flavor" },
+    { text: "変な夢を見ました。", category: "npc_flavor" },
+    { text: "この町で、変なうわさを聞きました。", category: "npc_flavor" },
+    { text: "何か大事なことを忘れている気がします。", category: "npc_flavor" },
+    { text: "モクは何をしてるんですか。", category: "npc_flavor" },
+    { text: "ある作品を見たあと、まだ少し心に残っています。", category: "npc_flavor" },
+    { text: "言い忘れたことがある気がします。", category: "npc_flavor" },
+    { text: "これは気のせいかもしれませんが、少し不思議です。", category: "npc_flavor" },
+  ],
 };
 
 function deterministicIndex(seed: number, len: number, offset: number): number {
@@ -209,6 +219,17 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
         "今日って、どんな過ごし方が合いそうですか？",
         "最近、夜に落ち着く時間はありますか？",
         "この天気だと、どんな話をしたくなりますか？",
+      ],
+      seed,
+    );
+  }
+
+  if (npcId === "saku") {
+    return pickBySeed(
+      [
+        "今日は、うまく言えない気持ちや、少し不思議なことを話してみませんか。",
+        "何か言い忘れている気がするなら、そのままの形でも大丈夫ですよ。",
+        "夢のあとに残った感じや、まだ名前のない気分でも聞かせてください。",
       ],
       seed,
     );
