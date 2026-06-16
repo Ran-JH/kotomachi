@@ -81,11 +81,13 @@ Primary files:
 - `components/home/scene-entry-section.tsx`
 - `components/home/inspiration-section.tsx`
 - `components/home/continue-section.tsx`
+- `components/home/rumor-entry.tsx`
 
 Supporting files:
 - `lib/home-scenes.ts`
 - `lib/home-continue.ts`
 - `lib/npc.ts`
+- `lib/rumor-gate.ts`
 - `lib/starter-prompts.ts`
 - `lib/conversation-scenes.ts`
 
@@ -103,6 +105,7 @@ Notes / risks:
 Hidden NPC note:
 - A hidden NPC can be a legal `NpcId` in `lib/npc.ts` and API routes without being added to `HOME_SCENES`.
 - If a hidden NPC needs direct access, `/chat/[npcId]` validation and current-page metadata may need a wider source than the visible sidebar/home lists.
+- Homepage rumor-style entry for a hidden NPC should stay outside `SceneEntrySection` and use a client-only time gate to avoid SSR/client local-time mismatch.
 
 Primary files:
 - `lib/npc.ts`

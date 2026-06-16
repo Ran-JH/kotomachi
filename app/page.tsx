@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ContinueSection } from "@/components/home/continue-section";
 import { InspirationSection } from "@/components/home/inspiration-section";
+import { RumorEntry } from "@/components/home/rumor-entry";
 import { SceneEntrySection } from "@/components/home/scene-entry-section";
 import { getLocalDateAtmosphereLabelJa, getLocalDateContext, getTimeOfDay, getWorldContext } from "@/lib/npc";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
@@ -73,6 +74,8 @@ export default function Home() {
                   {ambientText}
                 </p>
               </div>
+
+              <RumorEntry uiLanguage={uiLanguage} />
             </div>
           </div>
 
