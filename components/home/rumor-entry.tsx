@@ -50,26 +50,25 @@ const RECEIPT_COPY: Record<
   UiLanguage,
   {
     label: string;
-    line: string;
     cta: string;
     close: string;
-    heading: string;
   }
 > = {
   zh: {
     label: "一张收据掉了出来。",
-    line: "「まだ言ってない。」",
     cta: "拾起来 →",
     close: "先放回去",
-    heading: "自販機レシート",
   },
   en: {
     label: "A receipt slipped out.",
-    line: "\"I haven't said it yet.\"",
     cta: "Pick it up →",
     close: "Leave it there",
-    heading: "Vending receipt",
   },
+};
+
+const RECEIPT_STATIC_JA = {
+  heading: "自販機レシート",
+  line: "「まだ言ってない。」",
 };
 
 export function RumorEntry({ uiLanguage }: RumorEntryProps) {
@@ -200,13 +199,13 @@ export function RumorEntry({ uiLanguage }: RumorEntryProps) {
                 <div className="pointer-events-none absolute inset-y-0 left-[10px] w-px bg-[rgba(140,124,101,0.08)]" />
                 <div className="pointer-events-none absolute inset-y-0 right-[10px] w-px bg-[rgba(140,124,101,0.05)]" />
                 <p className="text-[10px] tracking-[0.22em] text-[#8A7860]">
-                  {receiptCopy.heading}
+                  {RECEIPT_STATIC_JA.heading}
                 </p>
                 <p className="mt-2 text-[11px] leading-5 tracking-[0.04em] text-[#7D6E5A]">
                   {receiptCopy.label}
                 </p>
                 <p className="mt-2 border-y border-dashed border-[rgba(92,79,58,0.26)] py-2 text-[15px] leading-6 text-[#2D241D]">
-                  {receiptCopy.line}
+                  {RECEIPT_STATIC_JA.line}
                 </p>
                 <div className="mt-2 border-b border-dashed border-[rgba(92,79,58,0.18)] pb-2 text-[10px] tracking-[0.14em] text-[#8B7A65]">
                   KOTOMACHI 03:17 PM
