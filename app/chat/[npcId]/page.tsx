@@ -4,6 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChatBubble } from "@/components/chat-bubble";
+import { SakuResidentNote } from "@/components/saku-resident-note";
 import { ChatSummaryDetail } from "@/components/chat-summary-detail";
 import { ChatToast } from "@/components/chat-toast";
 import { TimeDivider, shouldShowTimeDivider, MESSAGE_TIME_DIVIDER_GAP_MS } from "@/components/chat-time-divider";
@@ -1808,6 +1809,8 @@ export default function ChatPage() {
         {/* 聊天消息区域 — max-w-4xl 居中 */}
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
+            {npcId === "saku" && <SakuResidentNote uiLanguage={uiLanguage} />}
+
             {showStarterPrompts && (
               <section className="rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3.5">
                 {showOnboardingHint && (
