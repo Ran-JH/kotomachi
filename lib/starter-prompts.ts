@@ -115,14 +115,12 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "今日はちょっと疲れました。でも、少し慣れてきた気もします。", category: "npc_flavor" },
   ],
   saku: [
-    { text: "今日は、なんとなく変な感じがします。", category: "npc_flavor" },
-    { text: "変な夢を見ました。", category: "npc_flavor" },
-    { text: "この町で、変なうわさを聞きました。", category: "npc_flavor" },
-    { text: "何か大事なことを忘れている気がします。", category: "npc_flavor" },
-    { text: "モクは何をしてるんですか。", category: "npc_flavor" },
-    { text: "ある作品を見たあと、まだ少し心に残っています。", category: "npc_flavor" },
-    { text: "言い忘れたことがある気がします。", category: "npc_flavor" },
-    { text: "これは気のせいかもしれませんが、少し不思議です。", category: "npc_flavor" },
+    { text: "ここ、見つけてよかったんですか。", category: "npc_flavor" },
+    { text: "さっきのレシートを拾って、ここに来ました。", category: "npc_flavor" },
+    { text: "モクに案内された気がします。", category: "npc_flavor" },
+    { text: "見なかったことにしたほうがいいですか。", category: "npc_flavor" },
+    { text: "朔さんは、どうして夜に出かけるんですか。", category: "npc_flavor" },
+    { text: "この町には、少し奥のほうがあるんですか。", category: "npc_flavor" },
   ],
 };
 
@@ -137,6 +135,33 @@ export function pickStarterPrompts(npcId: NpcId, userMessageCount: number): stri
 
   const globalPool = GLOBAL_STARTER_PROMPTS;
   const npcPool = NPC_STARTER_PROMPTS[npcId] ?? [];
+
+  // Saku 是隐藏住民，入口更适合保留“找到这里之后”的语气。
+  if (npcId === "saku" && npcPool.length > 0) {
+    const offsets = [0, 2, 4];
+    const seen = new Set<string>();
+    const result: string[] = [];
+
+    for (const offset of offsets) {
+      const prompt = npcPool[deterministicIndex(baseSeed, npcPool.length, offset)];
+      if (prompt && !seen.has(prompt.text)) {
+        seen.add(prompt.text);
+        result.push(prompt.text);
+      }
+    }
+
+    if (result.length < 3) {
+      for (const prompt of npcPool) {
+        if (!seen.has(prompt.text)) {
+          seen.add(prompt.text);
+          result.push(prompt.text);
+        }
+        if (result.length >= 3) break;
+      }
+    }
+
+    return result.slice(0, 3);
+  }
 
   const g1 = deterministicIndex(baseSeed, globalPool.length, 0);
   const g2 = deterministicIndex(baseSeed, globalPool.length, 7);
