@@ -25,8 +25,8 @@ export const AMBIENT_WHISPERS: AmbientWhisper[] = [
     en: "Sometimes Kimura lines up the new snacks with surprising care.",
   },
   {
-    zh: "美咲记得很多常客喜欢坐在哪个位置。",
-    en: "Misaki remembers exactly where many regulars like to sit.",
+    zh: "美咲记得很多常客喜欢坐在哪个位置，比如七海喜欢坐在靠窗的深处。",
+    en: "Misaki remembers exactly where many regulars like to sit. For example, Nana likes to sit in the window seat.",
   },
   {
     zh: "大将听人说话时，总会先把杯子擦干净。",
@@ -37,8 +37,8 @@ export const AMBIENT_WHISPERS: AmbientWhisper[] = [
     en: "There are often a few forgotten notes left on Nana's desk.",
   },
   {
-    zh: "遥说，旅行里最难忘的常常不是景点。",
-    en: "Haruka says the parts that stay with you after a trip are rarely the landmarks.",
+    zh: "莲说，旅行里最难忘的常常不是景点。",
+    en: "Ren says the parts that stay with you after a trip are rarely the landmarks.",
   },
   {
     zh: "葵整理资料时，会把便利贴按颜色排好。",
@@ -57,8 +57,8 @@ export const AMBIENT_WHISPERS: AmbientWhisper[] = [
     en: "When you do not know how to begin, starting with 'kyou wa...' is enough.",
   },
   {
-    zh: "说错一点也没关系，街上的人会等你说完。",
-    en: "A small mistake is fine here. People in town will wait for you to finish.",
+    zh: "说错了或者没有说完整也没关系，街上的人会等你说完。",
+    en: "A mistake or not saying something completely is fine here. People in town will wait for you to finish.",
   },
   {
     zh: "有些话不用很长，能说出口就已经够了。",
@@ -85,7 +85,7 @@ export const AMBIENT_WHISPERS: AmbientWhisper[] = [
     en: "They say the owl by the street corner wakes up after eight.",
   },
   {
-    zh: "有人说，街边的猫头鹰 モク 不喜欢太亮的地方。",
+    zh: "有人说，街边的猫头鹰 Moku 不喜欢太亮的地方。",
     en: "People say Moku, the owl by the corner, prefers places that keep their light low.",
   },
   {
@@ -101,8 +101,8 @@ export const AMBIENT_WHISPERS: AmbientWhisper[] = [
     en: "Some people say that after talking with Saku, a few unimportant words slip quietly out of mind.",
   },
   {
-    zh: "有人听见モク叫了一声，然后突然想起了昨天没说完的话。",
-    en: "Someone heard Moku call once, and suddenly remembered what they had left unsaid the day before.",
+    zh: "有人听到猫头鹰 Moku 叫了一声，然后突然想起了昨天没说完的话。",
+    en: "Someone heard the owl, Moku, call once, and suddenly remembered what they had left unsaid the day before.",
   },
   {
     zh: "朔经过的时候，自动贩卖机会安静几秒，像是在听他说话。",
