@@ -101,8 +101,8 @@ function SceneCard({ scene, uiLanguage, npcActionLabel }: SceneCardProps) {
         <p className="mt-0.5 text-[11px] leading-relaxed text-[#7A7060]">{subtitle}</p>
       </div>
 
-      <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <div className="flex w-max min-w-full items-start gap-3 pr-1 md:gap-4">
+      <div className="-mx-1 overflow-x-auto overflow-y-hidden px-1 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max min-w-full snap-x snap-mandatory items-start gap-3 pr-1 md:gap-4">
           {scene.npcIds.map((npcId) => (
             <NpcMiniCard
               key={npcId}
@@ -142,7 +142,7 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   return (
     <Link
       href={`/chat/${npcId}`}
-      className="group flex w-[260px] max-w-[78vw] shrink-0 flex-col items-center rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 p-3.5 text-center transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.22)] hover:bg-white/68 hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.99] md:p-4 lg:w-[240px] xl:w-[235px] xl:max-w-none"
+      className="group flex w-[260px] max-w-[78vw] shrink-0 snap-start flex-col items-center rounded-2xl border border-[rgba(40,35,26,0.08)] bg-white/48 p-3.5 text-center transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-[rgba(45,74,31,0.22)] hover:bg-white/68 hover:shadow-[0_6px_18px_rgba(40,35,26,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/40 active:translate-y-0 active:scale-[0.99] md:p-4 lg:w-[240px] xl:w-[235px] xl:max-w-none"
     >
       <img
         src={avatar}
