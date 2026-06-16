@@ -39,8 +39,7 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
   mao: "/avatars/mao_avatar.webp",
-  // Saku's final avatar asset is not in the repo yet, so baseline uses an existing placeholder.
-  saku: "/avatars/ren_avatar.webp",
+  saku: "/avatars/saku_avatar.jpg",
 };
 
 interface ArcState {
