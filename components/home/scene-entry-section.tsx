@@ -37,7 +37,6 @@ const NPC_HOME_CARD_OVERRIDES: Partial<Record<NpcId, { ja: string; en?: string }
   },
   ren: {
     ja: "旅の途中で、言街にしばらく住んでいる人。",
-    en: "A young sojourner who settled in Kotomachi for a while.",
   },
   mao: {
     ja: "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
@@ -132,12 +131,7 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
       ? homeCardOverride.en
       : homeCardOverride?.ja ?? getNpcHomeCardLine(npcId, uiLanguage === "en" ? "en" : "ja");
   const toneLabel = uiLanguage === "zh" ? NPC_TONE_LABELS[npcId].zh : NPC_TONE_LABELS[npcId].en;
-  const metaLine =
-    npcId === "nana"
-      ? "ななみ · ラウンジ · 轻丁宁"
-      : npcId === "mao"
-        ? "まお · コミュニティスペース · 軽丁寧"
-        : `${info.kana} · ${info.place} · ${toneLabel}`;
+  const metaLine = `${info.kana} · ${info.place} · ${toneLabel}`;
 
   return (
     <Link
