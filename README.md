@@ -88,6 +88,7 @@ Kotomachi 想做的不是把聊天做成考试，也不是把 AI 做成纠错老
 - 支持中文 / 英文 / 日文混输。
 - NPC 主回复保持自然日语输出。
 - 主聊天层不主动变成老师式纠错。
+- A hidden rumor resident can be discovered through small world details, such as nighttime whispers and an unusual vending-machine receipt.
 
 8 个 NPC 的差异不只是头像和文案风格，而是不同的 scene、关系距离和可练习 register：
 

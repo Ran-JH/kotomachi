@@ -301,6 +301,27 @@ Notes / risks:
 - Nana 是 life-support / newcomer-support NPC。
 - 不要把 Nana 改成行政工具、翻译工具或办事窗口机器人。
 
+#### Saku NPC (Hidden)
+
+Primary files:
+- `lib/npc.ts`
+
+Supporting files:
+- `docs/npc-spec-saku.md`
+- `lib/starter-prompts.ts`
+- `lib/conversation-scenes.ts`
+- `lib/rumor-gate.ts`
+- `components/home/rumor-entry.tsx`
+
+Notes / risks:
+- Saku 是 hidden / rumor NPC。
+- Route: `/chat/saku`
+- Scene route: `/chat/saku?scene=saku_*`
+- Entry points: nighttime rumor (20:00–05:00), vending-machine receipt, Continue after prior chat, direct URL
+- Visibility: not in ordinary homepage NPC sections; not in ordinary featured scene pool
+- Debug: `?showRumor=1`, `?showReceipt=1`
+- Saku should not give explicit hidden-world exposition; prefer ordinary explanation first, small contradiction after, gentle evasiveness.
+
 #### Voice Advice disabled spike
 
 Primary files:

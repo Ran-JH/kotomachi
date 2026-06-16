@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+﻿﻿import { NextRequest, NextResponse } from "next/server";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createChatCompletion } from "@/lib/llm";
 import { getConversationScene } from "@/lib/conversation-scenes";
