@@ -2906,7 +2906,7 @@ export const CONVERSATION_SCENES = {
     sampleUserLineJa: "見たことのない小さな生き物が、道の端で光るものを集めていました。",
     setup: "A small unknown creature is collecting shiny things near the street.",
     userGoal: "The user describes a harmless strange creature and asks Saku about it.",
-    npcOpening: "ああ、あの子か。また光るものを集めてるんだね。怖がらなくていいよ、たぶん向こうも少し困ってる。",
+    npcOpening: "ああ、あの子か。また光るものを集めてるんだね。怖がらなくていいよ。僕があとでちゃんと見ておくから。",
     possibleBeats: [
       "Saku seems to know the creature but does not explain exactly what it is.",
       "The creature likes coins, keys, buttons, hairpins, bottle caps, and shiny scraps.",

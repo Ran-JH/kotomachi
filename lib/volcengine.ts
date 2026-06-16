@@ -103,9 +103,9 @@ function getNpcVoiceConfig(npcId: NpcId): {
       pitchRatio: 1.02,
     },
     saku: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_SAKU ?? "BV421_streaming",
+      voiceType: process.env.VOLCENGINE_TTS_VOICE_SAKU ?? "BV524_streaming",
       speedRatio: 0.92,
-      pitchRatio: 0.96,
+      pitchRatio: 0.94,
     },
   };
   return defaults[npcId] ?? defaults.misaki;
