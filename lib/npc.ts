@@ -39,7 +39,7 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
   mao: "/avatars/mao_avatar.webp",
-  saku: "/avatars/saku_avatar.jpg",
+  saku: "/avatars/saku_avatar.webp",
 };
 
 interface ArcState {
