@@ -5,33 +5,114 @@ import { getNpcHomeCardLine, NPC_AVATARS, type NpcId } from "@/lib/npc";
 import { getActiveHomeScenes, type HomeScene } from "@/lib/home-scenes";
 import { type UiLanguage } from "@/lib/ui-language";
 
-const NPC_INFO: Record<NpcId, { name: string; kana: string; place: string }> = {
-  aoi: { name: "葵", kana: "あおい", place: "学生ラウンジ" },
-  haruka: { name: "遥", kana: "はるか", place: "研究室" },
-  kimura: { name: "木村", kana: "きむら", place: "コンビニ" },
-  misaki: { name: "美咲", kana: "みさき", place: "カフェ" },
-  taisho: { name: "大将", kana: "たいしょう", place: "居酒屋" },
-  nana: { name: "七海", kana: "ななみ", place: "まちの生活サポートラウンジ" },
-  ren: { name: "蓮", kana: "れん", place: "言街駅前" },
-  mao: { name: "真央", kana: "まお", place: "コミュニティスペース" },
-  saku: { name: "朔", kana: "さく", place: "夜の路地" },
+type NpcCardInfo = {
+  name: string;
+  nameEn?: string;
+  kana: string;
+  placeZh: string;
+  placeJa: string;
+  placeEn: string;
+};
+
+const NPC_INFO: Record<NpcId, NpcCardInfo> = {
+  aoi: {
+    name: "葵",
+    nameEn: "Aoi",
+    kana: "あおい",
+    placeZh: "学生休息区",
+    placeJa: "学生ラウンジ",
+    placeEn: "Student Lounge",
+  },
+  haruka: {
+    name: "遥",
+    nameEn: "Haruka",
+    kana: "はるか",
+    placeZh: "研究室",
+    placeJa: "研究室",
+    placeEn: "Lab",
+  },
+  kimura: {
+    name: "木村",
+    nameEn: "Kimura",
+    kana: "きむら",
+    placeZh: "便利店",
+    placeJa: "コンビニ",
+    placeEn: "Convenience Store",
+  },
+  misaki: {
+    name: "美咲",
+    nameEn: "Misaki",
+    kana: "みさき",
+    placeZh: "咖啡馆",
+    placeJa: "カフェ",
+    placeEn: "Cafe",
+  },
+  taisho: {
+    name: "大将",
+    nameEn: "Taisho",
+    kana: "たいしょう",
+    placeZh: "居酒屋",
+    placeJa: "居酒屋",
+    placeEn: "Izakaya",
+  },
+  nana: {
+    name: "七海",
+    nameEn: "Nana",
+    kana: "ななみ",
+    placeZh: "生活支援角",
+    placeJa: "まちの生活サポートラウンジ",
+    placeEn: "Life Support Lounge",
+  },
+  ren: {
+    name: "蓮",
+    nameEn: "Ren",
+    kana: "れん",
+    placeZh: "言街站前",
+    placeJa: "言街駅前",
+    placeEn: "Station Front",
+  },
+  mao: {
+    name: "真央",
+    nameEn: "Mao",
+    kana: "まお",
+    placeZh: "社区空间",
+    placeJa: "コミュニティスペース",
+    placeEn: "Community Space",
+  },
+  riku: {
+    name: "陸",
+    nameEn: "Riku",
+    kana: "りく",
+    placeZh: "体育馆",
+    placeJa: "体育館",
+    placeEn: "Gym",
+  },
+  saku: {
+    name: "朔",
+    nameEn: "Saku",
+    kana: "さく",
+    placeZh: "夜路小巷",
+    placeJa: "夜の路地",
+    placeEn: "Night Alley",
+  },
 };
 
 // 这里展示的是“说话感觉 / 关系距离”，不是功能标签。
-const NPC_TONE_LABELS: Record<NpcId, { zh: string; en: string }> = {
-  aoi: { zh: "平语 / タメ口", en: "Informal / Tameguchi" },
-  haruka: { zh: "轻丁宁", en: "Gentle polite Japanese" },
-  kimura: { zh: "随意口语", en: "Casual" },
-  misaki: { zh: "轻丁宁", en: "Gentle polite" },
-  taisho: { zh: "熟客口语", en: "Regular-customer casual" },
-  nana: { zh: "轻丁宁", en: "Light polite" },
-  ren: { zh: "普通自然", en: "Natural" },
-  mao: { zh: "軽丁寧", en: "Light workplace polite" },
-  saku: { zh: "柔和 / 少し文学的", en: "Soft / slightly literary" },
+const NPC_TONE_LABELS: Record<NpcId, { zh: string; ja: string; en: string }> = {
+  aoi: { zh: "平语 / タメ口", ja: "平語 / タメ口", en: "Informal / Tameguchi" },
+  haruka: { zh: "轻丁宁", ja: "軽丁寧", en: "Gentle polite Japanese" },
+  kimura: { zh: "随意口语", ja: "カジュアル", en: "Casual" },
+  misaki: { zh: "轻丁宁", ja: "軽丁寧", en: "Gentle polite" },
+  taisho: { zh: "熟客口语", ja: "常連向け口調", en: "Regular-customer casual" },
+  nana: { zh: "轻丁宁", ja: "軽丁寧", en: "Light polite" },
+  ren: { zh: "自然", ja: "自然", en: "Natural" },
+  mao: { zh: "轻职场丁宁", ja: "軽い職場丁寧", en: "Light workplace polite" },
+  riku: { zh: "普通体", ja: "普通体", en: "Natural" },
+  saku: { zh: "柔和 / 稍文学", ja: "やわらかめ / 少し文学的", en: "Soft / slightly literary" },
 };
 
 // 首页卡片需要更短、更稳定的短句，避免个别 NPC 文案在小卡上显得拥挤。
-const NPC_HOME_CARD_OVERRIDES: Partial<Record<NpcId, { ja: string; en?: string }>> = {
+const NPC_HOME_CARD_OVERRIDES: Partial<Record<NpcId, { zh?: string; ja: string; en?: string }>> = {
   nana: {
     ja: "困ったときに、言街ラウンジで相談できる人。",
   },
@@ -40,6 +121,9 @@ const NPC_HOME_CARD_OVERRIDES: Partial<Record<NpcId, { ja: string; en?: string }
   },
   mao: {
     ja: "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
+  },
+  riku: {
+    ja: "体育館やジムでよく見かける、運動の話を気楽にしやすい人。",
   },
 };
 
@@ -53,7 +137,7 @@ export function SceneEntrySection({ uiLanguage }: SceneEntrySectionProps) {
   const studyScene = activeScenes.find((scene) => scene.id === "study_abroad");
   const workScene = activeScenes.find((scene) => scene.id === "work");
   const isZh = uiLanguage === "zh";
-  const heading = isZh ? "今天想去哪儿聊？" : "Where do you want to stop by today?";
+  const heading = isZh ? "今天想去哪里聊？" : "Where do you want to stop by today?";
   const npcActionLabel = isZh ? "去聊天" : "Start chat";
 
   return (
@@ -126,12 +210,15 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
   const info = NPC_INFO[npcId];
   const avatar = NPC_AVATARS[npcId];
   const homeCardOverride = NPC_HOME_CARD_OVERRIDES[npcId];
-  const homeCardLine =
-    uiLanguage === "en" && homeCardOverride?.en
-      ? homeCardOverride.en
-      : homeCardOverride?.ja ?? getNpcHomeCardLine(npcId, uiLanguage === "en" ? "en" : "ja");
-  const toneLabel = uiLanguage === "zh" ? NPC_TONE_LABELS[npcId].zh : NPC_TONE_LABELS[npcId].en;
-  const metaLine = `${info.kana} · ${info.place} · ${toneLabel}`;
+  // 首页卡片里的这句短话统一保持日语，不跟 UI 语言切换。
+  const homeCardLine = homeCardOverride?.ja ?? getNpcHomeCardLine(npcId, "ja");
+  const toneLabel = uiLanguage === "en" ? NPC_TONE_LABELS[npcId].en : NPC_TONE_LABELS[npcId].zh;
+  const displayName = uiLanguage === "en" ? (info.nameEn ?? info.name) : info.name;
+  const placeLabel = uiLanguage === "en" ? info.placeEn : info.placeZh;
+  const metaLine =
+    uiLanguage === "en"
+      ? `${placeLabel} • ${toneLabel}`
+      : `${info.kana}・${placeLabel}・${toneLabel}`;
 
   return (
     <Link
@@ -140,15 +227,15 @@ function NpcMiniCard({ npcId, actionLabel, uiLanguage }: NpcMiniCardProps) {
     >
       <img
         src={avatar}
-        alt={info.name}
+        alt={displayName}
         className="mb-2 h-10 w-10 rounded-full border border-[rgba(40,35,26,0.06)] object-cover transition-colors group-hover:border-[rgba(40,35,26,0.14)] md:mb-2.5 md:h-14 md:w-14"
       />
 
-      <span className="mb-0.5 text-[11px] font-medium text-[#28231A] md:text-[12px]">{info.name}</span>
+      <span className="mb-0.5 text-[11px] font-medium text-[#28231A] md:text-[12px]">{displayName}</span>
       <span className="text-[10px] leading-4 text-[#7A7060] md:text-[11px] md:leading-relaxed">{metaLine}</span>
 
-      <div className="mt-1 flex min-h-[2.5rem] w-full items-start px-0.5 md:min-h-[2.9rem] md:px-1">
-        <span className="line-clamp-2 text-[10px] leading-[1.15rem] text-[#6B8F5E] md:text-[11px] md:leading-5">
+      <div className="mt-1 flex min-h-[2.5rem] w-full items-center justify-center px-0.5 md:min-h-[2.9rem] md:px-1">
+        <span className="line-clamp-2 w-full text-center text-[10px] leading-[1.15rem] text-[#6B8F5E] md:text-[11px] md:leading-5">
           {homeCardLine}
         </span>
       </div>

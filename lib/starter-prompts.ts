@@ -114,6 +114,16 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "お先に失礼します。今日はありがとうございました。", category: "npc_flavor" },
     { text: "今日はちょっと疲れました。でも、少し慣れてきた気もします。", category: "npc_flavor" },
   ],
+  riku: [
+    { text: "最近、運動不足なんです。", category: "npc_flavor" },
+    { text: "ジムに行きたいけど、なかなか続きません。", category: "npc_flavor" },
+    { text: "今日は脚を少し鍛えました。", category: "npc_flavor" },
+    { text: "筋肉痛がけっこうあります。", category: "npc_flavor" },
+    { text: "またバレーを始めたいです。", category: "npc_flavor" },
+    { text: "久しぶりに走りたいけど、少し不安です。", category: "npc_flavor" },
+    { text: "ジムって、最初は何を話せばいいですか。", category: "npc_flavor" },
+    { text: "今日はあまり動く気力がありません。", category: "npc_flavor" },
+  ],
   saku: [
     { text: "ここ、見つけてよかったんですか。", category: "npc_flavor" },
     { text: "さっきのレシートを拾って、ここに来ました。", category: "npc_flavor" },
@@ -334,6 +344,18 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
         "先輩に確認したいことがあります。",
         "仕事の場面で、少し言い方に迷うことはありますか？",
         "ここまで進んだことを、短く真央に話してみませんか。",
+      ],
+      seed,
+    );
+  }
+
+  if (npcId === "riku") {
+    return pickBySeed(
+      [
+        "最近、運動不足なんです。",
+        "ジムに行きたいけど、なかなか続きません。",
+        "今日は脚を少し鍛えました。",
+        "またバレーを始めたいです。",
       ],
       seed,
     );

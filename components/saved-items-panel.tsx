@@ -55,6 +55,7 @@ const WORD_NPC_FILTER_IDS: NpcId[] = [
   "haruka",
   "aoi",
   "nana",
+  "riku",
   "ren",
 ];
 
@@ -123,6 +124,8 @@ function getWordReviewNpcLabel(npcId: string, isEn: boolean): string {
           return "Aoi";
         case "nana":
           return "Nana";
+        case "riku":
+          return "Riku";
         case "ren":
           return "Ren";
       }

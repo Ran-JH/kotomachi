@@ -1,6 +1,6 @@
-export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren" | "mao" | "saku";
+export type NpcId = "aoi" | "haruka" | "kimura" | "misaki" | "taisho" | "nana" | "ren" | "mao" | "riku" | "saku";
 
-export const ALL_NPC_IDS: NpcId[] = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren", "mao", "saku"];
+export const ALL_NPC_IDS: NpcId[] = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren", "mao", "riku", "saku"];
 
 export const NPC_NAMES: Record<NpcId, string> = {
   aoi: "葵 🎧",
@@ -11,6 +11,7 @@ export const NPC_NAMES: Record<NpcId, string> = {
   nana: "七海",
   ren: "蓮 🧭",
   mao: "真央 🗂️",
+  riku: "陸",
   saku: "朔",
 };
 
@@ -23,6 +24,7 @@ export const NPC_DISPLAY_NAMES: Record<NpcId, string> = {
   nana: "七海",
   ren: "蓮",
   mao: "真央",
+  riku: "陸",
   saku: "朔",
 };
 
@@ -39,6 +41,8 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
   mao: "/avatars/mao_avatar.webp",
+  // 暂时复用现有男声 NPC 头像资源，避免新 NPC 在首页出现断图。
+  riku: "/avatars/ren_avatar.webp",
   saku: "/avatars/saku_avatar.webp",
 };
 
@@ -554,6 +558,35 @@ const NPC_ARCS: Record<NpcId, LifeArc[]> = {
       ],
       },
     ],
+  riku: [
+    {
+      id: "gym_routine_week",
+      description: "体育館やジムの話を、気負わず続けやすい週。",
+      states: [
+        {
+          label: "軽く動きたい",
+          thoughts: ["最近ちょっと運動不足かもって人、多いんだよな。", "今日は少し動けただけでも十分って感じがする。"],
+        },
+        {
+          label: "ゆっくり戻す",
+          thoughts: ["久しぶりなら、最初は軽く戻すくらいでいいと思う。", "続けるなら、きつすぎないほうがいいよな。"],
+        },
+        {
+          label: "ほどよく疲れた",
+          thoughts: ["脚の日のあとって、やっぱりちょっとくるよな。", "筋肉痛なら、今日は様子見しつつでもいいかも。"],
+        },
+        {
+          label: "軽く声をかけたい",
+          thoughts: ["緊張してても、まず来ただけで十分だと思う。", "無理に頑張る日じゃなくても、話すだけでウォームアップにはなるよ。"],
+        },
+      ],
+      crossMentions: [
+        "木村のコンビニで水を買ってから体育館に向かう人、たまに見かけるんだよな。",
+        "美咲さんの店、運動のあとに少し落ち着きたい日にちょうどいいって人もいる。",
+        "駅前のほうから走って来る人もいて、言街って案外動きやすい街かもな。",
+      ],
+    },
+  ],
   saku: [
     {
       id: "forgotten_words_night",
@@ -976,6 +1009,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "雨の日は店の空気が少しやわらかくなる気がします。",
       kimura: "雨の日の通勤、ほんとにちょっと面倒なんだよね。",
       taisho: "雨の日は客足ゆっくりだけど、そのぶん話せる夜でもあるな。",
+      riku: "雨の日って、今日は軽くでいいかって気分にもなるよな。",
       nana: "雨の日は、生活の用事も少しまとめて聞きたくなりますね。",
     },
   },
@@ -993,6 +1027,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "今日は冷たい一杯のほうが合いそうですね。",
       kimura: "暑すぎて、コンビニの冷ケースの前から動きたくない。",
       taisho: "こういう日は、冷えたビールがいちばんだろ。",
+      riku: "蒸し暑い日は、動く前からちょっと体が重い感じあるよな。",
       nana: "暑い日は、細かいことほど先に聞いておくと安心です。",
     },
   },
@@ -1010,6 +1045,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "店も少し静かで、コーヒーの香りがよく残ります。",
       kimura: "今は少し落ち着いてて、逆にぼーっとする。",
       taisho: "こういう日は仕込みを丁寧にやるに限るな。",
+      riku: "静かな日なら、軽く体を動かす話もしやすいかもな。",
       nana: "静かな時間だと、生活の質問も落ち着いてできますね。",
     },
   },
@@ -1027,6 +1063,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "こういう時間は、少しだけ人の流れが変わりますね。",
       kimura: "こういう時間帯は、コンビニもなんだかんだ動きます。",
       taisho: "こういうにぎやかな空気も、店らしくて悪くないな。",
+      riku: "少しにぎやかな夜でも、明日の練習のこと考える人っているよな。",
       nana: "夜でも、生活の小さなことは気軽に聞いて大丈夫です。",
     },
   },
@@ -1044,6 +1081,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "こういう日は、熱いコーヒーがしっくりきます。",
       kimura: "やっと暑くなくなって助かる。",
       taisho: "秋は熱燗の話をしたくなるな。",
+      riku: "少し涼しいと、また走ろうかなって気分になりやすいよな。",
       nana: "少し涼しい日は、新しい暮らしのことを整理しやすいですね。",
     },
   },
@@ -1061,6 +1099,7 @@ const WORLD_STATES: WorldState[] = [
       misaki: "こういう日は、静かに過ごしたくなります。",
       kimura: "服が乾かないのが一番しんどい。",
       taisho: "梅雨どきは、店の灯りがちょっとありがたいんだよな。",
+      riku: "じめっとしてる日は、無理に動きすぎないくらいでちょうどいいかもな。",
       nana: "じめじめする日は、短く要点だけ聞くのが話しやすいです。",
     },
   },
@@ -1141,6 +1180,9 @@ const HOME_CARD_LINES: Record<NpcId, string[]> = {
   mao: [
     "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
   ],
+  riku: [
+    "最近運動不足？",
+  ],
   saku: [
     "言い忘れた言葉を、どこかで預かっているらしい。",
   ],
@@ -1150,6 +1192,12 @@ export function getNpcHomeCardLine(npcId: NpcId, language: "zh" | "en" | "ja" = 
   // Ren 的首页说明按本 patch 需求固定为中/英文文案，不走其他 NPC 的日语轮播句。
   if (npcId === "ren") {
     return language === "en" ? HOME_CARD_LINES.ren[1] : HOME_CARD_LINES.ren[0];
+  }
+  // Riku 的首页卡片文案按 UI 语言固定，避免中文/英文模式下拿到日语轮播句。
+  if (npcId === "riku") {
+    if (language === "en") return "Have not moved much lately?";
+    if (language === "zh") return "最近运动少吗？";
+    return HOME_CARD_LINES.riku[0];
   }
 
   const today = new Date();

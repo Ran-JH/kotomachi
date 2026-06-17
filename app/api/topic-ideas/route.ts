@@ -46,6 +46,8 @@ const NPC_SCENE_HINTS: Record<NpcId, string> = {
     "言街駅前 / 川沿い / guesthouse まわり。当前更适合低压力地聊旅行、城市、散步、想去的地方、去过的地方、计划、比较、偏好和理由，不要变成旅行攻略。",
   mao:
     "コミュニティスペース / 軽い仕事 / バイト前後の場面。現在は、確認・お願い・進捗共有・少し言い方に迷うこと・お客様に聞かれたときの相談・シフトの相談・帰る前後の短いあいさつに寄せる。職業相談、HR、上司の評価、硬いビジネス敬語練習にはしない。",
+  riku:
+    "体育館 / ジム / 部活まわり。当前更适合聊运动习惯、健身房、今天练了什么、肌肉酸痛、重新开始运动、排球、社团训练前后的心情和轻度鼓励；不要变成训练计划、减脂焦虑或医疗建议。",
   saku:
     "夜の路地 / 窓辺 / 小さなうわさ。現在は、うまく言えない気持ち、変な夢、言い忘れたこと、少し不思議な印象、作品の余韻みたいな話題に寄せる。巫师、占卜、恐怖、RPG の方向にはしない。",
 };
@@ -110,6 +112,14 @@ const NPC_TOPIC_SEED_HINTS: Record<NpcId, string[]> = {
     "何か手伝えることはありますか。",
     "お先に失礼します。今日はありがとうございました。",
   ],
+  riku: [
+    "最近、運動不足なんです。",
+    "ジムに行きたいけど、なかなか続きません。",
+    "今日は脚を少し鍛えました。",
+    "筋肉痛がけっこうあります。",
+    "またバレーを始めたいです。",
+    "久しぶりに走りたいけど、少し不安です。",
+  ],
   saku: [
     "なんとなく変な感じがする夜",
     "言い忘れたことが残っている感じ",
@@ -160,6 +170,11 @@ const NPC_REGISTER_HINTS: Record<NpcId, string[]> = {
     "Prefer confirmations, requests, brief progress updates, soft apologies, asking for help, shift talk, or leaving-after-work lines.",
     "Avoid stiff business keigo, HR advice, career coaching, performance review language, or teacher-like correction.",
   ],
+  riku: [
+    "Use natural everyday Japanese in a friendly sports-senpai tone.",
+    "Prefer low-pressure lines about exercise habits, gym visits, soreness, low energy, getting back into sports, and volleyball.",
+    "Do not turn the user into a trainee asking for strict menus, rehab instructions, diet plans, or body-shape advice.",
+  ],
   saku: [
     "Use soft natural Japanese with a slightly literary undertone, but keep it short and easy to say.",
     "Prefer lines about vague feelings, dreams, rumors, forgotten words, and lingering impressions.",
@@ -209,6 +224,11 @@ const FALLBACK_IDEAS: Record<NpcId, string[]> = {
     "すみません、もう少し時間がかかりそうです。",
     "何か手伝えることはありますか。",
     "お先に失礼します。今日はありがとうございました。",
+  ],
+  riku: [
+    "最近、運動不足なんです。",
+    "ジムに行きたいけど、なかなか続きません。",
+    "今日は脚を少し鍛えました。",
   ],
   saku: [
     "今日は、なんとなく変な感じがします。",

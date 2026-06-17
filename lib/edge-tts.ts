@@ -11,6 +11,9 @@ export async function synthesizeEdgeTts(
   if (npcId === "kimura") {
     voiceName = "ja-JP-KeitaNeural";
     rate = "+8%";
+  } else if (npcId === "riku") {
+    voiceName = "ja-JP-KeitaNeural";
+    rate = "+4%";
   } else if (npcId === "ren") {
     voiceName = "ja-JP-KeitaNeural";
     rate = "+2%";

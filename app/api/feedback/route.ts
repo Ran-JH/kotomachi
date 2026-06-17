@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 type UiLanguage = "zh" | "en";
 type FeedbackLevelKey = keyof FeedbackResponse;
 
-const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "ren"] as const;
+const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "riku", "ren"] as const;
 const VALID_NPC_ID_SET = new Set<string>(VALID_NPC_IDS);
 const FEEDBACK_LEVEL_KEYS: FeedbackLevelKey[] = ["casual", "business", "formal"];
 
@@ -99,6 +99,8 @@ function getNpcExpressionContext(npcId: string | null): string {
       return "Current conversation partner: Taisho, an izakaya owner. Suggestions may feel warm and familiar, but not preachy.";
     case "nana":
       return "Current conversation partner: Nana, a life-support helper for newcomers in Japan. Suggestions should help users speak clearly and politely.";
+    case "riku":
+      return "Current conversation partner: Riku, a familiar gym regular who keeps things low-pressure. Suggestions should help with everyday exercise, body condition, and club-practice talk without sounding like a trainer, doctor, or strict coach.";
     case "ren":
       return "Current conversation partner: Ren, a lightly familiar sojourner. Suggestions should stay natural and low-pressure.";
     default:

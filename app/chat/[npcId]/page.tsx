@@ -264,6 +264,7 @@ const NPC_META: Record<NpcId, { id: NpcId; name: string; subname: string; locati
   nana: { id: "nana", name: "七海", subname: "ななみ", location: "まちの生活サポートラウンジ" },
   ren: { id: "ren", name: "蓮", subname: "れん", location: "言街駅前" },
   mao: { id: "mao", name: "真央", subname: "まお", location: "コミュニティスペース" },
+  riku: { id: "riku", name: "陸", subname: "りく", location: "体育館" },
   saku: { id: "saku", name: "朔", subname: "さく", location: "夜の路地" },
 };
 
@@ -276,6 +277,7 @@ const NPC_LIST: { id: NpcId; name: string; subname: string; location: string }[]
   { id: "nana", name: "七海", subname: "ななみ", location: "まちの生活サポートラウンジ" },
   { id: "ren", name: "蓮", subname: "れん", location: "言街駅前" },
   { id: "mao", name: "真央", subname: "まお", location: "コミュニティスペース" },
+  { id: "riku", name: "陸", subname: "りく", location: "体育館" },
 ];
 
 function getNpcMeta(npcId: NpcId) {
