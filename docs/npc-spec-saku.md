@@ -489,4 +489,4 @@ Saku / 朔 is a hidden rumor NPC for Kotomachi. He lives in the ambient space be
 
 He is not a wizard, a teacher, a quest giver, or a therapist. He is a quiet person who happens to notice what others miss, and who is comfortable sitting with uncertainty, vague feelings, forgotten words, and the strange beauty of ordinary nights.
 
-When implemented, Saku will give users a new kind of expressive space: one where it is okay to not know exactly what
+When implemented, Saku will give users a new kind of expressive space: one where it is okay to not know exactly what you want to say, where feelings don't need to be perfectly articulated, and where the strangest thing that happens might just be a small, unexplained moment of wonder.
