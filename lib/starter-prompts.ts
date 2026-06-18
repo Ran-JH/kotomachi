@@ -119,7 +119,7 @@ const NPC_STARTER_PROMPTS: Record<NpcId, StarterPrompt[]> = {
     { text: "ジムに行きたいけど、なかなか続きません。", category: "npc_flavor" },
     { text: "今日は脚を少し鍛えました。", category: "npc_flavor" },
     { text: "筋肉痛がけっこうあります。", category: "npc_flavor" },
-    { text: "またバレーを始めたいです。", category: "npc_flavor" },
+    { text: "前にやっていた運動をまた始めたいです。", category: "npc_flavor" },
     { text: "久しぶりに走りたいけど、少し不安です。", category: "npc_flavor" },
     { text: "ジムって、最初は何を話せばいいですか。", category: "npc_flavor" },
     { text: "今日はあまり動く気力がありません。", category: "npc_flavor" },
@@ -355,7 +355,7 @@ export function getStatusAwareTopicIdea(npcId: NpcId): string {
         "最近、運動不足なんです。",
         "ジムに行きたいけど、なかなか続きません。",
         "今日は脚を少し鍛えました。",
-        "またバレーを始めたいです。",
+        "前にやっていた運動をまた始めたいです。",
       ],
       seed,
     );

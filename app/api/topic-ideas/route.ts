@@ -47,7 +47,7 @@ const NPC_SCENE_HINTS: Record<NpcId, string> = {
   mao:
     "コミュニティスペース / 軽い仕事 / バイト前後の場面。現在は、確認・お願い・進捗共有・少し言い方に迷うこと・お客様に聞かれたときの相談・シフトの相談・帰る前後の短いあいさつに寄せる。職業相談、HR、上司の評価、硬いビジネス敬語練習にはしない。",
   riku:
-    "体育館 / ジム / 部活まわり。当前更适合聊运动习惯、健身房、今天练了什么、肌肉酸痛、重新开始运动、排球、社团训练前后的心情和轻度鼓励；不要变成训练计划、减脂焦虑或医疗建议。",
+    "体育館 / ジム / 部活まわり。当前更适合聊运动习惯、健身房、今天练了什么、肌肉酸痛、重新开始以前做过的运动、社团训练前后的心情和轻度鼓励；不要变成训练计划、减脂焦虑或医疗建议。",
   saku:
     "夜の路地 / 窓辺 / 小さなうわさ。現在は、うまく言えない気持ち、変な夢、言い忘れたこと、少し不思議な印象、作品の余韻みたいな話題に寄せる。巫师、占卜、恐怖、RPG の方向にはしない。",
 };
@@ -117,7 +117,7 @@ const NPC_TOPIC_SEED_HINTS: Record<NpcId, string[]> = {
     "ジムに行きたいけど、なかなか続きません。",
     "今日は脚を少し鍛えました。",
     "筋肉痛がけっこうあります。",
-    "またバレーを始めたいです。",
+    "前にやっていた運動をまた始めたいです。",
     "久しぶりに走りたいけど、少し不安です。",
   ],
   saku: [
@@ -172,7 +172,7 @@ const NPC_REGISTER_HINTS: Record<NpcId, string[]> = {
   ],
   riku: [
     "Use natural everyday Japanese in a friendly sports-senpai tone.",
-    "Prefer low-pressure lines about exercise habits, gym visits, soreness, low energy, getting back into sports, and volleyball.",
+    "Prefer low-pressure lines about exercise habits, gym visits, soreness, low energy, and getting back into a sport the user used to do.",
     "Do not turn the user into a trainee asking for strict menus, rehab instructions, diet plans, or body-shape advice.",
   ],
   saku: [
