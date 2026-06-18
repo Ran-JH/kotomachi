@@ -9,16 +9,8 @@ When an NPC remembers relevant things from past conversations, the user feels th
 The goal is friendship-like familiarity, not romance, dependence, exclusivity, or emotional possession.
 
 核心目标：让用户更愿意再次开口。
-
 NPC 记住用户，是为了降低表达门槛，让下次对话更自然。
-
 这是一种“熟悉的练习伙伴”关系，不是 AI 恋人关系。
-
-对 Kotomachi 来说，memory 不是为了做“更会演的角色扮演”，而是为了让用户感到：
-
-- 这个住民记得我一点点；
-- 我不用每次都从零开始解释自己；
-- 我可以更自然地继续说下去。
 
 ## 2. Design references
 
@@ -47,15 +39,7 @@ Fable-like storage inspiration:
 - include reset/delete paths;
 - handle missing or invalid storage gracefully.
 
-补充原则：
-
-- memory 是“对真实聊天的提炼结果”，不是“完整聊天记录的另一个名字”；
-- memory 要短、小、可控，不能把系统推向沉重的长期人格画像；
-- Kotomachi 继续坚持低压练习，不把 memory 做成关系养成系统。
-
 ## 3. Current implementation
-
-Kotomachi 已经不是从零开始做 memory。当前已有 hidden per-NPC facts system，可视为 memory v0-pre。
 
 Current localStorage keys:
 
@@ -66,34 +50,39 @@ Current localStorage keys:
 
 Current injection:
 
-- chat API reads NPC facts and injects them into system prompt.
+- chat API reads current NPC memories and injects them into the system prompt;
+- prompt injection is limited to the current NPC only;
+- injected memories are capped at max 5.
 
 Current extraction:
 
-- client calls memory extraction after user messages;
-- welcome API can also analyze history and merge facts.
+- memory extraction no longer behaves like per-message fact append;
+- chat page collects recent conversation and triggers curator-style evaluation after enough user messages;
+- `/api/memory` returns one of `ignore`, `add`, or `replace`;
+- welcome API still has history-based merge responsibility, but should follow the same durable-memory rules.
 
 Current deletion:
 
-- reset chat clears chat data and facts together;
-- no single-memory deletion;
-- no memory-only clearing.
+- users can delete a single memory;
+- users can clear one NPC's memories only;
+- chat reset remains a separate behavior and still clears broader chat state.
 
-根据当前代码审计，可确认：
+## Current implementation status
 
-- 每个 NPC 都有独立 `facts`；
-- 每个 NPC 都有独立 chat history；
-- 每个 NPC 都有独立 conversation count；
-- `facts` 已经会进入 chat system prompt；
-- welcome API 已经会基于 history 提取/合并 facts；
-- chat page 当前只有“重开这段对话”，没有“查看/删除某条 memory”的入口。
+Memory v0 is now implemented as a local, per-NPC, controllable memory layer.
 
-当前问题不是“没有 memory”，而是：
+Implemented:
 
-- 它是隐藏的；
-- 用户不可控；
-- UI 没有单独心智模型；
-- 产品边界还没明确写死，容易向亲密关系叙事漂移。
+- per-NPC memories are stored in localStorage as `kotomachi_facts_${npcId}`;
+- users can view the current NPC's memories in the chat page;
+- users can delete a single memory;
+- users can clear the current NPC's memories without deleting chat history;
+- users can switch from the current NPC panel into an all-residents memory view;
+- the homepage no longer exposes Memory Center directly;
+- `/memories` route remains available but is not the primary UX entry;
+- Saku remains hidden unless already discovered / has history / has count / has last time / has memories;
+- memory injection is limited to the current NPC and capped;
+- memory usage is instructed to be light, relevant, non-romantic, and non-dependent.
 
 ## 4. Target behavior
 
@@ -115,36 +104,37 @@ The user cannot:
 
 Deleted memories must no longer be injected into chat prompts.
 
-目标状态可以概括为：
-
-- 现有 hidden facts 升级为 `per-NPC controllable memory system`；
-- 记忆继续来自真实聊天，不来自用户手动捏造；
-- 用户终于能看见和管理“这个住民记得什么”；
-- 但用户不能把系统调成恋爱养成或关系脚本编辑器。
-
 ## 5. Non-goals
 
 Non-goals:
 
 - no global user memory in v0;
+- no cross-NPC memory sharing;
 - no account/cloud sync in v0;
 - no manual memory editing;
 - no manual memory creation;
+- no schema migration in v0;
+- no vector database in v0;
+- no server database in v0;
 - no affection score;
 - no intimacy level;
 - no romance system;
 - no relationship route;
 - no daily streak pressure;
-- no “NPC misses you” system;
-- no vector database in v0;
-- no server database in v0.
+- no “NPC misses you” system.
 
-补充说明：
+Still not included in v0:
 
-- v0 不做 ChatGPT 那种“跨全部会话的统一用户画像”；
-- v0 不做“我和这个 NPC 的关系等级”；
-- v0 不做“来晚了，NPC 很想你”这类 attachment pressure；
-- v0 不需要为 memory 引入新依赖、新后端或复杂检索层。
+- global user memory;
+- cross-NPC memory sharing;
+- account/cloud sync;
+- manual memory creation;
+- manual memory editing;
+- schema migration;
+- vector database;
+- affection score;
+- intimacy level;
+- romance route.
 
 ## 6. Memory model
 
@@ -154,14 +144,8 @@ Non-goals:
 type NpcMemoryV0 = string;
 ```
 
-当前项目已经稳定使用 `string[] facts`。v0 先复用这个形态，风险最低。
-
-建议把 v0 看成：
-
-- 存储层仍是 `string[]`;
-- UI 层把每条 string 当作一条可显示、可删除的 memory；
-- 删除能力先从“按文本删除”或“按 index 删除”开始；
-- 暂不强制迁移到复杂 schema。
+说明：当前项目仍然使用 `string[]` facts 作为 memory v0 的存储层。
+v0 不迁移到复杂 schema，继续复用现有 `kotomachi_facts_${npcId}`，以降低风险。
 
 ### future model
 
@@ -186,33 +170,39 @@ type NpcMemoryRecord = {
 };
 ```
 
-说明：
-
-- `v0 should not migrate to this full schema immediately unless necessary.`
-- `The schema is a north star for future phases.`
-
-为什么先不迁移：
-
-- 当前系统已经有稳定 `facts` 注入链路；
-- 现在最缺的是“可见性与可删除性”，不是复杂数据建模；
-- 过早上 schema 会把这次低风险任务变成存量迁移任务。
+v0 should not migrate to this full schema immediately unless necessary.
+The schema is a north star for future phases.
 
 ## 7. Memory lifecycle
 
 1. User chats with an NPC.
-2. Memory extractor proposes a small number of durable facts.
+2. Recent conversation is collected for curator review.
 3. Existing memories are checked for duplication or conflict.
-4. The memory list is updated.
-5. On future chats with the same NPC, a small set of relevant memories is injected.
-6. User can delete memory from panel.
-7. Deleted memory is no longer injected.
+4. Curator returns one action: `ignore`, `add`, or `replace`.
+5. The local memory list is updated if needed.
+6. On future chats with the same NPC, a small set of relevant memories is injected.
+7. User can delete memory from panel.
+8. Deleted memory is no longer injected.
 
-对 Kotomachi 的解释：
+## Curator flow
 
-- 记忆不是每轮都新增；
-- 只有“值得留到下次”的内容才进入 memory；
-- memory 应该少而稳，而不是多而乱；
-- 用户删除后，系统要立刻尊重这个决定。
+Memory v0 should not behave like a per-message fact extractor.
+
+Current direction:
+
+- collect several recent user messages in the current session;
+- trigger memory curator only after enough user messages;
+- send recent conversation + existing memories to `/api/memory`;
+- receive one of `ignore`, `add`, or `replace`;
+- apply at most one memory change per curator run.
+
+Current implementation note:
+
+- the chat page currently triggers curator evaluation roughly every 4 user messages;
+- recent message context is windowed rather than sending the full transcript;
+- replace is supported so narrow fragments can collapse into one broader durable memory.
+
+This keeps visible memory closer to ChatGPT-style saved memory rather than chat-log fragments.
 
 ## 8. User control model
 
@@ -232,61 +222,42 @@ Reason for no edit:
 - prevents fake intimacy or relationship scripting;
 - simpler conflict handling.
 
-进一步说明：
-
-- “可见 + 可删”已经能显著提升用户的信任感；
-- “可编辑 + 可新增”会把产品从 practice partner 推向 roleplay tuning tool；
-- 对 Kotomachi v0 来说，用户控制的重点是撤回记忆，而不是编排记忆。
-
 ## 9. Memory panel UX
 
-### Entry
+Current direction:
 
-- from chat page, near header or plus menu;
-- label: `这个住民记住的事` / `住民メモ` / `What this resident remembers`.
+- current NPC memory panel lives in the chat page;
+- panel also contains an in-panel all-residents memory view;
+- `/memories` still exists, but is no longer the main entry;
+- homepage no longer exposes Memory Center directly.
 
-### Panel copy
+Entry:
 
-“这个住民会根据你们的聊天记住一些事，用来让下次对话更自然。你可以删除这些记忆。”
+- from chat page, near header or nearby management actions;
+- current UX centers on the current NPC panel first.
 
-### Empty state
+Panel copy direction:
 
-“这个住民还没有记住什么。多聊几次后，这里会出现一些记录。”
+- user-facing copy should feel soft and low-pressure;
+- prefer “街上的人 / 这个人 / 其他人 / 具体名字”;
+- avoid user-facing “居民 / NPC / 亲密度 / 好感度 / 羁绊 / 想你 / 关系升级”.
 
-### Each memory item
+Empty state:
+
+- should stay quiet and non-pressuring;
+- should not imply relationship progression.
+
+Each memory item:
 
 - memory text;
 - delete button;
-- optional small label: `来自聊天` / `From your chats`.
+- no manual source badge required if it adds no value.
 
-### Actions
+Actions:
 
 - delete single memory;
 - clear all memories for this NPC;
-- confirm before clear all.
-
-### Copy boundaries
-
-文案必须避免以下词汇和暗示：
-
-- 亲密度
-- 羁绊
-- 想你
-- 关系升级
-- 专属回忆
-
-文案方向应该更像：
-
-- 住民记住的事
-- 聊天里留下的记忆
-- 让下次更自然
-- 你可以删除
-
-而不是：
-
-- 我们关系变深了
-- 这是你们之间的重要回忆
-- 他会一直记得你
+- clear confirmation should be inline and product-styled rather than browser-native confirm.
 
 ## 10. Prompt injection rules
 
@@ -298,25 +269,22 @@ When injecting memories into an NPC prompt:
 - Do not repeatedly remind the user that you remember them.
 - Do not sound possessive, romantic, jealous, dependent, or emotionally exclusive.
 - Use memories to make language practice easier and more continuous.
-- If a memory involves health, distress, or sensitive context, use it cautiously and avoid diagnosis or advice.
+- If a memory involves health, distress, body/weight, injury, or other sensitive context, use it cautiously and avoid diagnosis or advice.
 
-建议 prompt 文案：
+Suggested prompt block:
 
 ```text
-この住民がユーザーについて覚えていること：
-{memories}
+この人がユーザーについて覚えていること：
+- {memory1}
+- {memory2}
 
 これらは、会話を自然につなげるための手がかりです。
 関連するときだけ軽く使ってください。
 毎回すべて言及しないでください。
-恋愛関係、独占、嫉妬、依存のような表現は避けてください。
+恋愛関係、独占、嫉妬、依存、親密度のような表現は避けてください。
+健康、不調、けが、体型、強い不安などに関わる記憶は慎重に扱ってください。
+ユーザーが削除した記憶は使ってはいけません。
 ```
-
-实现层建议：
-
-- memory 注入应从“整包 facts 全塞进 prompt”逐步收敛到“只注入少量相关项”；
-- v0 可先注入最多 3 到 6 条；
-- prompt 里明确把 memory 定义成“会话衔接线索”，而不是“关系进度条”。
 
 ## 11. Extraction and merge rules
 
@@ -334,26 +302,26 @@ Weak or bad candidates:
 
 - one-time mood;
 - today-only plans;
-- private/sensitive details;
+- private or sensitive details;
 - medical details;
 - relationship dependency;
-- body/weight anxiety;
+- body or weight anxiety;
 - exact addresses;
-- financial/private identifiers.
+- financial or private identifiers;
+- food, drink, shopping, weather, or current-mood fragments that only matter for the current turn.
 
 Merge rules:
 
-- avoid duplicate facts;
-- prefer updated version over stale version;
+- avoid exact duplicates;
+- avoid near-duplicates with the same meaning in another language;
+- prefer updated or broader version over stale or narrow fragment;
 - keep list short;
 - max 10 active memories in v0;
 - if uncertain, do not save.
 
-额外建议：
-
-- 对“最近有点累”“今天下雨”“明天去超市”这类短期上下文，不要轻易升格为 memory；
-- 对“想重新开始打排球”“正在准备面试”“喜欢慢一点的纠正方式”这类跨会话有价值的信息，可优先保留；
-- 对敏感或可能误伤用户的内容，宁可不存。
+Visible memories are durable, user-visible, deletable notes.
+Temporary context stays in chat history and should not appear in the memory panel.
+Topic-of-the-moment is not memory.
 
 ## 12. Safety and anti-romance boundaries
 
@@ -373,94 +341,66 @@ Not allowed:
 - “私たちの関係が深まった。”
 - “好感度が上がった。”
 
-产品边界说明：
-
-- memory 可以让 NPC 显得“记得你”；
-- 但不能让 NPC 显得“占有你”“等待你”“离不开你”；
-- familiarity 可以存在；
-- exclusivity、dependency、romance framing 不可以存在。
-
-特别注意：
-
-- Aoi、Misaki、Saku 这类容易被模型写得更有情绪氛围的 NPC，更需要防 romantic drift；
-- memory panel 文案和 prompt 指令都要同步防漂移；
-- 删除记忆能力本身，也是一种安全边界。
-
 ## 13. Technical implementation plan
 
-Patch 1:
+Implemented in v0:
 
-- add memory deletion helpers in `lib/memory.ts`;
-- replace hardcoded legacy `NPC_IDS` with `ALL_NPC_IDS` where safe;
-- do not change UI yet.
+- memory utility helpers in `lib/memory.ts`;
+- current NPC memory panel in chat page;
+- in-panel all-residents memory view;
+- current-NPC-only prompt injection with cap and safety instructions;
+- curator-style extraction flow with `ignore` / `add` / `replace`.
 
-Patch 2:
+Current architecture:
 
-- add `NpcMemoryPanel` client component;
-- display current NPC memories;
-- delete single memory;
-- clear current NPC memories;
-- mount in chat page.
-
-Patch 3:
-
-- improve prompt injection wording in chat API;
-- inject at most 3–6 relevant/current memories;
-- anti-romance instruction included.
-
-Patch 4:
-
-- improve extraction/merge quality;
-- avoid duplicates;
-- prepare future schema migration.
-
-实施思路说明：
-
-- Patch 1 先补 utility，是为了把风险限制在存储层；
-- Patch 2 再加 UI，让用户看到“现有 memory”而不是先改生成逻辑；
-- Patch 3 再收 prompt，避免 UI 出来后 NPC 继续把 memory 用得太重；
-- Patch 4 最后调质量，减少重复 facts、过时 facts 和边界不稳的问题。
+- localStorage remains the storage layer;
+- `kotomachi_facts_${npcId}` remains `string[]`;
+- chat page triggers curator evaluation after enough user messages;
+- `/api/memory` acts as the memory curator endpoint;
+- local helper layer applies guardrails, dedupe, replace, and max-10 trimming.
 
 ## 14. Patch plan
 
 Patch 1: memory utility layer
+Status: implemented
 
-Files likely involved:
+Files involved:
 
 - `lib/memory.ts`
 
 Patch 2: memory panel UI
+Status: implemented
 
-Files likely involved:
+Files involved:
 
 - `components/npc-memory-panel.tsx`
+- `components/npc-memory-center.tsx`
 - `app/chat/[npcId]/page.tsx`
 
-Patch 3: prompt injection
+Patch 3: extraction quality and curator flow
+Status: implemented, in QA
 
-Files likely involved:
-
-- `app/api/chat/route.ts`
-
-Patch 4: extraction quality
-
-Files likely involved:
+Files involved:
 
 - `app/api/memory/route.ts`
 - `app/api/welcome/route.ts`
+- `lib/memory.ts`
+- `app/chat/[npcId]/page.tsx`
 
-执行约束：
+Patch 4: future schema and temporary-context separation
+Status: deferred
 
-- Do not run `npm run build` by default.
-- Do not change package/env/config.
+Likely future files:
+
+- `lib/memory.ts`
+- `app/api/memory/route.ts`
+- future dedicated memory schema/helpers if needed
+
+Operational notes:
+
+- Do not run `npm run build` by default in this project workflow.
+- Do not change package/env/config for memory v0 docs work.
 - Do not commit automatically.
-
-低风险拆分原则：
-
-- 每个 patch 都应可单独 review；
-- 每个 patch 都应尽量少碰高耦合区域；
-- 先做“用户可见但逻辑不重写”的改动，再做“prompt 与提取质量”改动；
-- 如果 `app/api/memory/route.ts` 当前不存在，可在 Patch 4 再判断是扩展现有 memory extraction route，还是新建专用 route。
 
 ## 15. QA checklist
 
@@ -472,15 +412,21 @@ Manual QA:
 - Refresh page and confirm deletion persists.
 - Clear all memories for one NPC and confirm chat history remains.
 - Confirm deleting memory does not delete saved words.
+- Confirm homepage no longer exposes Memory Center directly.
+- Confirm current NPC panel can switch into all-residents memory view.
+- Confirm `/memories` route still works, but is not the primary UX entry.
 - Confirm Saku remains hidden from homepage standard sections.
+- Confirm Saku is not exposed in memory views unless discovered / has history / has count / has last time / has memories.
 - Confirm memories are not used romantically.
 - Confirm health-related memories are used cautiously.
 - Confirm no global memory panel appears in v0.
 
-补充 QA 观察点：
+## Future directions
 
-- reset chat 仍然应保持原有行为，不因为 memory panel 引入回归；
-- panel 空状态文案不应制造压力；
-- 删除某条 memory 后，welcome / chat 都不应再引用它；
-- 同一 memory 不应在一次回复里被反复强调；
-- memory 不应让 NPC 主动把对话拉向“我们之间的关系”。
+Future candidates:
+
+- schema v1 with `id`, `type`, `source`, `createdAt`, `updatedAt`;
+- temporary per-NPC context summary separate from visible memory;
+- memory debug / bad-case review mode;
+- stronger curator evaluation cases;
+- broader QA datasets for food-ordering, project/interview, and repeated-topic merge behavior.
