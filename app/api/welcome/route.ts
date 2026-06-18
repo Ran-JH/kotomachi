@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { createChatCompletion } from "@/lib/llm";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { mergeMemoryCandidates } from "@/lib/memory";
 import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
 
 export const runtime = "nodejs";
@@ -130,6 +131,13 @@ function buildLocalDatePromptBlock(localDateContext: LocalDateContext): string {
   ].join("\n");
 }
 
+function mergeWelcomeFacts(existingFacts: string[], candidateFacts: string[]): string[] {
+  return mergeMemoryCandidates(
+    existingFacts,
+    candidateFacts.filter((fact): fact is string => typeof fact === "string")
+  ).slice(0, 10);
+}
+
 function buildWelcomePrompt(
   npcId: string,
   timeDiffText: string | undefined,
@@ -167,13 +175,32 @@ function buildWelcomePrompt(
       content: `你是一个双层记忆系统的「静默审计员」，同时负责生成个性化的欢迎语。
 
 ## 任务一：事实提取与合并
-分析下方 history 中用户的聊天记录，提炼出关于用户的核心事实（爱好、计划、工作、宠物、人际关系、近期事件等）。
+分析下方 history 中用户的聊天记录，只提炼“跨会话仍然值得记住”的 durable facts。
 
-合并规则（严格执行）：
-1. 事实数组最大长度为 10，绝不能超过
-2. 如果新提炼的事实与 existingFacts 中的旧事实冲突（如旧："周二面试" vs 新："面试过了"），必须用新事实覆盖旧事实
-3. 如果没有冲突但已满 10 条，剔除最不重要的旧事实，将最新的核心事实挤入
-4. 如果聊天记录中没有可提取的新事实，原样返回 existingFacts
+只允许提取这些类型：
+1. 稳定兴趣、长期习惯、长期偏好
+2. 长期目标，或正在持续练习的方向
+3. 日语练习偏好，例如希望纠正更温柔一点
+4. 反复出现、下次聊天仍有帮助的话题
+5. 与这个 NPC 的共享背景里，重要且持续的主题
+
+禁止提取这些内容：
+- 一次性想吃什么、喝什么、买什么
+- 当次聊天里的临时选择、点单、购物、商品比较
+- 过短关键词、菜名、物品名堆积
+- 今天累了、今天下雨、现在想喝咖啡之类短期状态
+- 食物偏好碎片，除非用户明确表达为长期偏好或经常如此
+- 助手提出的建议、总结口吻或复述措辞
+- 医疗细节、体重身材焦虑、隐私标识信息
+- 恋爱依赖、占有、专属关系相关内容
+
+提取规则（严格执行）：
+1. 宁可少记，也不要乱记；不确定就不要保存
+2. extractedFacts 最多 10 条，但允许返回 0 条
+3. 如果 history 里没有新的 durable facts，就原样返回 existingFacts
+4. 输出自然短句，不要输出关键词，不要输出列表项式短语
+5. 不要把同一主题拆成多条碎片，尤其不要把 food / shopping 主题拆成多条
+6. 如果只是同一件事的更细碎说法，不要新增第二条
 
 ## 任务二：生成欢迎语
 根据 NPC 人设生成纯正地道的日文 welcome。
@@ -314,10 +341,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 硬性上限：事实数组绝不超过 10 条
-    const extractedFacts = (parsed.extractedFacts ?? existingFacts ?? []).slice(
-      0,
-      10
+    // 保留旧 memories 作为基线，只对新候选做保守过滤和去重。
+    // 这样能改善未来质量，但不会自动清洗用户已有数据。
+    const extractedFacts = mergeWelcomeFacts(
+      existingFacts ?? [],
+      parsed.extractedFacts ?? []
     );
 
     return NextResponse.json({

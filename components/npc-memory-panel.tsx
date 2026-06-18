@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   clearLocalNPCMemories,
@@ -25,9 +25,9 @@ export function NpcMemoryPanel({
   const [isOpen, setIsOpen] = useState(false);
   const [memories, setMemories] = useState<string[]>([]);
 
-  const loadMemories = () => {
+  const loadMemories = useCallback(() => {
     setMemories(getLocalNPCMemories(npcId));
-  };
+  }, [npcId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +47,7 @@ export function NpcMemoryPanel({
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [isOpen, npcId]);
+  }, [isOpen, loadMemories, npcId]);
 
   const openPanel = () => {
     loadMemories();
