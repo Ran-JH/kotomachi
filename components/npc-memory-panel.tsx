@@ -10,7 +10,7 @@ import {
   getLocalNPCMemories,
   loadChatHistory,
 } from "@/lib/memory";
-import { ALL_NPC_IDS, getNpcDisplayName, type NpcId } from "@/lib/npc";
+import { ALL_NPC_IDS, type NpcId } from "@/lib/npc";
 import type { UiLanguage } from "@/lib/ui-language";
 
 type PanelViewMode = "current" | "all";
@@ -18,45 +18,45 @@ type MemoryMap = Record<NpcId, string[]>;
 
 const PANEL_COPY = {
   zh: {
-    trigger: "\u8bb0\u4f4f\u7684\u4e8b",
-    close: "\u5173\u95ed",
-    currentTitle: "\u8fd9\u4e2a\u4f4f\u6c11\u8bb0\u4f4f\u7684\u4e8b",
+    trigger: "记住的事",
+    close: "关闭",
+    currentTitle: "这个人记住的事",
     currentDescription:
-      "\u4f1a\u6839\u636e\u4f60\u4eec\u7684\u804a\u5929\u8bb0\u4f4f\u4e00\u4e9b\u4e8b\uff0c\u7528\u6765\u8ba9\u4e0b\u6b21\u5bf9\u8bdd\u66f4\u81ea\u7136\u3002\u4f60\u53ef\u4ee5\u5220\u9664\u8fd9\u4e9b\u8bb0\u5fc6\u3002",
-    allTitle: "\u6240\u6709\u5c45\u6c11\u8bb0\u4f4f\u7684\u4e8b",
-    allDescription: "\u6309\u4f4f\u6c11\u67e5\u770b\u548c\u5220\u9664\u8bb0\u5fc6\u3002",
-    backToCurrent: "\u8fd4\u56de",
-    empty:
-      "\u8fd9\u4e2a\u4f4f\u6c11\u8fd8\u6ca1\u6709\u8bb0\u4f4f\u4ec0\u4e48\u3002\u591a\u804a\u51e0\u6b21\u540e\uff0c\u8fd9\u91cc\u4f1a\u51fa\u73b0\u4e00\u4e9b\u5c0f\u8bb0\u5f55\u3002",
-    fromChat: "\u6765\u81ea\u804a\u5929",
-    delete: "\u5220\u9664",
-    clearCurrent: "\u6e05\u7a7a\u8fd9\u4e2a\u4f4f\u6c11\u7684\u8bb0\u5fc6",
-    clearResident: "\u6e05\u7a7a\u8fd9\u4e2a\u5c45\u6c11\u7684\u8bb0\u5fc6",
-    clearConfirm:
-      "\u8981\u6e05\u7a7a\u8fd9\u4e2a\u4f4f\u6c11\u8bb0\u4f4f\u7684\u6240\u6709\u4e8b\u60c5\u5417\uff1f\u804a\u5929\u8bb0\u5f55\u4e0d\u4f1a\u88ab\u5220\u9664\u3002",
-    allMemories: "\u67e5\u770b\u6240\u6709\u5c45\u6c11\u7684\u8bb0\u5fc6",
-    view: "\u67e5\u770b",
-    hide: "\u6536\u8d77",
-    countUnit: "\u6761",
+      "这个人会根据你们的聊天记住一些事，用来让下次对话更自然。你可以删除这些记忆。",
+    allTitle: "其他人记住的事",
+    allDescription: "你可以看看街上的其他人分别记住了什么。",
+    backToCurrent: "返回",
+    empty: "这个人还没有记住什么。多聊几次后，这里会出现一些小记录。",
+    delete: "删除",
+    clearCurrent: "清空记忆",
+    clearResident: "清空记忆",
+    clearConfirmTitle: "要清空这个人记住的所有事情吗？",
+    clearConfirmBody: "聊天记录不会被删除。",
+    confirmClear: "清空记忆",
+    cancelClear: "取消",
+    allMemories: "查看其他人记住的事",
+    view: "查看",
+    hide: "收起",
+    countUnit: "条",
   },
   en: {
     trigger: "Memories",
     close: "Close",
-    currentTitle: "What this resident remembers",
+    currentTitle: "What this person remembers",
     currentDescription:
-      "This resident remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.",
-    allTitle: "What all residents remember",
-    allDescription: "View and delete memories by resident.",
+      "This person remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.",
+    allTitle: "What other people remember",
+    allDescription: "You can see what other people around the street remember.",
     backToCurrent: "Back",
-    empty:
-      "This resident has not remembered anything yet. After a few more chats, a few notes will appear here.",
-    fromChat: "From your chats",
+    empty: "This person has not remembered anything yet. After a few more chats, a few notes will appear here.",
     delete: "Delete",
-    clearCurrent: "Clear this resident's memories",
-    clearResident: "Clear this resident's memories",
-    clearConfirm:
-      "Clear everything this resident remembers? Your chat history will not be deleted.",
-    allMemories: "View all resident memories",
+    clearCurrent: "Clear memories",
+    clearResident: "Clear memories",
+    clearConfirmTitle: "Clear everything this person remembers?",
+    clearConfirmBody: "Your chat history will not be deleted.",
+    confirmClear: "Clear memories",
+    cancelClear: "Cancel",
+    allMemories: "See what other people remember",
     view: "View",
     hide: "Hide",
     countUnit: "items",
@@ -68,6 +68,23 @@ function createEmptyMemoryMap(): MemoryMap {
     snapshot[residentNpcId] = [];
     return snapshot;
   }, {} as MemoryMap);
+}
+
+function getNpcDisplayName(npcId: NpcId): string {
+  const displayNames: Record<NpcId, string> = {
+    aoi: "葵",
+    haruka: "遥",
+    kimura: "木村",
+    misaki: "美咲",
+    taisho: "大将",
+    nana: "七海",
+    ren: "莲",
+    mao: "真央",
+    riku: "陆",
+    saku: "朔",
+  };
+
+  return displayNames[npcId];
 }
 
 function hasDiscoveredSaku(): boolean {
@@ -100,6 +117,7 @@ export function NpcMemoryPanel({
   const [currentMemories, setCurrentMemories] = useState<string[]>([]);
   const [allMemories, setAllMemories] = useState<MemoryMap>(createEmptyMemoryMap);
   const [expandedResidentId, setExpandedResidentId] = useState<NpcId | null>(null);
+  const [confirmingClearNpcId, setConfirmingClearNpcId] = useState<NpcId | null>(null);
   const [showSaku, setShowSaku] = useState(false);
 
   const copy = PANEL_COPY[uiLanguage];
@@ -156,6 +174,7 @@ export function NpcMemoryPanel({
     loadPanelState();
     setViewMode("current");
     setExpandedResidentId(null);
+    setConfirmingClearNpcId(null);
     setIsOpen(true);
     onOpenChange?.(true);
   };
@@ -164,6 +183,7 @@ export function NpcMemoryPanel({
     setIsOpen(false);
     setViewMode("current");
     setExpandedResidentId(null);
+    setConfirmingClearNpcId(null);
     onOpenChange?.(false);
   };
 
@@ -180,11 +200,9 @@ export function NpcMemoryPanel({
     }));
   };
 
-  const handleClear = (targetNpcId: NpcId) => {
-    const confirmed = window.confirm(copy.clearConfirm);
-    if (!confirmed) return;
-
+  const confirmClear = (targetNpcId: NpcId) => {
     clearLocalNPCMemories(targetNpcId);
+    setConfirmingClearNpcId(null);
 
     if (targetNpcId === npcId) {
       setCurrentMemories([]);
@@ -201,11 +219,43 @@ export function NpcMemoryPanel({
     }
   };
 
-  const currentDescription = npcName
-    ? uiLanguage === "zh"
-      ? `${npcName}${copy.currentDescription}`
-      : `${npcName} remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.`
-    : copy.currentDescription;
+  const currentTitle =
+    npcName && uiLanguage === "zh" ? `${npcName}记住的事` : copy.currentTitle;
+  const currentDescription =
+    npcName && uiLanguage === "en"
+      ? `${npcName} remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.`
+      : copy.currentDescription;
+  const backToCurrentLabel = copy.backToCurrent;
+
+  const renderClearConfirmation = (targetNpcId: NpcId) => {
+    const confirmTitle =
+      targetNpcId === npcId && npcName && uiLanguage === "zh"
+        ? `要清空${npcName}记住的所有事情吗？`
+        : copy.clearConfirmTitle;
+
+    return (
+      <div className="mt-3 rounded-xl border border-[rgba(154,85,85,0.12)] bg-[#F8F1EA] px-4 py-3">
+        <p className="text-[12px] font-medium text-[#6B6254]">{confirmTitle}</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-[#8A7C6A]">{copy.clearConfirmBody}</p>
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirmingClearNpcId(null)}
+            className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F6F0E3] px-3 py-1.5 text-[11px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE]"
+          >
+            {copy.cancelClear}
+          </button>
+          <button
+            type="button"
+            onClick={() => confirmClear(targetNpcId)}
+            className="rounded-lg border border-[rgba(154,85,85,0.16)] bg-[#FCF6F4] px-3 py-1.5 text-[11px] text-[#9A5555] transition-colors hover:bg-[#F6E7E2]"
+          >
+            {copy.confirmClear}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const renderMemoryList = (
     targetNpcId: NpcId,
@@ -231,8 +281,7 @@ export function NpcMemoryPanel({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-[#7A7060]">{copy.fromChat}</p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-[#28231A] break-words">
+                  <p className="text-[13px] leading-relaxed text-[#28231A] break-words">
                     {memory}
                   </p>
                 </div>
@@ -249,15 +298,18 @@ export function NpcMemoryPanel({
         </div>
 
         {showClearAction && (
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => handleClear(targetNpcId)}
-              disabled={memories.length === 0}
-              className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3.5 py-2 text-[12px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              {clearLabel}
-            </button>
+          <div className="mt-4">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmingClearNpcId(targetNpcId)}
+                disabled={memories.length === 0}
+                className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3.5 py-2 text-[12px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {clearLabel}
+              </button>
+            </div>
+            {confirmingClearNpcId === targetNpcId && renderClearConfirmation(targetNpcId)}
           </div>
         )}
       </div>
@@ -294,11 +346,11 @@ export function NpcMemoryPanel({
                     onClick={() => setViewMode("current")}
                     className="mb-2 inline-flex items-center rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3 py-1.5 text-[11px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE]"
                   >
-                    {copy.backToCurrent}
+                    {backToCurrentLabel}
                   </button>
                 )}
                 <h3 className="text-[14px] font-semibold text-[#2D4A1F]">
-                  {viewMode === "current" ? copy.currentTitle : copy.allTitle}
+                  {viewMode === "current" ? currentTitle : copy.allTitle}
                 </h3>
                 <p className="mt-1 text-[11px] leading-relaxed text-[#6B6254]">
                   {viewMode === "current" ? currentDescription : copy.allDescription}
@@ -332,13 +384,14 @@ export function NpcMemoryPanel({
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleClear(npcId)}
+                      onClick={() => setConfirmingClearNpcId(npcId)}
                       disabled={currentMemories.length === 0}
                       className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3.5 py-2 text-[12px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
                     >
                       {copy.clearCurrent}
                     </button>
                   </div>
+                  {confirmingClearNpcId === npcId && renderClearConfirmation(npcId)}
                 </div>
               </>
             ) : (

@@ -10,37 +10,39 @@ import {
   getLocalNPCMemories,
   loadChatHistory,
 } from "@/lib/memory";
-import { ALL_NPC_IDS, getNpcDisplayName, type NpcId } from "@/lib/npc";
+import { ALL_NPC_IDS, type NpcId } from "@/lib/npc";
 import type { UiLanguage } from "@/lib/ui-language";
 
 type MemoryCenterSnapshot = Record<NpcId, string[]>;
 
 const MEMORY_CENTER_COPY = {
   zh: {
-    title: "住民记住的事",
-    subtitle:
-      "每个住民会根据你们的聊天记住一些事，用来让下次对话更自然。你可以删除这些记忆。",
+    title: "其他人记住的事",
+    subtitle: "你可以看看街上的其他人分别记住了什么。",
     countUnit: "条",
     expand: "查看",
     collapse: "收起",
-    empty: "这个住民还没有记住什么。多聊几次后，这里会出现一些小记录。",
-    fromChat: "来自聊天",
+    empty: "这个人还没有记住什么。多聊几次后，这里会出现一些小记录。",
     delete: "删除",
-    clear: "清空这个住民的记忆",
-    clearConfirm: "要清空这个住民记住的所有事情吗？聊天记录不会被删除。",
+    clear: "清空记忆",
+    clearConfirmTitle: "要清空这个人记住的所有事情吗？",
+    clearConfirmBody: "聊天记录不会被删除。",
+    confirmClear: "清空记忆",
+    cancelClear: "取消",
   },
   en: {
-    title: "Resident memories",
-    subtitle:
-      "Each resident remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.",
+    title: "What other people remember",
+    subtitle: "You can see what other people around the street remember.",
     countUnit: "items",
     expand: "View",
     collapse: "Hide",
-    empty: "This resident has not remembered anything yet. After a few more chats, a few notes will appear here.",
-    fromChat: "From your chats",
+    empty: "This person has not remembered anything yet. After a few more chats, a few small notes will appear here.",
     delete: "Delete",
-    clear: "Clear this resident's memories",
-    clearConfirm: "Clear everything this resident remembers? Your chat history will not be deleted.",
+    clear: "Clear memories",
+    clearConfirmTitle: "Clear everything this person remembers?",
+    clearConfirmBody: "Your chat history will not be deleted.",
+    confirmClear: "Clear memories",
+    cancelClear: "Cancel",
   },
 } as const;
 
@@ -49,6 +51,23 @@ function createEmptySnapshot(): MemoryCenterSnapshot {
     snapshot[npcId] = [];
     return snapshot;
   }, {} as MemoryCenterSnapshot);
+}
+
+function getNpcDisplayName(npcId: NpcId): string {
+  const displayNames: Record<NpcId, string> = {
+    aoi: "葵",
+    haruka: "遥",
+    kimura: "木村",
+    misaki: "美咲",
+    taisho: "大将",
+    nana: "七海",
+    ren: "莲",
+    mao: "真央",
+    riku: "陆",
+    saku: "朔",
+  };
+
+  return displayNames[npcId];
 }
 
 function hasDiscoveredSaku(): boolean {
@@ -72,6 +91,7 @@ export function NpcMemoryCenter({ uiLanguage = "zh" }: NpcMemoryCenterProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [memoryMap, setMemoryMap] = useState<MemoryCenterSnapshot>(createEmptySnapshot);
   const [expandedNpcId, setExpandedNpcId] = useState<NpcId | null>(null);
+  const [confirmingClearNpcId, setConfirmingClearNpcId] = useState<NpcId | null>(null);
   const [showSaku, setShowSaku] = useState(false);
 
   const copy = MEMORY_CENTER_COPY[uiLanguage];
@@ -126,11 +146,9 @@ export function NpcMemoryCenter({ uiLanguage = "zh" }: NpcMemoryCenterProps) {
     }));
   };
 
-  const handleClear = (npcId: NpcId) => {
-    const confirmed = window.confirm(copy.clearConfirm);
-    if (!confirmed) return;
-
+  const confirmClear = (npcId: NpcId) => {
     clearLocalNPCMemories(npcId);
+    setConfirmingClearNpcId(null);
     setMemoryMap((current) => ({
       ...current,
       [npcId]: [],
@@ -140,6 +158,35 @@ export function NpcMemoryCenter({ uiLanguage = "zh" }: NpcMemoryCenterProps) {
       setShowSaku(false);
       setExpandedNpcId((current) => (current === "saku" ? null : current));
     }
+  };
+
+  const renderClearConfirmation = (npcId: NpcId) => {
+    const npcName = getNpcDisplayName(npcId);
+    const confirmTitle =
+      uiLanguage === "zh" ? `要清空${npcName}记住的所有事情吗？` : copy.clearConfirmTitle;
+
+    return (
+      <div className="mt-3 rounded-xl border border-[rgba(154,85,85,0.12)] bg-[#F8F1EA] px-4 py-3">
+        <p className="text-[12px] font-medium text-[#6B6254]">{confirmTitle}</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-[#8A7C6A]">{copy.clearConfirmBody}</p>
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirmingClearNpcId(null)}
+            className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F6F0E3] px-3 py-1.5 text-[11px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE]"
+          >
+            {copy.cancelClear}
+          </button>
+          <button
+            type="button"
+            onClick={() => confirmClear(npcId)}
+            className="rounded-lg border border-[rgba(154,85,85,0.16)] bg-[#FCF6F4] px-3 py-1.5 text-[11px] text-[#9A5555] transition-colors hover:bg-[#F6E7E2]"
+          >
+            {copy.confirmClear}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -198,8 +245,7 @@ export function NpcMemoryCenter({ uiLanguage = "zh" }: NpcMemoryCenterProps) {
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
-                                <p className="text-[11px] text-[#7A7060]">{copy.fromChat}</p>
-                                <p className="mt-1 text-[14px] leading-7 text-[#28231A] break-words">
+                                <p className="text-[14px] leading-7 text-[#28231A] break-words">
                                   {memory}
                                 </p>
                               </div>
@@ -216,15 +262,18 @@ export function NpcMemoryCenter({ uiLanguage = "zh" }: NpcMemoryCenterProps) {
                       </div>
                     )}
 
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => handleClear(npcId)}
-                        disabled={memories.length === 0}
-                        className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3.5 py-2 text-[12px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
-                      >
-                        {copy.clear}
-                      </button>
+                    <div className="mt-4">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingClearNpcId(npcId)}
+                          disabled={memories.length === 0}
+                          className="rounded-lg border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0] px-3.5 py-2 text-[12px] text-[#6B6254] transition-colors hover:bg-[#E8E0CE] disabled:cursor-not-allowed disabled:opacity-55"
+                        >
+                          {copy.clear}
+                        </button>
+                      </div>
+                      {confirmingClearNpcId === npcId && renderClearConfirmation(npcId)}
                     </div>
                   </div>
                 )}
