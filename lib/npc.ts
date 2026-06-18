@@ -41,8 +41,7 @@ export const NPC_AVATARS: Record<NpcId, string> = {
   nana: "/avatars/nana_avatar.webp",
   ren: "/avatars/ren_avatar.webp",
   mao: "/avatars/mao_avatar.webp",
-  // 暂时复用现有男声 NPC 头像资源，避免新 NPC 在首页出现断图。
-  riku: "/avatars/ren_avatar.webp",
+  riku: "/avatars/riku_avatar.webp",
   saku: "/avatars/saku_avatar.webp",
 };
 
@@ -1181,7 +1180,7 @@ const HOME_CARD_LINES: Record<NpcId, string[]> = {
     "バイトや軽い仕事の場面で、確認やお願いをしやすい人。",
   ],
   riku: [
-    "最近運動不足？",
+    "体育館やジムでよく見かける、運動の話を気楽にしやすい人。",
   ],
   saku: [
     "言い忘れた言葉を、どこかで預かっているらしい。",
@@ -1192,12 +1191,6 @@ export function getNpcHomeCardLine(npcId: NpcId, language: "zh" | "en" | "ja" = 
   // Ren 的首页说明按本 patch 需求固定为中/英文文案，不走其他 NPC 的日语轮播句。
   if (npcId === "ren") {
     return language === "en" ? HOME_CARD_LINES.ren[1] : HOME_CARD_LINES.ren[0];
-  }
-  // Riku 的首页卡片文案按 UI 语言固定，避免中文/英文模式下拿到日语轮播句。
-  if (npcId === "riku") {
-    if (language === "en") return "Have not moved much lately?";
-    if (language === "zh") return "最近运动少吗？";
-    return HOME_CARD_LINES.riku[0];
   }
 
   const today = new Date();
