@@ -23,6 +23,7 @@ import {
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
+  applyLocalNPCMemoryCuratorResult,
   getLocalNPCMemories,
   getConversationCount,
   getLastChatTime,
@@ -30,7 +31,6 @@ import {
   saveChatHistory,
   saveLastChatTime,
   saveLocalNPCFacts,
-  saveLocalNPCMemory,
   incrementConversationCount,
   clearNpcChatData,
   type StoredMessage,
@@ -113,6 +113,8 @@ interface WelcomeResponse {
 }
 
 const welcomeRequests = new Map<string, Promise<WelcomeResponse | null>>();
+const MEMORY_CURATOR_TRIGGER_THRESHOLD = 4;
+const MEMORY_CURATOR_OVERLAP_AFTER_TRIGGER = 2;
 
 function countUserMessages(history: StoredMessage[]): number {
   return history.filter((message) => message.role === "user").length;
@@ -384,6 +386,7 @@ export default function ChatPage() {
   const topicIdeasCacheRef = useRef<Map<string, string[]>>(new Map());
   const preSendRequestVersionRef = useRef(0);
   const shouldStickToBottomOnPreSendOpenRef = useRef(false);
+  const userMessagesSinceMemoryCheckRef = useRef(0);
   const searchParams = useSearchParams();
   const sceneQueryId = searchParams.get("scene")?.trim() ?? "";
   const sceneQueryEntry = useMemo(() => {
@@ -810,6 +813,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     activeNpcRef.current = npcId;
+    userMessagesSinceMemoryCheckRef.current = 0;
     const wasSeenThisSession = hasSeenNpcThisSession(npcId);
     markNpcSeenThisSession(npcId);
     setSummaryCards(loadSummaryCards(npcId));
@@ -851,11 +855,23 @@ export default function ChatPage() {
     } catch { return null; }
   }, [npcId]);
 
-  const extractMemory = async (userText: string) => {
+  const runMemoryCurator = async (
+    recentMessages: StoredMessage[],
+    existingMemories: string[],
+  ) => {
     try {
-      const res = await fetch(buildClientApiUrl("/api/memory"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userText }) });
+      const res = await fetch(buildClientApiUrl("/api/memory"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npcId,
+          recentMessages,
+          existingMemories,
+        }),
+      });
       const data = await res.json();
-      if (data.fact) { saveLocalNPCMemory(npcId, data.fact); setMemories(getLocalNPCMemories(npcId)); }
+      const next = applyLocalNPCMemoryCuratorResult(npcId, data);
+      setMemories(next);
     } catch { /* 静默 */ }
   };
 
@@ -868,7 +884,7 @@ export default function ChatPage() {
     const userMsg: ChatMessage = { id: `user-${Date.now()}`, sender: "user", text: userText, type: userAudioBlob ? "voice" : "text", createdAt: userCreatedAt, userAudioBlob: userAudioBlob ?? null, userAudioUrl };
     setMessages((prev) => [...prev, userMsg]);
     setInputText(""); setIsTyping(true);
-    void extractMemory(userText); incrementConversationCount(npcId);
+    incrementConversationCount(npcId);
     const historyForApi: StoredMessage[] = messages.filter((m) => m.sender === "user" || m.sender === "assistant").map((m) => ({
       role: m.sender === "user" ? "user" : "assistant",
       content: m.text,
@@ -876,6 +892,17 @@ export default function ChatPage() {
       source: m.source,
     }));
     historyForApi.push({ role: "user", content: userText, createdAt: userCreatedAt });
+    userMessagesSinceMemoryCheckRef.current += 1;
+    if (userMessagesSinceMemoryCheckRef.current >= MEMORY_CURATOR_TRIGGER_THRESHOLD) {
+      // Keep a small overlap after each check so the curator can re-evaluate
+      // nearby follow-up messages instead of waiting for a full fresh block of 4.
+      // This helps when the durable signal appears on message 5 or 6, not exactly 4.
+      userMessagesSinceMemoryCheckRef.current = MEMORY_CURATOR_OVERLAP_AFTER_TRIGGER;
+      void runMemoryCurator(
+        historyForApi.slice(-12),
+        getLocalNPCMemories(npcId),
+      );
+    }
     const npcState = getNpcState(npcId);
     const localDateContext = getLocalDateContext();
     const worldContext = getWorldContext(localDateContext);
@@ -2424,6 +2451,7 @@ export default function ChatPage() {
                   setTopicIdeasForceRefreshKey(null);
                   topicIdeasCacheRef.current.clear();
                   setMemories([]);
+                  userMessagesSinceMemoryCheckRef.current = 0;
                   setIsResetConfirmOpen(false);
                   generatedInitialWelcomeForNpcRef.current.delete(npcId);
                   void triggerInitialWelcome(npcId, []);

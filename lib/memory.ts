@@ -2,6 +2,7 @@ import { ALL_NPC_IDS, type NpcId } from "@/lib/npc";
 
 const MAX_MEMORIES = 10;
 const MIN_MEMORY_TEXT_LENGTH = 6;
+export const NPC_MEMORIES_UPDATED_EVENT = "kotomachi-npc-memories-updated";
 
 // One-time migration from the old komorebi_* storage keys to kotomachi_*.
 const MIGRATION_DONE_KEY = "kotomachi_migration_done";
@@ -172,6 +173,56 @@ export function mergeMemoryCandidates(
   return merged;
 }
 
+export type MemoryCuratorResult =
+  | { action: "ignore"; memory?: null; replaceIndex?: null }
+  | { action: "add"; memory: string; replaceIndex?: null }
+  | { action: "replace"; memory: string; replaceIndex: number };
+
+/**
+ * Apply one conservative curator decision to the current NPC memories.
+ * v0 still uses string[] facts, so this helper only decides whether to:
+ * - keep memories as-is
+ * - add one new durable memory
+ * - replace one old memory with a broader / cleaner sentence
+ */
+export function applyLocalNPCMemoryCuratorResult(
+  npcId: NpcId,
+  result: MemoryCuratorResult
+): string[] {
+  const current = getLocalNPCMemories(npcId);
+
+  if (typeof window === "undefined") {
+    return current;
+  }
+
+  if (result.action === "ignore") {
+    return current;
+  }
+
+  if (result.action === "add") {
+    const next = mergeMemoryCandidates(current, [result.memory]);
+    saveLocalNPCFacts(npcId, next);
+    return next;
+  }
+
+  if (!Number.isInteger(result.replaceIndex)) {
+    return current;
+  }
+
+  if (result.replaceIndex < 0 || result.replaceIndex >= current.length) {
+    return current;
+  }
+
+  const baseline = current.filter((_, index) => index !== result.replaceIndex);
+  if (!shouldKeepMemoryCandidate(result.memory, baseline)) {
+    return current;
+  }
+
+  const next = mergeMemoryCandidates(baseline, [result.memory]);
+  saveLocalNPCFacts(npcId, next);
+  return next;
+}
+
 function migrateOldKeys(): void {
   if (typeof window === "undefined") return;
   if (localStorage.getItem(MIGRATION_DONE_KEY)) return;
@@ -190,6 +241,16 @@ function migrateOldKeys(): void {
   }
 
   localStorage.setItem(MIGRATION_DONE_KEY, "1");
+}
+
+function dispatchNpcMemoriesUpdated(npcId: NpcId | string): void {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent(NPC_MEMORIES_UPDATED_EVENT, {
+      detail: { npcId },
+    })
+  );
 }
 
 // Run the legacy key migration on module load in the browser.
@@ -228,6 +289,7 @@ export function saveLocalNPCFacts(npcId: NpcId | string, facts: string[]): void 
     `kotomachi_facts_${npcId}`,
     JSON.stringify(sanitizeNpcMemories(facts))
   );
+  dispatchNpcMemoriesUpdated(npcId);
 }
 
 /**
@@ -254,6 +316,7 @@ export function deleteLocalNPCMemory(npcId: NpcId, index: number): string[] {
 export function clearLocalNPCMemories(npcId: NpcId): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(`kotomachi_facts_${npcId}`);
+  dispatchNpcMemoriesUpdated(npcId);
 }
 
 /** Read the last chat timestamp in milliseconds for this NPC. */

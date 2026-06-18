@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  NPC_MEMORIES_UPDATED_EVENT,
   clearLocalNPCMemories,
   deleteLocalNPCMemory,
   getConversationCount,
@@ -18,7 +19,7 @@ type MemoryMap = Record<NpcId, string[]>;
 
 const PANEL_COPY = {
   zh: {
-    trigger: "记住的事",
+    trigger: "记忆",
     close: "关闭",
     currentTitle: "这个人记住的事",
     currentDescription:
@@ -149,12 +150,15 @@ export function NpcMemoryPanel({
 
     const handleStorage = () => loadPanelState();
     const handleFocus = () => loadPanelState();
+    const handleMemoriesUpdated = () => loadPanelState();
 
     window.addEventListener("storage", handleStorage);
     window.addEventListener("focus", handleFocus);
+    window.addEventListener(NPC_MEMORIES_UPDATED_EVENT, handleMemoriesUpdated);
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(NPC_MEMORIES_UPDATED_EVENT, handleMemoriesUpdated);
     };
   }, [isOpen, loadPanelState]);
 
@@ -222,15 +226,18 @@ export function NpcMemoryPanel({
   const currentTitle =
     npcName && uiLanguage === "zh" ? `${npcName}记住的事` : copy.currentTitle;
   const currentDescription =
-    npcName && uiLanguage === "en"
-      ? `${npcName} remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.`
+    npcName
+      ? uiLanguage === "zh"
+        ? `${npcName}会根据你们的聊天记住一些事，用来让下次对话更自然。你可以删除这些记忆。`
+        : `${npcName} remembers a few things from your chats to make the next conversation feel more natural. You can delete these memories.`
       : copy.currentDescription;
   const backToCurrentLabel = copy.backToCurrent;
 
   const renderClearConfirmation = (targetNpcId: NpcId) => {
+    const targetName = targetNpcId === npcId ? npcName : getNpcDisplayName(targetNpcId);
     const confirmTitle =
-      targetNpcId === npcId && npcName && uiLanguage === "zh"
-        ? `要清空${npcName}记住的所有事情吗？`
+      targetName && uiLanguage === "zh"
+        ? `要清空${targetName}记住的所有事情吗？`
         : copy.clearConfirmTitle;
 
     return (

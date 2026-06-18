@@ -206,6 +206,8 @@ function buildWelcomePrompt(
 4. 输出自然短句，不要输出关键词，不要输出列表项式短语
 5. 不要把同一主题拆成多条碎片，尤其不要把 food / shopping 主题拆成多条
 6. 如果只是同一件事的更细碎说法，不要新增第二条
+7. internship / interview / project 这类连续话题，优先合并成一条更宽的 durable memory，不要按每句话分别追加
+8. topic-of-the-moment is not memory；如果只是当前这轮对话刚好聊到，就留在 history，不要进入 extractedFacts
 
 ## 任务二：生成欢迎语
 根据 NPC 人设生成纯正地道的日文 welcome。
