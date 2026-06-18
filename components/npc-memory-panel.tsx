@@ -49,7 +49,7 @@ const PANEL_COPY = {
     allDescription: "View and delete memories by resident.",
     backToCurrent: "Back",
     empty:
-      "This resident has not remembered anything yet. After a few more chats, a few small notes will appear here.",
+      "This resident has not remembered anything yet. After a few more chats, a few notes will appear here.",
     fromChat: "From your chats",
     delete: "Delete",
     clearCurrent: "Clear this resident's memories",

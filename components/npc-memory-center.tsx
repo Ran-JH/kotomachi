@@ -36,7 +36,7 @@ const MEMORY_CENTER_COPY = {
     countUnit: "items",
     expand: "View",
     collapse: "Hide",
-    empty: "This resident has not remembered anything yet. After a few more chats, a few small notes will appear here.",
+    empty: "This resident has not remembered anything yet. After a few more chats, a few notes will appear here.",
     fromChat: "From your chats",
     delete: "Delete",
     clear: "Clear this resident's memories",

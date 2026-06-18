@@ -251,7 +251,7 @@ Reason for no edit:
 
 ### Empty state
 
-“这个住民还没有记住什么。多聊几次后，这里会出现一些小记录。”
+“这个住民还没有记住什么。多聊几次后，这里会出现一些记录。”
 
 ### Each memory item
 
