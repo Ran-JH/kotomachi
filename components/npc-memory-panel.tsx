@@ -16,6 +16,18 @@ import type { UiLanguage } from "@/lib/ui-language";
 
 type PanelViewMode = "current" | "all";
 type MemoryMap = Record<NpcId, string[]>;
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+function debugMemoryPanelTrace(message: string, details?: Record<string, unknown>): void {
+  if (!IS_DEV) return;
+
+  if (details) {
+    console.debug(`[Memory Panel] ${message}`, details);
+    return;
+  }
+
+  console.debug(`[Memory Panel] ${message}`);
+}
 
 const PANEL_COPY = {
   zh: {
@@ -124,7 +136,13 @@ export function NpcMemoryPanel({
   const copy = PANEL_COPY[uiLanguage];
 
   const loadCurrentMemories = useCallback(() => {
-    setCurrentMemories(getLocalNPCMemories(npcId));
+    const nextMemories = getLocalNPCMemories(npcId);
+    setCurrentMemories(nextMemories);
+    debugMemoryPanelTrace("loaded memories", {
+      npcId,
+      scope: "current",
+      count: nextMemories.length,
+    });
   }, [npcId]);
 
   const loadAllMemories = useCallback(() => {
@@ -136,6 +154,16 @@ export function NpcMemoryPanel({
 
     setAllMemories(nextMap);
     setShowSaku(hasDiscoveredSaku());
+    debugMemoryPanelTrace("loaded memories", {
+      npcId,
+      scope: "all",
+      counts: Object.fromEntries(
+        Object.entries(nextMap).map(([residentNpcId, residentMemories]) => [
+          residentNpcId,
+          residentMemories.length,
+        ])
+      ),
+    });
   }, []);
 
   const loadPanelState = useCallback(() => {

@@ -115,6 +115,18 @@ interface WelcomeResponse {
 const welcomeRequests = new Map<string, Promise<WelcomeResponse | null>>();
 const MEMORY_CURATOR_TRIGGER_THRESHOLD = 4;
 const MEMORY_CURATOR_OVERLAP_AFTER_TRIGGER = 2;
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+function debugMemoryCuratorTrace(message: string, details?: Record<string, unknown>): void {
+  if (!IS_DEV) return;
+
+  if (details) {
+    console.debug(`[Memory Curator] ${message}`, details);
+    return;
+  }
+
+  console.debug(`[Memory Curator] ${message}`);
+}
 
 function countUserMessages(history: StoredMessage[]): number {
   return history.filter((message) => message.role === "user").length;
@@ -860,6 +872,19 @@ export default function ChatPage() {
     existingMemories: string[],
   ) => {
     try {
+      debugMemoryCuratorTrace("triggered", {
+        npcId,
+        recentMessagesCount: recentMessages.length,
+        existingMemoriesCount: existingMemories.length,
+        payloadPreview: {
+          recentMessages: recentMessages.slice(-4).map((message) => ({
+            role: message.role,
+            content: message.content.slice(0, 80),
+          })),
+          existingMemories: existingMemories.slice(0, 5),
+        },
+      });
+
       const res = await fetch(buildClientApiUrl("/api/memory"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -870,9 +895,26 @@ export default function ChatPage() {
         }),
       });
       const data = await res.json();
+      debugMemoryCuratorTrace("result", {
+        npcId,
+        action: data?.action ?? null,
+        memory: data?.memory ?? null,
+        replaceIndex: data?.replaceIndex ?? null,
+        reason: data?.reason ?? null,
+      });
       const next = applyLocalNPCMemoryCuratorResult(npcId, data);
+      debugMemoryCuratorTrace("state updated", {
+        npcId,
+        nextMemoriesCount: next.length,
+      });
       setMemories(next);
-    } catch { /* 静默 */ }
+    } catch (error) {
+      debugMemoryCuratorTrace("request failed", {
+        npcId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      /* 静默 */
+    }
   };
 
   const sendToNpc = async (userText: string, userAudioBlob?: Blob | null) => {
@@ -893,15 +935,38 @@ export default function ChatPage() {
     }));
     historyForApi.push({ role: "user", content: userText, createdAt: userCreatedAt });
     userMessagesSinceMemoryCheckRef.current += 1;
+    const existingMemoriesSnapshot = getLocalNPCMemories(npcId);
     if (userMessagesSinceMemoryCheckRef.current >= MEMORY_CURATOR_TRIGGER_THRESHOLD) {
       // Keep a small overlap after each check so the curator can re-evaluate
       // nearby follow-up messages instead of waiting for a full fresh block of 4.
       // This helps when the durable signal appears on message 5 or 6, not exactly 4.
+      const userMessagesSinceLastCheck = userMessagesSinceMemoryCheckRef.current;
       userMessagesSinceMemoryCheckRef.current = MEMORY_CURATOR_OVERLAP_AFTER_TRIGGER;
       void runMemoryCurator(
         historyForApi.slice(-12),
-        getLocalNPCMemories(npcId),
+        existingMemoriesSnapshot,
       );
+      debugMemoryCuratorTrace("check triggered", {
+        npcId,
+        userMessagesSinceLastCheck,
+        recentMessagesCount: historyForApi.slice(-12).length,
+        existingMemoriesCount: existingMemoriesSnapshot.length,
+        payloadPreview: {
+          recentMessages: historyForApi.slice(-4).map((message) => ({
+            role: message.role,
+            content: message.content.slice(0, 80),
+          })),
+          existingMemories: existingMemoriesSnapshot.slice(0, 5),
+        },
+      });
+    } else {
+      debugMemoryCuratorTrace("skipped: waiting for more user messages", {
+        npcId,
+        userMessagesSinceLastCheck: userMessagesSinceMemoryCheckRef.current,
+        threshold: MEMORY_CURATOR_TRIGGER_THRESHOLD,
+        recentMessagesCount: historyForApi.slice(-12).length,
+        existingMemoriesCount: existingMemoriesSnapshot.length,
+      });
     }
     const npcState = getNpcState(npcId);
     const localDateContext = getLocalDateContext();

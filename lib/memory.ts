@@ -3,10 +3,22 @@ import { ALL_NPC_IDS, type NpcId } from "@/lib/npc";
 const MAX_MEMORIES = 10;
 const MIN_MEMORY_TEXT_LENGTH = 6;
 export const NPC_MEMORIES_UPDATED_EVENT = "kotomachi-npc-memories-updated";
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 // One-time migration from the old komorebi_* storage keys to kotomachi_*.
 const MIGRATION_DONE_KEY = "kotomachi_migration_done";
 const KEY_SUFFIXES = ["facts", "last_time", "history", "count"] as const;
+
+function debugMemoryTrace(message: string, details?: Record<string, unknown>): void {
+  if (!IS_DEV) return;
+
+  if (details) {
+    console.debug(`[Memory Curator] ${message}`, details);
+    return;
+  }
+
+  console.debug(`[Memory Curator] ${message}`);
+}
 
 /**
  * Normalize stored NPC memories:
@@ -114,6 +126,29 @@ function isNearDuplicateMemory(candidate: string, existingFacts: string[]): bool
   });
 }
 
+export function getMemoryCandidateRejectionReason(
+  candidate: string,
+  existingFacts: string[] = []
+): string | null {
+  const trimmed = candidate.trim();
+
+  if (!trimmed) return "empty";
+  if (isDirectFoodOrShoppingChoice(trimmed)) return "food/order topic";
+  if (isAssistantSuggestionStyle(trimmed)) return "assistant suggestion style";
+  if (isSensitiveOrBoundaryBreaking(trimmed)) return "sensitive or boundary-breaking";
+  if (isLikelyTemporaryTopic(trimmed) && !hasDurableSignal(trimmed)) {
+    return "temporary context";
+  }
+  if (getVisibleCharacterLength(trimmed) < MIN_MEMORY_TEXT_LENGTH && !hasDurableSignal(trimmed)) {
+    return "too short";
+  }
+  if (isNearDuplicateMemory(trimmed, existingFacts)) {
+    return "duplicate or covered by existing memory";
+  }
+
+  return null;
+}
+
 /**
  * Keep memory v0 conservative:
  * - reject empty/keyword-like fragments
@@ -125,26 +160,22 @@ export function shouldKeepMemoryCandidate(
   candidate: string,
   existingFacts: string[] = []
 ): boolean {
-  const trimmed = candidate.trim();
-  if (!trimmed) return false;
-  if (isDirectFoodOrShoppingChoice(trimmed)) return false;
-  if (isAssistantSuggestionStyle(trimmed)) return false;
-  if (isSensitiveOrBoundaryBreaking(trimmed)) return false;
-  if (isLikelyTemporaryTopic(trimmed) && !hasDurableSignal(trimmed)) return false;
-
-  if (getVisibleCharacterLength(trimmed) < MIN_MEMORY_TEXT_LENGTH && !hasDurableSignal(trimmed)) {
-    return false;
-  }
-
-  if (isNearDuplicateMemory(trimmed, existingFacts)) return false;
-  return true;
+  return getMemoryCandidateRejectionReason(candidate, existingFacts) === null;
 }
 
 function applyMemoryCandidate(existingFacts: string[], candidate: string): string[] {
   const merged = sanitizeNpcMemories(existingFacts);
   const trimmed = candidate.trim();
 
-  if (!shouldKeepMemoryCandidate(trimmed, merged)) return merged;
+  const rejectionReason = getMemoryCandidateRejectionReason(trimmed, merged);
+  if (rejectionReason) {
+    debugMemoryTrace("candidate rejected", {
+      candidate: trimmed,
+      reason: rejectionReason,
+      existingCount: merged.length,
+    });
+    return merged;
+  }
 
   const replacementIndex = getReplacementIndexForBroaderCandidate(trimmed, merged);
   if (replacementIndex >= 0) {
@@ -174,9 +205,9 @@ export function mergeMemoryCandidates(
 }
 
 export type MemoryCuratorResult =
-  | { action: "ignore"; memory?: null; replaceIndex?: null }
-  | { action: "add"; memory: string; replaceIndex?: null }
-  | { action: "replace"; memory: string; replaceIndex: number };
+  | { action: "ignore"; memory?: null; replaceIndex?: null; reason?: string }
+  | { action: "add"; memory: string; replaceIndex?: null; reason?: string }
+  | { action: "replace"; memory: string; replaceIndex: number; reason?: string };
 
 /**
  * Apply one conservative curator decision to the current NPC memories.
@@ -196,30 +227,94 @@ export function applyLocalNPCMemoryCuratorResult(
   }
 
   if (result.action === "ignore") {
+    debugMemoryTrace("apply", {
+      npcId,
+      action: result.action,
+      beforeCount: current.length,
+      afterCount: current.length,
+      reason: result.reason ?? "curator returned ignore",
+    });
     return current;
   }
 
   if (result.action === "add") {
+    const rejectionReason = getMemoryCandidateRejectionReason(result.memory, current);
+    if (rejectionReason) {
+      debugMemoryTrace("apply rejected", {
+        npcId,
+        action: result.action,
+        beforeCount: current.length,
+        afterCount: current.length,
+        memory: result.memory,
+        reason: rejectionReason,
+      });
+      return current;
+    }
+
     const next = mergeMemoryCandidates(current, [result.memory]);
     saveLocalNPCFacts(npcId, next);
+    debugMemoryTrace("apply", {
+      npcId,
+      action: result.action,
+      beforeCount: current.length,
+      afterCount: next.length,
+      memory: result.memory,
+      reason: result.reason ?? null,
+    });
     return next;
   }
 
   if (!Number.isInteger(result.replaceIndex)) {
+    debugMemoryTrace("apply rejected", {
+      npcId,
+      action: result.action,
+      beforeCount: current.length,
+      afterCount: current.length,
+      memory: result.memory,
+      reason: "invalid replaceIndex",
+    });
     return current;
   }
 
   if (result.replaceIndex < 0 || result.replaceIndex >= current.length) {
+    debugMemoryTrace("apply rejected", {
+      npcId,
+      action: result.action,
+      beforeCount: current.length,
+      afterCount: current.length,
+      memory: result.memory,
+      replaceIndex: result.replaceIndex,
+      reason: "replaceIndex out of range",
+    });
     return current;
   }
 
   const baseline = current.filter((_, index) => index !== result.replaceIndex);
-  if (!shouldKeepMemoryCandidate(result.memory, baseline)) {
+  const rejectionReason = getMemoryCandidateRejectionReason(result.memory, baseline);
+  if (rejectionReason) {
+    debugMemoryTrace("apply rejected", {
+      npcId,
+      action: result.action,
+      beforeCount: current.length,
+      afterCount: current.length,
+      memory: result.memory,
+      replaceIndex: result.replaceIndex,
+      reason: rejectionReason,
+    });
     return current;
   }
 
   const next = mergeMemoryCandidates(baseline, [result.memory]);
   saveLocalNPCFacts(npcId, next);
+  debugMemoryTrace("apply", {
+    npcId,
+    action: result.action,
+    beforeCount: current.length,
+    afterCount: next.length,
+    memory: result.memory,
+    replaceIndex: result.replaceIndex,
+    reason: result.reason ?? null,
+  });
   return next;
 }
 
@@ -285,11 +380,17 @@ export function saveLocalNPCMemory(npcId: string, fact: string): void {
 export function saveLocalNPCFacts(npcId: NpcId | string, facts: string[]): void {
   if (typeof window === "undefined") return;
 
+  const sanitizedFacts = sanitizeNpcMemories(facts);
   localStorage.setItem(
     `kotomachi_facts_${npcId}`,
-    JSON.stringify(sanitizeNpcMemories(facts))
+    JSON.stringify(sanitizedFacts)
   );
   dispatchNpcMemoriesUpdated(npcId);
+  debugMemoryTrace("localStorage updated", {
+    npcId,
+    key: `kotomachi_facts_${npcId}`,
+    count: sanitizedFacts.length,
+  });
 }
 
 /**

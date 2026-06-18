@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createChatCompletion } from "@/lib/llm";
 import {
+  getMemoryCandidateRejectionReason,
   shouldKeepMemoryCandidate,
   type MemoryCuratorResult,
 } from "@/lib/memory";
 
 export const runtime = "nodejs";
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 type CuratorMessage = {
   role: "user" | "assistant";
@@ -25,7 +27,19 @@ type ParsedCuratorPayload = Partial<MemoryCuratorResult> & {
   fact?: unknown;
   memory?: unknown;
   replaceIndex?: unknown;
+  reason?: unknown;
 };
+
+function debugCuratorTrace(message: string, details?: Record<string, unknown>): void {
+  if (!IS_DEV) return;
+
+  if (details) {
+    console.debug(`[Memory Curator] ${message}`, details);
+    return;
+  }
+
+  console.debug(`[Memory Curator] ${message}`);
+}
 
 function normalizeRecentMessages(body: MemoryCuratorRequestBody): CuratorMessage[] {
   if (Array.isArray(body.recentMessages)) {
@@ -46,8 +60,8 @@ function normalizeRecentMessages(body: MemoryCuratorRequestBody): CuratorMessage
   return [];
 }
 
-function ignoreResult(): MemoryCuratorResult {
-  return { action: "ignore", memory: null, replaceIndex: null };
+function ignoreResult(reason?: string): MemoryCuratorResult {
+  return { action: "ignore", memory: null, replaceIndex: null, reason };
 }
 
 function extractJsonObject(raw: string): string | null {
@@ -156,18 +170,18 @@ function parseCuratorResult(
   } catch {
     const extractedJson = extractJsonObject(raw);
     if (!extractedJson) {
-      return ignoreResult();
+      return ignoreResult("response was not valid JSON");
     }
 
     try {
       parsed = JSON.parse(extractedJson);
     } catch {
-      return ignoreResult();
+      return ignoreResult("response JSON could not be parsed");
     }
   }
 
   if (parsed.action === "ignore") {
-    return ignoreResult();
+    return ignoreResult(typeof parsed.reason === "string" ? parsed.reason : "model chose ignore");
   }
 
   const candidateMemory =
@@ -186,47 +200,67 @@ function parseCuratorResult(
     const memory = candidateMemory;
     const replaceIndex = parsed.replaceIndex as number;
     if (replaceIndex < 0 || replaceIndex >= existingMemories.length) {
-      return ignoreResult();
+      return ignoreResult("replaceIndex out of range");
     }
 
     const baseline = existingMemories.filter((_, index) => index !== replaceIndex);
-    if (!shouldKeepMemoryCandidate(memory, baseline)) {
-      return ignoreResult();
+    const rejectionReason = getMemoryCandidateRejectionReason(memory, baseline);
+    if (rejectionReason || !shouldKeepMemoryCandidate(memory, baseline)) {
+      return ignoreResult(rejectionReason ?? "local quality guard rejected candidate");
     }
 
-    return { action: "replace", memory, replaceIndex };
+    return {
+      action: "replace",
+      memory,
+      replaceIndex,
+      reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+    };
   }
 
   if (parsed.action === "add" || (!parsed.action && candidateMemory)) {
     const memory = candidateMemory;
-    if (!memory || !shouldKeepMemoryCandidate(memory, existingMemories)) {
-      return ignoreResult();
+    const rejectionReason = memory
+      ? getMemoryCandidateRejectionReason(memory, existingMemories)
+      : "memory missing";
+    if (!memory || rejectionReason || !shouldKeepMemoryCandidate(memory, existingMemories)) {
+      return ignoreResult(rejectionReason ?? "local quality guard rejected candidate");
     }
-    return { action: "add", memory, replaceIndex: null };
+    return {
+      action: "add",
+      memory,
+      replaceIndex: null,
+      reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+    };
   }
 
   if (parsed.action === "replace") {
     const memory = candidateMemory;
     const replaceIndex = parsed.replaceIndex;
     if (!memory || !Number.isInteger(replaceIndex)) {
-      return ignoreResult();
+      return ignoreResult("replace response missing memory or replaceIndex");
     }
 
     const resolvedReplaceIndex = Number(replaceIndex);
 
     if (resolvedReplaceIndex < 0 || resolvedReplaceIndex >= existingMemories.length) {
-      return ignoreResult();
+      return ignoreResult("replaceIndex out of range");
     }
 
     const baseline = existingMemories.filter((_, index) => index !== resolvedReplaceIndex);
-    if (!shouldKeepMemoryCandidate(memory, baseline)) {
-      return ignoreResult();
+    const rejectionReason = getMemoryCandidateRejectionReason(memory, baseline);
+    if (rejectionReason || !shouldKeepMemoryCandidate(memory, baseline)) {
+      return ignoreResult(rejectionReason ?? "local quality guard rejected replacement");
     }
 
-    return { action: "replace", memory, replaceIndex: resolvedReplaceIndex };
+    return {
+      action: "replace",
+      memory,
+      replaceIndex: resolvedReplaceIndex,
+      reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+    };
   }
 
-  return ignoreResult();
+  return ignoreResult("unknown action");
 }
 
 export async function POST(req: NextRequest) {
@@ -239,9 +273,18 @@ export async function POST(req: NextRequest) {
         )
       : [];
 
+    debugCuratorTrace("request", {
+      npcId: body.npcId ?? "unknown",
+      recentMessagesCount: recentMessages.length,
+      userMessageCount: recentMessages.filter((message) => message.role === "user").length,
+      existingMemoriesCount: existingMemories.length,
+    });
+
     const userMessageCount = recentMessages.filter((message) => message.role === "user").length;
     if (recentMessages.length === 0 || userMessageCount === 0) {
-      return NextResponse.json(ignoreResult());
+      const result = ignoreResult("no recent user messages");
+      debugCuratorTrace("result", result);
+      return NextResponse.json(result);
     }
 
     const raw = await createChatCompletion(
@@ -254,9 +297,13 @@ export async function POST(req: NextRequest) {
       { temperature: 0.1, maxTokens: 180, jsonMode: true }
     );
 
-    return NextResponse.json(parseCuratorResult(raw, existingMemories));
+    const result = parseCuratorResult(raw, existingMemories);
+    debugCuratorTrace("result", result);
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Memory curator error:", error);
-    return NextResponse.json(ignoreResult());
+    const result = ignoreResult("server error");
+    debugCuratorTrace("result", result);
+    return NextResponse.json(result);
   }
 }
