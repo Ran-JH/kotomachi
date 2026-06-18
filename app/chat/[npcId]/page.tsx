@@ -1805,6 +1805,7 @@ export default function ChatPage() {
             <NpcMemoryPanel
               npcId={npcId}
               npcName={getNpcMeta(npcId)?.name ?? npcId}
+              uiLanguage={uiLanguage}
             />
           </div>
         </div>

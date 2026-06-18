@@ -38,6 +38,8 @@ type ChatRequestBody = {
 
 };
 
+const MAX_PROMPT_MEMORIES = 5;
+
 
 
 function describeLocalDateContext(localDateContext: LocalDateContext): string {
@@ -76,6 +78,33 @@ function buildLocalDatePromptBlock(localDateContext: LocalDateContext): string {
 
 }
 
+function getPromptMemories(memories: string[]): string[] {
+  return memories
+    .filter((memory): memory is string => typeof memory === "string")
+    .map((memory) => memory.trim())
+    .filter(Boolean)
+    .slice(0, MAX_PROMPT_MEMORIES);
+}
+
+function buildMemoryPromptBlock(memories: string[]): string {
+  if (memories.length === 0) return "";
+
+  const memoryList = memories.map((memory) => `- ${memory}`).join("\n");
+
+  return [
+    "この住民がユーザーについて覚えていること：",
+    memoryList,
+    "",
+    "これらは、会話を自然につなげるための手がかりです。",
+    "関連するときだけ軽く使ってください。",
+    "毎回すべて言及しないでください。",
+    "ユーザーが削除した記憶は使ってはいけません。",
+    "恋愛関係、独占、嫉妬、依存、親密度のような表現は避けてください。",
+    "記憶を使う目的は、言語練習を続けやすくし、会話をゼロからやり直さなくてよくすることです。",
+    "健康、不調、けが、体型、強い不安などに関わる記憶は慎重に扱ってください。診断、処方、決めつけ、繰り返しの言及はしないでください。",
+  ].join("\n");
+}
+
 
 
 function buildSystemPrompt(
@@ -100,7 +129,7 @@ function buildSystemPrompt(
 
 ): string {
 
-  const memoryLine = memories?.length ? memories.join("、") : "なし";
+  const memorySection = buildMemoryPromptBlock(memories);
 
   const timeContext = describeLocalDateContext(localDateContext);
 
@@ -158,7 +187,7 @@ function buildSystemPrompt(
 
 - 反客服化：聊天要像真正的日本朋友一样，先针对对方上一句的话做出情绪共鸣，谈谈自己的感受，然后再自然引申，避免生硬地在每次句尾用问题逼对方回答。
 
-- 简易记忆联动：你脑中关于用户的标签事实是：[${memoryLine}]。请在对话的打招呼或合适时机非常自然地提起。
+- 记忆的使用请参照下方 memory context block。
 
 - 熟悉度：你们已经聊了约${conversationCount}次。${familiarityHint}
 
@@ -173,6 +202,8 @@ ${localDatePromptBlock}
 - 邻里感：${neighborHint}
 
 - 天气氛围：${worldHint}
+
+${memorySection ? `\n# Memory context\n${memorySection}\n` : ""}
 
 - 每次回复严格控制在【2-3句以内】。只返回标准纯日文，尽可能不用Emoji。`;
 
@@ -202,7 +233,7 @@ ${localDatePromptBlock}
 
 - 禁止漂移：不要说「待ってた」「やっと来た」「寂しかった」这类依赖感或恋爱感的话，也不要把“练タメ口”挂在嘴边，除非用户明确提到。
 
-- 简易记忆联动：你脑中关于用户的标签事实是：[${memoryLine}]。可以自然提起这些标签，但【禁止编造标签中不存在的具体事实】。例如：如果标签是「最近有点累」，不要说「前に陶芸にハマってたよね」，而是用「最近、何か続けてることある？」这类开放式问法。
+- 记忆的使用请参照下方 memory context block。
 
 - 熟悉度：你们已经聊了约${conversationCount}次。${familiarityHint}
 
@@ -213,6 +244,8 @@ ${localDatePromptBlock}
 - 邻里感：${neighborHint}
 
 - 天气氛围：${worldHint}
+
+${memorySection ? `\n# Memory context\n${memorySection}\n` : ""}
 
 - 每次回复严格控制在【1-2句为主，最多3句】。只返回标准纯日文，尽量不用Emoji。`;
 
@@ -238,7 +271,7 @@ ${localDatePromptBlock}
 
 - 经常聊的话题：研究室、课程、文献、发表、校园生活、留学前后的适应、轻微疲惫、和前辈打招呼的说法。
 
-- 简易记忆联动：你脑中关于用户的标签事实是：[${memoryLine}]。请在对话的打招呼或合适时机非常自然地提起。
+- 记忆的使用请参照下方 memory context block。
 
 - 熟悉度：你们已经聊了约${conversationCount}次。${familiarityHint}
 
@@ -249,6 +282,8 @@ ${localDatePromptBlock}
 - 邻里感：${neighborHint}
 
 - 天气氛围：${worldHint}
+
+${memorySection ? `\n# Memory context\n${memorySection}\n` : ""}
 
 - 每次回复严格控制在【2-3句以内】。只返回标准纯日文，尽可能不用Emoji。`;
 
@@ -274,7 +309,7 @@ ${localDatePromptBlock}
 
 - 保持便利店铺台距离：用 casual 店铺熟人语气接话、轻吐槽、问小问题都可以，但不要变成同级同学或邀约感强的朋友。保持一点便利店距离感。
 
-- 简易记忆联动：你脑中关于用户的标签事实是：[${memoryLine}]。请在对话的打招呼或合适时机非常自然地提起。
+- 记忆的使用请参照下方 memory context block。
 
 - 熟悉度：你们已经聊了约${conversationCount}次。${familiarityHint}
 
@@ -285,6 +320,8 @@ ${localDatePromptBlock}
 - 邻里感：${neighborHint}
 
 - 天气氛围：${worldHint}
+
+${memorySection ? `\n# Memory context\n${memorySection}\n` : ""}
 
 - 每次回复严格控制在【2-3句以内】。只返回标准纯日文，尽可能少用Emoji。`;
 
@@ -306,7 +343,7 @@ ${localDatePromptBlock}
 
 - 学习者友好边界：可以自然使用居酒屋里的常见说法，但默认不要直接用容易被学习者误认为乱码的符号写法「〆」。如果想表达最后收尾的一道，优先用「締め」或「しめ」；如果想表达小食、下酒菜或轻松来一份，优先用「おつまみ」「つまみ」「一品」或「軽くつまめるもの」。不要在可见回复里解释这条规则。
 
-- 简易记忆联动：你脑中关于用户的标签事实是：[${memoryLine}]。请在对话的打招呼或合适时机非常自然地提起。
+- 记忆的使用请参照下方 memory context block。
 
 - 熟悉度：你们已经聊了约${conversationCount}次。${familiarityHint}
 
@@ -317,6 +354,8 @@ ${localDatePromptBlock}
 - 邻里感：${neighborHint}
 
 - 天气氛围：${worldHint}
+
+${memorySection ? `\n# Memory context\n${memorySection}\n` : ""}
 
 - 每次回复严格控制在【2-3句以内】。只返回标准纯日文，不用Emoji。`;
 
@@ -380,7 +419,7 @@ Do not become preachy, over-explanatory, or self-showy.
 
 Do not write long paragraphs.
 
-Memory facts: [${memoryLine}]
+${memorySection ? `Memory context:\n${memorySection}\n` : ""}
 
 Familiarity: about ${conversationCount} chats. ${familiarityHint}
 
@@ -420,7 +459,7 @@ Her tone should feel low-pressure and reliable, like a senpai you can quietly as
 
 Do not turn the conversation into a lesson, checklist, or formal training script.
 
-Memory facts: [${memoryLine}]
+${memorySection ? `Memory context:\n${memorySection}\n` : ""}
 
 Familiarity: about ${conversationCount} chats. ${familiarityHint}
 
@@ -444,7 +483,7 @@ Visible reply must be standard Japanese only, with no emoji.`;
 
   // 兜底
 
-  return `你是一位友善的日语对话伙伴。请用自然日文回复，2-3句以内。绝对不纠错。记忆事实为：[${memoryLine}]。熟悉度：聊了约${conversationCount}次。${familiarityHint}当前时段：${timeContext}。`;
+  return `你是一位友善的日语对话伙伴。请用自然日文回复，2-3句以内。绝对不纠错。熟悉度：聊了约${conversationCount}次。${familiarityHint}当前时段：${timeContext}。${memorySection ? `\n\nMemory context:\n${memorySection}` : ""}`;
 
 }
 
@@ -537,6 +576,7 @@ export async function POST(req: NextRequest) {
 
 
     const localDateContext = resolveLocalDateContext(rawLocalDateContext, getLocalDateContext());
+    const promptMemories = getPromptMemories(memories ?? []);
 
     const scenePrompt = buildScenePrompt(activeSceneId);
 
@@ -559,7 +599,7 @@ export async function POST(req: NextRequest) {
             "If the user asks for a detailed training menu, gently redirect back to expression practice, such as: 「細かいメニューは専門の人に見てもらうのが安心だけど、まずは『今日は軽く動いた』って言えるだけでもいいと思うよ。」",
             "Do not become an AI trainer, medical advisor, rehab specialist, diet coach, body-shaping coach, or strict school coach.",
             "Do not diagnose injuries, prescribe rehab, give detailed training plans, comment on the user's body shape, create weight-loss anxiety, or pressure the user to train harder.",
-            `Memory facts: [${(memories ?? []).join(" / ") || "none"}]`,
+            ...(promptMemories.length > 0 ? [`Memory context:\n${buildMemoryPromptBlock(promptMemories)}`] : []),
             `Familiarity: about ${conversationCount ?? 0} chats.`,
             `Current time context: ${describeLocalDateContext(localDateContext)}`,
             `Recent life arc: ${lifeArc ? `${lifeArc} / state: ${lifeArcState}` : "none"}`,
@@ -587,7 +627,7 @@ export async function POST(req: NextRequest) {
             "Help the user express vague feelings, dreams, rumors, strange impressions, forgotten words, and the aftertaste of stories.",
             "Respond naturally to the user's meaning first, and do not proactively correct the user's Japanese.",
             "Keep replies short: usually 1-2 sentences, max 3.",
-            `Memory facts: [${(memories ?? []).join(" / ") || "none"}]`,
+            ...(promptMemories.length > 0 ? [`Memory context:\n${buildMemoryPromptBlock(promptMemories)}`] : []),
             `Familiarity: about ${conversationCount ?? 0} chats.`,
             `Current time context: ${describeLocalDateContext(localDateContext)}`,
             `Recent life arc: ${lifeArc ? `${lifeArc} / state: ${lifeArcState}` : "none"}`,
@@ -606,7 +646,7 @@ export async function POST(req: NextRequest) {
           sakuSystemPrompt ??
           buildSystemPrompt(
             npcId ?? "misaki",
-            memories ?? [],
+            promptMemories,
             conversationCount ?? 0,
             localDateContext,
             lifeArc,

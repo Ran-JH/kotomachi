@@ -102,6 +102,25 @@ Notes / risks:
   - 「随便聊一句」：Free Chat starter，点击后进入 `/chat/[npcId]?starter=idea`
 - ContinueSection 已降权：只显示最近 1 个聊天，作为回访辅助入口。
 
+#### Memory Center (per-NPC memory management)
+
+Primary files:
+- `app/memories/page.tsx`
+- `components/npc-memory-center.tsx`
+- `components/npc-memory-panel.tsx`
+
+Supporting files:
+- `lib/memory.ts`
+- `lib/npc.ts`
+
+Notes / risks:
+- 这是 per-NPC memory management，不是 global user memory。
+- 数据仍来自 `kotomachi_facts_${npcId}` 的 `string[]` v0 模型。
+- 只允许查看、删除单条、清空某个 NPC 的 memory；不支持手动新增或编辑。
+- 当前主入口是 `components/npc-memory-panel.tsx` 内部的二级视图切换，不再要求用户跳转到独立管理页。
+- Saku 不应默认暴露；只有在已有聊天历史、last_time、messageCount 或 memories 时才显示。
+- 清空某个 NPC 的 memory 不应影响 chat history / count / last_time。
+
 #### NPC profile / character data
 
 Hidden NPC note:
@@ -434,6 +453,10 @@ Notes / risks:
   `components/home/inspiration-section.tsx`
   - 「今日街角小事」：接入 Guided Scenario，`/chat/[npcId]?scene=sceneId`
   - 「随便聊一句」：Free Chat starter，`/chat/[npcId]?starter=idea`
+- Memory Center page:
+  `app/memories/page.tsx`, `components/npc-memory-center.tsx`
+- Current NPC memory panel entry:
+  `components/npc-memory-panel.tsx` -> panel-internal all-residents view
 - Chat page shell:
   `app/chat/[npcId]/page.tsx`
 - User message bubble:
