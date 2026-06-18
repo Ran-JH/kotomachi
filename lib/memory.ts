@@ -29,14 +29,18 @@ function normalizeMemoryText(text: string): string {
     .replace(/[。．、，,！!？?：:；;（）()[\]「」『』"'`]/g, "");
 }
 
+function getVisibleCharacterLength(text: string): number {
+  return text.replace(/[\s。．、，,！!？?：:；;（）()[\]「」『』"'`]/g, "").length;
+}
+
 function hasDurableSignal(text: string): boolean {
-  return /(经常|平时|一直|总是|长期|最近主要|想重新|以后|希望你以后|想练|正在练|正在学习|想提升|想改善|更温柔一点|更直接一点|不太想被|通常|常常|老是|经常不知道|よく|いつも|普段|前から|ずっと|また始めたい|やり直したい|練習したい|勉強したい|上達したい|慣れたい|してほしい|やさしく|軽めに|自然に言いたい)/.test(
+  return /(经常|平时|一直|总是|长期|最近主要|想重新|以后|希望你以后|想练|正在练|正在学习|想提升|想改善|更温柔一点|更直接一点|不太想被|通常|常常|经常不知道|よく|いつも|普段|前から|ずっと|また始めたい|やり直したい|練習したい|勉強したい|上達したい|慣れたい|してほしい|やさしく|軽めに|自然に言いたい)/.test(
     text
   );
 }
 
 function isAssistantSuggestionStyle(text: string): boolean {
-  return /(おすすめ|オススメ|〜するといい|するといい|してみるといい|〜してみて|試してみて|可以试试|建议你|你可以|不如|推荐你)/.test(
+  return /(おすすめ|オススメ|するといい|してみるといい|してみて|试试看|可以试试|建议你|你可以|不如|推荐你)/.test(
     text
   );
 }
@@ -49,39 +53,62 @@ function isSensitiveOrBoundaryBreaking(text: string): boolean {
 
 function isLikelyTemporaryTopic(text: string): boolean {
   const temporarySignal =
-    /(今天|今日|きょう|今天想|今想|现在|現在|今は|さっき|刚刚|剛剛|这次|今回|本轮|雨ですね|疲れています|疲れた|累了|眠い|お腹すいた|想吃|食べたい|にします|にしよう|探している|探してます|加热|加熱|温かいもの|热的食物|熱いもの|今ちょっと|今日は雨)/;
+    /(今天|今日|きょう|现在|現在|今は|刚刚|さっき|这次|今回|本轮|今天想|今ちょっと|今天有点|雨ですね|今日は雨|今天下雨|疲れています|疲れた|累了|眠い|お腹すいた|想吃|食べたい|にします|にしよう|探している|探してます|加热|加熱|温かいもの|热的食物|熱いもの)/;
   const foodOrShoppingSignal =
     /(おでん|肉まん|から揚げ|芋けんぴ|热饮|熱飲|コーヒー|咖啡|飲み物|弁当|便当|零食|お菓子|スイーツ|ラーメン|パン|商品|買い物|コンビニ|加热后)/;
 
   return temporarySignal.test(text) || (foodOrShoppingSignal.test(text) && !hasDurableSignal(text));
 }
 
+function isDirectFoodOrShoppingChoice(text: string): boolean {
+  return /(想吃|想喝|想买|买点|食べたい|飲みたい|買いたい|にします|にしよう|探している|探してます)/.test(
+    text
+  ) &&
+    /(おでん|肉まん|から揚げ|芋けんぴ|热饮|熱飲|コーヒー|咖啡|飲み物|弁当|便当|零食|お菓子|スイーツ|ラーメン|パン|商品|買い物|コンビニ|加热|加熱|温かいもの)/.test(
+      text
+    );
+}
+
+function isFoodTopic(text: string): boolean {
+  return /(おでん|肉まん|から揚げ|芋けんぴ|热饮|熱飲|コーヒー|咖啡|飲み物|弁当|便当|零食|お菓子|スイーツ|ラーメン|パン)/.test(
+    text
+  );
+}
+
+function getReplacementIndexForBroaderCandidate(
+  candidate: string,
+  existingFacts: string[]
+): number {
+  const normalizedCandidate = normalizeMemoryText(candidate);
+
+  return existingFacts.findIndex((fact) => {
+    const normalizedFact = normalizeMemoryText(fact);
+    if (!normalizedFact) return false;
+    if (normalizedFact === normalizedCandidate) return false;
+
+    // If the new candidate contains the existing one and is meaningfully longer,
+    // treat it as a broader, more user-readable replacement.
+    return (
+      normalizedCandidate.includes(normalizedFact) &&
+      getVisibleCharacterLength(candidate) > getVisibleCharacterLength(fact)
+    );
+  });
+}
+
 function isNearDuplicateMemory(candidate: string, existingFacts: string[]): boolean {
   const normalizedCandidate = normalizeMemoryText(candidate);
-  const candidateIsFoodTopic =
-    /(おでん|肉まん|から揚げ|芋けんぴ|热饮|熱飲|コーヒー|咖啡|飲み物|弁当|便当|零食|お菓子|スイーツ|ラーメン|パン)/.test(
-      candidate
-    );
+  const candidateIsFoodTopic = isFoodTopic(candidate);
 
   return existingFacts.some((fact) => {
     const normalizedFact = normalizeMemoryText(fact);
     if (!normalizedFact) return false;
     if (normalizedFact === normalizedCandidate) return true;
-    if (
-      normalizedFact.includes(normalizedCandidate) ||
-      normalizedCandidate.includes(normalizedFact)
-    ) {
-      return true;
-    }
 
-    if (candidateIsFoodTopic) {
-      const existingIsFoodTopic =
-        /(おでん|肉まん|から揚げ|芋けんぴ|热饮|熱飲|コーヒー|咖啡|飲み物|弁当|便当|零食|お菓子|スイーツ|ラーメン|パン)/.test(
-          fact
-        );
-      if (existingIsFoodTopic) return true;
-    }
+    // If the new candidate is only a narrower fragment of an existing memory,
+    // keep the broader old one and reject the fragment.
+    if (normalizedFact.includes(normalizedCandidate)) return true;
 
+    if (candidateIsFoodTopic && isFoodTopic(fact)) return true;
     return false;
   });
 }
@@ -98,27 +125,34 @@ export function shouldKeepMemoryCandidate(
   existingFacts: string[] = []
 ): boolean {
   const trimmed = candidate.trim();
-  const directFoodOrShoppingDesire =
-    /(想吃|想喝|想买|买点|食べたい|飲みたい|買いたい|にします|にしよう|探している|探してます)/.test(
-      trimmed
-    ) &&
-    /(おでん|肉まん|から揚げ|芋けんぴ|热饮|熱飲|コーヒー|咖啡|飲み物|弁当|便当|零食|お菓子|スイーツ|ラーメン|パン|商品|買い物|コンビニ|加热|加熱|温かいもの)/.test(
-      trimmed
-    );
-
   if (!trimmed) return false;
-  if (directFoodOrShoppingDesire) return false;
+  if (isDirectFoodOrShoppingChoice(trimmed)) return false;
   if (isAssistantSuggestionStyle(trimmed)) return false;
   if (isSensitiveOrBoundaryBreaking(trimmed)) return false;
   if (isLikelyTemporaryTopic(trimmed) && !hasDurableSignal(trimmed)) return false;
 
-  const visibleLength = trimmed.replace(/[\s。．、，,！!？?：:；;（）()[\]「」『』"'`]/g, "").length;
-  if (visibleLength < MIN_MEMORY_TEXT_LENGTH && !hasDurableSignal(trimmed)) {
+  if (getVisibleCharacterLength(trimmed) < MIN_MEMORY_TEXT_LENGTH && !hasDurableSignal(trimmed)) {
     return false;
   }
 
   if (isNearDuplicateMemory(trimmed, existingFacts)) return false;
   return true;
+}
+
+function applyMemoryCandidate(existingFacts: string[], candidate: string): string[] {
+  const merged = sanitizeNpcMemories(existingFacts);
+  const trimmed = candidate.trim();
+
+  if (!shouldKeepMemoryCandidate(trimmed, merged)) return merged;
+
+  const replacementIndex = getReplacementIndexForBroaderCandidate(trimmed, merged);
+  if (replacementIndex >= 0) {
+    const next = [...merged];
+    next[replacementIndex] = trimmed;
+    return sanitizeNpcMemories(next).slice(-MAX_MEMORIES);
+  }
+
+  return sanitizeNpcMemories([...merged, trimmed]).slice(-MAX_MEMORIES);
 }
 
 /**
@@ -129,16 +163,10 @@ export function mergeMemoryCandidates(
   existingFacts: string[],
   candidates: string[]
 ): string[] {
-  const merged = sanitizeNpcMemories(existingFacts);
+  let merged = sanitizeNpcMemories(existingFacts);
 
   for (const candidate of candidates) {
-    const trimmed = candidate.trim();
-    if (!shouldKeepMemoryCandidate(trimmed, merged)) continue;
-    merged.push(trimmed);
-
-    if (merged.length >= MAX_MEMORIES) {
-      return merged.slice(-MAX_MEMORIES);
-    }
+    merged = applyMemoryCandidate(merged, candidate);
   }
 
   return merged;
@@ -185,11 +213,7 @@ export function saveLocalNPCMemory(npcId: string, fact: string): void {
   if (typeof window === "undefined") return;
 
   const current = getLocalNPCMemories(npcId);
-  const trimmedFact = fact.trim();
-  if (!shouldKeepMemoryCandidate(trimmedFact, current)) return;
-
-  // Keep the existing behavior: append the newest fact, then trim to the latest 10.
-  const next = sanitizeNpcMemories([...current, trimmedFact]).slice(-MAX_MEMORIES);
+  const next = applyMemoryCandidate(current, fact);
   localStorage.setItem(`kotomachi_facts_${npcId}`, JSON.stringify(next));
 }
 

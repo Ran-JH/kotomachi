@@ -177,6 +177,10 @@ function buildWelcomePrompt(
 ## 任务一：事实提取与合并
 分析下方 history 中用户的聊天记录，只提炼“跨会话仍然值得记住”的 durable facts。
 
+先区分两类信息：
+- Durable memory：用户可见、可删除、跨会话仍有帮助、之后这个 NPC 可以轻轻提起
+- Temporary context：只对这次或附近几轮对话有用，应该留在 history，不应该出现在 memory panel 或 facts 数组里
+
 只允许提取这些类型：
 1. 稳定兴趣、长期习惯、长期偏好
 2. 长期目标，或正在持续练习的方向
@@ -187,6 +191,7 @@ function buildWelcomePrompt(
 禁止提取这些内容：
 - 一次性想吃什么、喝什么、买什么
 - 当次聊天里的临时选择、点单、购物、商品比较
+- topic-of-the-moment
 - 过短关键词、菜名、物品名堆积
 - 今天累了、今天下雨、现在想喝咖啡之类短期状态
 - 食物偏好碎片，除非用户明确表达为长期偏好或经常如此
