@@ -9,6 +9,7 @@ import { ChatSummaryDetail } from "@/components/chat-summary-detail";
 import { ChatToast } from "@/components/chat-toast";
 import { TimeDivider, shouldShowTimeDivider, MESSAGE_TIME_DIVIDER_GAP_MS } from "@/components/chat-time-divider";
 import { LanguageToggle } from "@/components/language-toggle";
+import { NpcMemoryPanel } from "@/components/npc-memory-panel";
 import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
@@ -1801,6 +1802,10 @@ export default function ChatPage() {
             >
               {helpTitle}
             </button>
+            <NpcMemoryPanel
+              npcId={npcId}
+              npcName={getNpcMeta(npcId)?.name ?? npcId}
+            />
           </div>
         </div>
 
