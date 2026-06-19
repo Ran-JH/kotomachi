@@ -12,10 +12,20 @@ export const runtime = "nodejs";
 
 type UiLanguage = "zh" | "en";
 type FeedbackLevelKey = keyof FeedbackResponse;
+type FinalResponseSource = "primary" | "generic" | "hard";
 
 const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "riku", "ren"] as const;
 const VALID_NPC_ID_SET = new Set<string>(VALID_NPC_IDS);
 const FEEDBACK_LEVEL_KEYS: FeedbackLevelKey[] = ["casual", "business", "formal"];
+
+function debugExpressionHint(message: string, details?: Record<string, unknown>): void {
+  if (process.env.NODE_ENV === "production") return;
+  if (details) {
+    console.debug(`[Expression Hint] ${message}`, details);
+    return;
+  }
+  console.debug(`[Expression Hint] ${message}`);
+}
 
 const SYSTEM_PROMPT = `You are the Expression Hint assistant for Kotomachi.
 The user opened Expression Hint because they want a best-effort rewrite of what they just said into natural, reusable Japanese.
@@ -367,12 +377,46 @@ function isSafeHintExpression(nativeSay: string): boolean {
 }
 
 function sanitizeUserTextForFallback(userText: string): string {
-  const cleaned = cleanAsrArtifacts(userText)
-    .replace(/(えっと|あの|その)(\s*[、,]?\s*\1)+/g, "$1")
-    .replace(/(?:^|[。！？!?]\s*)(えっと|あの|その)(?=\s*[。！？!?]|$)/g, "")
+  return cleanAsrArtifacts(userText)
+    .replace(/(?:ええと|えっと|えーと|あの|その)\s*[、。,]?\s*/g, "")
+    .replace(/([ぁ-んァ-ン一-龯ー])、\1/g, "$1")
+    .replace(/お、お/g, "お")
+    .replace(/この\s*2人/g, "この2つ")
+    .replace(/この\s*二人/g, "この二つ")
+    .replace(/[、,]{2,}/g, "、")
+    .replace(/\s+/g, " ")
+    .replace(/^[、。\s]+|[、。\s]+$/g, "")
     .trim();
+}
 
-  return cleaned.replace(/[、,]\s*$/, "").trim();
+function hasVisibleDisfluency(text: string): boolean {
+  const compact = text.replace(/\s+/g, "");
+  return (
+    /(ええと|えっと|えーと|あの|その)/.test(text) ||
+    /お、お/.test(text) ||
+    /この\s*(2|二)人/.test(text) ||
+    /([ぁ-んァ-ン一-龯ー])、\1/.test(compact)
+  );
+}
+
+function buildSafeFallbackNativeSay(userText: string, level: FeedbackLevelKey): string {
+  const cleaned = sanitizeUserTextForFallback(userText);
+  const disfluent = hasVisibleDisfluency(userText);
+
+  if (cleaned && (!sameExpression(cleaned, userText) || !disfluent)) {
+    return cleaned;
+  }
+
+  switch (level) {
+    case "casual":
+      return "言いたいことを短く言うと、こんな感じです。";
+    case "business":
+      return "もう少し整理して言うと、このような言い方になります。";
+    case "formal":
+      return "少し丁寧に言うと、このように表現できます。";
+    default:
+      return "自然な日本語に言い直すと、こういう形になります。";
+  }
 }
 
 function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
@@ -387,15 +431,14 @@ function withRevisionNotes(level: FeedbackLevel, revisionNotes?: RevisionNote[])
 }
 
 function buildGenericFallback(userText: string): FeedbackResponse {
-  const cleaned = sanitizeUserTextForFallback(userText);
-  const safeBase = containsJapanese(cleaned)
-    ? cleaned
-    : "この内容を自然な日本語に言い直すと、もう少し短く整理して伝える言い方になります。";
+  const casualFallback = buildSafeFallbackNativeSay(userText, "casual");
+  const businessFallback = buildSafeFallbackNativeSay(userText, "business");
+  const formalFallback = buildSafeFallbackNativeSay(userText, "formal");
 
   return {
     casual: withRevisionNotes(
       feedbackLevel(
-        safeBase,
+        casualFallback,
         "先把零散停顿整理成完整一句，再用更顺的口语表达同样的意思。"
       ),
       [
@@ -407,7 +450,7 @@ function buildGenericFallback(userText: string): FeedbackResponse {
     ),
     business: withRevisionNotes(
       feedbackLevel(
-        sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
+        businessFallback,
         "先把信息顺序理清，再换成普通礼貌的说法，会更清楚也更自然。"
       ),
       [
@@ -419,7 +462,7 @@ function buildGenericFallback(userText: string): FeedbackResponse {
     ),
     formal: withRevisionNotes(
       feedbackLevel(
-        sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
+        formalFallback,
         "正式场景里把重点拆清，再补上礼貌句尾，会比直译原句稳妥。"
       ),
       [
@@ -559,8 +602,21 @@ function localizeRevisionNotes(
   }));
 }
 
+function shouldRejectNativeSay(candidateNative: string, userText: string): boolean {
+  if (!isSafeHintExpression(candidateNative)) {
+    return true;
+  }
+
+  if (hasVisibleDisfluency(userText) && sameExpression(candidateNative, userText)) {
+    return true;
+  }
+
+  return false;
+}
+
 function normalizeLevel(
   level: unknown,
+  userText: string,
   fallbackSay: string,
   fallbackAnalysis: string
 ): FeedbackLevel {
@@ -574,7 +630,7 @@ function normalizeLevel(
 
   const source = level as Record<string, unknown>;
   const candidateNative = normalizeNativeSay(source.nativeSay);
-  const nativeSay = isSafeHintExpression(candidateNative) ? candidateNative : fallbackNative;
+  const nativeSay = shouldRejectNativeSay(candidateNative, userText) ? fallbackNative : candidateNative;
   const analysis = pickAnalysis(source.analysis) || fallbackAnalysisText;
   const revisionNotes = normalizeRevisionNotes(source.revisionNotes);
   const structureNote = normalizeStructureNote(source.structureNote);
@@ -667,18 +723,25 @@ function buildFallbackResponse(userText: string): FeedbackResponse {
   return buildGenericFallback(userText);
 }
 
-function buildFinalResponse(source: FeedbackResponse, uiLanguage: UiLanguage, userText: string): FeedbackResponse {
+function resolveFinalResponse(
+  source: FeedbackResponse,
+  uiLanguage: UiLanguage,
+  userText: string
+): { response: FeedbackResponse; source: FinalResponseSource } {
   const primary = limitStructureNotes(localizeFeedbackResponse(source, uiLanguage));
   if (hasValidExpressions(primary)) {
-    return primary;
+    return { response: primary, source: "primary" };
   }
 
   const fallback = limitStructureNotes(localizeFeedbackResponse(buildFallbackResponse(userText), uiLanguage));
   if (hasValidExpressions(fallback)) {
-    return fallback;
+    return { response: fallback, source: "generic" };
   }
 
-  return limitStructureNotes(localizeFeedbackResponse(buildHardFallback(), uiLanguage));
+  return {
+    response: limitStructureNotes(localizeFeedbackResponse(buildHardFallback(), uiLanguage)),
+    source: "hard",
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -693,12 +756,20 @@ export async function POST(req: NextRequest) {
   const body = requestBody as Record<string, unknown>;
   const userText = typeof body.userText === "string" ? body.userText.trim() : "";
   const uiLanguage: UiLanguage = body.uiLanguage === "en" ? "en" : "zh";
+  const forceRefresh = body.forceRefresh === true;
 
   if (!userText) {
     return NextResponse.json({ error: "文本不能为空" }, { status: 400 });
   }
 
   try {
+    debugExpressionHint("request payload summary", {
+      forceRefresh,
+      npcId: typeof body.npcId === "string" ? body.npcId : null,
+      uiLanguage,
+      userTextLength: userText.length,
+    });
+
     const npcId = parseNpcId(body.npcId);
     const npcExpressionContext = getNpcExpressionContext(npcId);
     const systemPrompt = `${EXPRESSION_HINT_PROMPT}
@@ -733,42 +804,90 @@ Language rules:
       { temperature: 0.5, jsonMode: true }
     );
 
+    debugExpressionHint("raw model text", {
+      rawText: raw,
+    });
+
     let parsed: Partial<FeedbackResponse>;
     try {
       parsed = parseFeedbackResponseText(raw);
+      debugExpressionHint("parsed status", {
+        hasBusiness: Boolean(parsed.business),
+        hasCasual: Boolean(parsed.casual),
+        hasFormal: Boolean(parsed.formal),
+        parseStatus: "ok",
+      });
     } catch (parseError) {
+      debugExpressionHint("parse failed", {
+        reason: parseError instanceof Error ? parseError.message : "parse_failed",
+      });
       console.warn("[api/feedback] Using fallback expression hints", {
         reason: parseError instanceof Error ? parseError.message : "parse_failed",
         userTextLength: userText.length,
         rawPreview: raw.slice(0, 240),
       });
-      return NextResponse.json(buildFinalResponse(buildFallbackResponse(userText), uiLanguage, userText));
+      const fallbackResult = resolveFinalResponse(buildFallbackResponse(userText), uiLanguage, userText);
+      debugExpressionHint("fallback used", {
+        reason: "parse_failed",
+        source: fallbackResult.source,
+      });
+      return NextResponse.json(fallbackResult.response);
     }
 
     const fallback = buildFallbackResponse(userText);
     const normalized: FeedbackResponse = {
-      casual: normalizeLevel(parsed.casual, fallback.casual.nativeSay, fallback.casual.analysis),
-      business: normalizeLevel(parsed.business, fallback.business.nativeSay, fallback.business.analysis),
-      formal: normalizeLevel(parsed.formal, fallback.formal.nativeSay, fallback.formal.analysis),
+      casual: normalizeLevel(parsed.casual, userText, fallback.casual.nativeSay, fallback.casual.analysis),
+      business: normalizeLevel(parsed.business, userText, fallback.business.nativeSay, fallback.business.analysis),
+      formal: normalizeLevel(parsed.formal, userText, fallback.formal.nativeSay, fallback.formal.analysis),
     };
 
-    const finalResponse = buildFinalResponse(normalized, uiLanguage, userText);
+    debugExpressionHint("normalized status", {
+      businessNativePreview: normalized.business.nativeSay.slice(0, 80),
+      casualNativePreview: normalized.casual.nativeSay.slice(0, 80),
+      formalNativePreview: normalized.formal.nativeSay.slice(0, 80),
+    });
+
+    const finalResult = resolveFinalResponse(normalized, uiLanguage, userText);
+    const finalResponse = finalResult.response;
 
     if (!hasValidExpressions(finalResponse)) {
+      debugExpressionHint("validation failed", {
+        reason: "no_valid_expressions_after_normalization",
+      });
       console.warn("[api/feedback] Using fallback expression hints", {
         reason: "no_valid_expressions_after_normalization",
         userTextLength: userText.length,
         rawPreview: raw.slice(0, 240),
       });
-      return NextResponse.json(buildFinalResponse(buildFallbackResponse(userText), uiLanguage, userText));
+      const fallbackResult = resolveFinalResponse(buildFallbackResponse(userText), uiLanguage, userText);
+      debugExpressionHint("fallback used", {
+        reason: "no_valid_expressions_after_normalization",
+        source: fallbackResult.source,
+      });
+      return NextResponse.json(fallbackResult.response);
+    }
+
+    if (finalResult.source !== "primary") {
+      debugExpressionHint("fallback used", {
+        reason: "final_response_not_primary",
+        source: finalResult.source,
+      });
     }
 
     return NextResponse.json(finalResponse);
   } catch (error) {
+    debugExpressionHint("request failed", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
     console.warn("[api/feedback] Using fallback expression hints", {
       reason: error instanceof Error ? error.message : "unknown",
       userTextLength: userText.length,
     });
-    return NextResponse.json(buildFinalResponse(buildFallbackResponse(userText), uiLanguage, userText));
+    const fallbackResult = resolveFinalResponse(buildFallbackResponse(userText), uiLanguage, userText);
+    debugExpressionHint("fallback used", {
+      reason: "request_failed",
+      source: fallbackResult.source,
+    });
+    return NextResponse.json(fallbackResult.response);
   }
 }

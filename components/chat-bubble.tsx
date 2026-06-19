@@ -745,6 +745,15 @@ function mapFeedbackKeyToStyle(key: FeedbackLevelKey): ExpressionHintStyle {
   return key === "business" ? "normal" : key;
 }
 
+function debugExpressionHintClient(message: string, details?: Record<string, unknown>): void {
+  if (process.env.NODE_ENV === "production") return;
+  if (details) {
+    console.debug(`[Expression Hint] ${message}`, details);
+    return;
+  }
+  console.debug(`[Expression Hint] ${message}`);
+}
+
 function hasValidFeedbackSuggestions(feedback: FeedbackResponse): boolean {
   return FEEDBACK_LEVEL_META.some((meta) => isValidExpressionHintText(feedback[meta.key].nativeSay));
 }
@@ -869,30 +878,46 @@ export function ChatBubble({
     if (drawerOpen) { closeDrawer(); return; }
     setDrawerOpen(true);
     if (feedback) {
+      debugExpressionHintClient("cache bypass: in-memory feedback already open", {
+        messageId,
+      });
       if (!feedbackRecordId) recordExpressionHintOpened(feedback);
       return;
     }
     const language = uiLanguage === "en" ? "en" : "zh";
     const cached = getCachedFeedback(npcId, messageId, text, language);
     if (cached) {
+      debugExpressionHintClient("cache hit", {
+        messageId,
+        npcId,
+        uiLanguage: language,
+      });
       const restored = fromCachedFeedback(cached);
       if (!hasValidFeedbackSuggestions(restored)) {
         removeCachedFeedback(npcId, messageId, text, language);
-        setFeedback(null);
-        setFeedbackError(true);
+        debugExpressionHintClient("cache invalidated", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+        });
+      } else {
+        setFeedback(restored);
+        setFeedbackError(false);
+        recordExpressionHintOpened(restored);
         return;
       }
-      setFeedback(restored);
-      setFeedbackError(false);
-      recordExpressionHintOpened(restored);
-      return;
     }
+    debugExpressionHintClient("cache miss", {
+      messageId,
+      npcId,
+      uiLanguage: language,
+    });
     setLoading(true);
     setFeedbackError(false);
     try {
       const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null }),
+        body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null, forceRefresh: false }),
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;
@@ -913,12 +938,17 @@ export function ChatBubble({
   const handleRegenerateFeedback = async () => {
     const language = uiLanguage === "en" ? "en" : "zh";
     removeCachedFeedback(npcId, messageId, text, language);
+    debugExpressionHintClient("cache bypass: regenerate", {
+      messageId,
+      npcId,
+      uiLanguage: language,
+    });
     setLoading(true);
     setFeedbackError(false);
     try {
       const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null }),
+        body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null, forceRefresh: true }),
       });
       if (!res.ok) throw new Error("feedback failed");
       const nextFeedback = (await res.json()) as FeedbackResponse;

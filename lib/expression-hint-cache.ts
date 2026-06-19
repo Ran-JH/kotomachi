@@ -1,6 +1,6 @@
 import type { FeedbackLevelKey, RevisionNote } from "./feedback-types";
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STORAGE_KEY = `kotomachi_feedback_cache_${CACHE_VERSION}`;
 const MAX_CACHE_ENTRIES = 50;
 
