@@ -101,7 +101,8 @@ export const UI_COPY = {
       recommended: "推荐表达",
       usageLabel: "使用场景",
       whyLabel: "为什么这样说",
-      revisionNotesTitle: "修改说明",
+      sharedRevisionNotesTitle: "共同修改点",
+      revisionNotesTitle: "这一档的表达差异",
       originalPartLabel: "原句片段",
       revisedPartLabel: "优化后",
       revisionWhyLabel: "为什么这样改",
@@ -111,9 +112,9 @@ export const UI_COPY = {
       savedExpression: "已收藏",
       regenerate: "重新生成",
       levels: {
-        casual: { label: "亲近自然", subtitle: "カジュアル" },
+        casual: { label: "亲近随和", subtitle: "カジュアル" },
         business: { label: "普通自然", subtitle: "ふつう" },
-        formal: { label: "更礼貌", subtitle: "フォーマル" },
+        formal: { label: "礼貌得体", subtitle: "ポライト" },
       },
     },
     explain: {
@@ -266,7 +267,8 @@ export const UI_COPY = {
       recommended: "Recommended expression",
       usageLabel: "Usage",
       whyLabel: "Why this works",
-      revisionNotesTitle: "What changed",
+      sharedRevisionNotesTitle: "Shared changes",
+      revisionNotesTitle: "Register-specific changes",
       originalPartLabel: "Original part",
       revisedPartLabel: "Improved",
       revisionWhyLabel: "Why this works",
@@ -278,7 +280,7 @@ export const UI_COPY = {
       levels: {
         casual: { label: "Casual", subtitle: "カジュアル" },
         business: { label: "Neutral", subtitle: "ふつう" },
-        formal: { label: "Polite", subtitle: "フォーマル" },
+        formal: { label: "Polite", subtitle: "ポライト" },
       },
     },
     explain: {

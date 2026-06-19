@@ -143,6 +143,7 @@ export interface FeedbackResponse {
   casual: FeedbackLevel;
   business: FeedbackLevel;
   formal: FeedbackLevel;
+  sharedRevisionNotes?: RevisionNote[];
 }
 
 /** 抽屉内三档场合的展示元数据 */

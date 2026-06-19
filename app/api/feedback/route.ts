@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  type FeedbackLevelKey,
   normalizeRevisionNotes,
   normalizeStructureNote,
   type FeedbackLevel,
@@ -11,7 +12,6 @@ import { createChatCompletion } from "@/lib/llm";
 export const runtime = "nodejs";
 
 type UiLanguage = "zh" | "en";
-type FeedbackLevelKey = keyof FeedbackResponse;
 type FinalResponseSource = "primary" | "generic" | "hard";
 
 const VALID_NPC_IDS = ["aoi", "haruka", "kimura", "misaki", "taisho", "nana", "riku", "ren"] as const;
@@ -99,6 +99,14 @@ Do not act like a strict teacher. Do not reject rough spoken input.
 
 Return strict JSON only. No markdown code block. Use this shape:
 {
+  "sharedRevisionNotes": [
+    {
+      "type": "structure",
+      "originalPart": "optional shared original fragment",
+      "revisedPart": "optional shared revised Japanese fragment",
+      "explanation": "specific explanation in the user's UI language"
+    }
+  ],
   "casual": {
     "nativeSay": "natural casual Japanese",
     "analysis": "one concise summary of the main improvement in the user's UI language",
@@ -153,25 +161,41 @@ Hard requirements:
 
 Register guidance:
 - casual: natural spoken Japanese for friends, classmates, familiar NPCs, or relaxed conversation.
-- business: neutral polite spoken Japanese for shops, part-time work, neighbors, teachers, or ordinary social situations. This is not stiff email Japanese.
-- formal: more careful spoken Japanese for interviews, customers, superiors, or formal first meetings. Still natural, not overly written.
+- the internal key "business" means Neutral: natural everyday polite Japanese for shops, part-time work, neighbors, teachers, or ordinary social situations. This is not business email Japanese.
+- the internal key "formal" means Polite: careful spoken Japanese for interviews, customers, superiors, or formal first meetings. Still natural, not stiff written Japanese.
 - The three levels should differ by register and situation, not by copying the original.
 
 analysis rules:
 - analysis should be one concise summary of the main improvement.
 - Do not output empty summaries like "more natural" or "more polite" by themselves.
 
+sharedRevisionNotes rules:
+- Use sharedRevisionNotes for corrections or rewrites shared by all three suggestions.
+- sharedRevisionNotes should usually contain 2 to 4 notes.
+- Put shared corrections here only once, not in multiple levels.
+- Good shared topics include removing fillers or repetition, fixing wrong counters, reorganizing scattered fragments, and converting literal wording into a reusable sentence structure.
+- originalPart and revisedPart must be short fragments, not full sentences.
+- Do not use the whole user input or the whole rewritten sentence here.
+
 revisionNotes rules:
-- revisionNotes is optional, but include 1 to 5 notes whenever there are clear changes worth learning.
-- Each note must explain one real improvement in the rewrite.
+- level.revisionNotes are for register-specific differences only.
+- Each level should usually have 0 to 2 revisionNotes.
+- Do not repeat the same correction in multiple levels.
+- If a correction applies to all levels, put it in sharedRevisionNotes only.
+- If a level note duplicates sharedRevisionNotes, omit it.
+- Each note must explain one real improvement specific to that level's tone, wording, or politeness.
 - Use these types when relevant: meaning, structure, wording, grammar, tone, counter, fluency.
 - originalPart should quote the original fragment that was changed when possible.
 - revisedPart should show the improved Japanese fragment when possible.
+- Do not use the whole user input or the whole rewritten sentence in level.revisionNotes.
 - explanation must be specific and concrete in the user's UI language.
 - Do not write empty advice like "more natural", "more polite", "better", or "more suitable" unless you explain exactly what changed and why.
-- For speech-to-text style broken input, include at least one fluency or structure note.
-- If there is an obvious counter mistake, include a counter note.
+- For speech-to-text style broken input, sharedRevisionNotes should cover the main fluency and structure fixes.
+- If there is an obvious counter mistake such as 「2人」 for objects, explain it in sharedRevisionNotes only.
 - revisionNotes should explain the rewrite, not explain why you avoided rewriting.
+- Casual level notes should focus on choices like 「どっち」, 「迷ってて」, or other relaxed spoken phrasing.
+- Neutral level notes should focus on everyday polite choices like 「どちら」, 「ですか」, or 「〜ています」.
+- Polite level notes should focus on careful spoken choices like 「のですが」, 「でしょうか」, or more formal verbs when they are actually used.
 
 structureNote rules:
 - structureNote is optional.
@@ -430,6 +454,16 @@ function withRevisionNotes(level: FeedbackLevel, revisionNotes?: RevisionNote[])
   };
 }
 
+function withSharedRevisionNotes(
+  response: FeedbackResponse,
+  sharedRevisionNotes?: RevisionNote[]
+): FeedbackResponse {
+  return {
+    ...response,
+    ...(sharedRevisionNotes?.length ? { sharedRevisionNotes } : {}),
+  };
+}
+
 function buildGenericFallback(userText: string): FeedbackResponse {
   const casualFallback = buildSafeFallbackNativeSay(userText, "casual");
   const businessFallback = buildSafeFallbackNativeSay(userText, "business");
@@ -602,6 +636,44 @@ function localizeRevisionNotes(
   }));
 }
 
+function compactRevisionFragment(value: string | undefined): string {
+  return (value ?? "").replace(/\s+/g, "").trim();
+}
+
+function removeSharedDuplicateNotes(
+  notes: ReturnType<typeof normalizeRevisionNotes>,
+  sharedNotes: ReturnType<typeof normalizeRevisionNotes>
+): RevisionNote[] | undefined {
+  if (!notes?.length) {
+    return undefined;
+  }
+
+  if (!sharedNotes?.length) {
+    return notes;
+  }
+
+  const filtered = notes.filter((note) => {
+    const originalPart = compactRevisionFragment(note.originalPart);
+    const revisedPart = compactRevisionFragment(note.revisedPart);
+
+    return !sharedNotes.some((sharedNote) => {
+      if (sharedNote.type !== note.type) {
+        return false;
+      }
+
+      const sharedOriginal = compactRevisionFragment(sharedNote.originalPart);
+      const sharedRevised = compactRevisionFragment(sharedNote.revisedPart);
+
+      return (
+        (originalPart && sharedOriginal && originalPart === sharedOriginal) ||
+        (revisedPart && sharedRevised && revisedPart === sharedRevised)
+      );
+    });
+  });
+
+  return filtered.length > 0 ? filtered : undefined;
+}
+
 function shouldRejectNativeSay(candidateNative: string, userText: string): boolean {
   if (!isSafeHintExpression(candidateNative)) {
     return true;
@@ -646,16 +718,21 @@ function normalizeLevel(
 function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
   let keptOne = false;
   const limited = {} as FeedbackResponse;
+  const sharedRevisionNotes = normalizeRevisionNotes(response.sharedRevisionNotes);
 
   for (const key of FEEDBACK_LEVEL_KEYS) {
     const level = response[key];
     const note = normalizeStructureNote(level.structureNote);
+    const revisionNotes = removeSharedDuplicateNotes(
+      normalizeRevisionNotes(level.revisionNotes),
+      sharedRevisionNotes
+    );
 
     if (!keptOne && note) {
       limited[key] = {
         nativeSay: level.nativeSay,
         analysis: level.analysis,
-        ...(level.revisionNotes?.length ? { revisionNotes: level.revisionNotes } : {}),
+        ...(revisionNotes?.length ? { revisionNotes } : {}),
         structureNote: note,
       };
       keptOne = true;
@@ -665,19 +742,32 @@ function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
     limited[key] = {
       nativeSay: level.nativeSay,
       analysis: level.analysis,
-      ...(level.revisionNotes?.length ? { revisionNotes: level.revisionNotes } : {}),
+      ...(revisionNotes?.length ? { revisionNotes } : {}),
     };
   }
 
-  return limited;
+  return {
+    ...limited,
+    ...(sharedRevisionNotes?.length ? { sharedRevisionNotes } : {}),
+  };
 }
 
 function localizeFeedbackResponse(response: FeedbackResponse, uiLanguage: UiLanguage): FeedbackResponse {
   const localized = {} as FeedbackResponse;
+  const sharedRevisionNotes = localizeRevisionNotes(
+    normalizeRevisionNotes(response.sharedRevisionNotes),
+    uiLanguage
+  );
 
   for (const key of FEEDBACK_LEVEL_KEYS) {
     const level = response[key];
-    const revisionNotes = localizeRevisionNotes(normalizeRevisionNotes(level.revisionNotes), uiLanguage);
+    const revisionNotes = localizeRevisionNotes(
+      removeSharedDuplicateNotes(
+        normalizeRevisionNotes(level.revisionNotes),
+        normalizeRevisionNotes(response.sharedRevisionNotes)
+      ),
+      uiLanguage
+    );
     const structureNote = localizeStructureNote(normalizeStructureNote(level.structureNote), uiLanguage);
 
     localized[key] = {
@@ -688,7 +778,10 @@ function localizeFeedbackResponse(response: FeedbackResponse, uiLanguage: UiLang
     };
   }
 
-  return localized;
+  return {
+    ...localized,
+    ...(sharedRevisionNotes?.length ? { sharedRevisionNotes } : {}),
+  };
 }
 
 function hasValidExpressions(response: FeedbackResponse): boolean {
@@ -792,11 +885,13 @@ uiLanguage: ${uiLanguage}
 
 Language rules:
 - If uiLanguage is "en", analysis, revisionNotes.explanation, and structureNote.explanation must be in English only.
-- If uiLanguage is "zh", analysis, revisionNotes.explanation, and structureNote.explanation must be in Chinese only.
-- All suggested expressions, revisionNotes.revisedPart, structureNote.pattern, and structureNote.examples must remain Japanese.
-- revisionNotes.originalPart may quote the user's original fragment, even if it contains Chinese, English, or mixed-language input.
+- If uiLanguage is "zh", analysis, sharedRevisionNotes.explanation, revisionNotes.explanation, and structureNote.explanation must be in Chinese only.
+- If uiLanguage is "en", analysis, sharedRevisionNotes.explanation, revisionNotes.explanation, and structureNote.explanation must be in English only.
+- All suggested expressions, sharedRevisionNotes.revisedPart, revisionNotes.revisedPart, structureNote.pattern, and structureNote.examples must remain Japanese.
+- sharedRevisionNotes.originalPart and revisionNotes.originalPart may quote the user's original fragment, even if it contains Chinese, English, or mixed-language input.
 - Do not fail just because the input is fragmented.
 - structureNote is optional. If there is no clear reusable pattern, omit it.
+- sharedRevisionNotes is optional. If there are no shared changes worth calling out, omit it instead of padding.
 - revisionNotes is optional. If there are no concrete changes worth calling out, omit it instead of padding.
 - Never fail the whole response just because no structureNote is available.`,
         },
@@ -815,6 +910,7 @@ Language rules:
         hasBusiness: Boolean(parsed.business),
         hasCasual: Boolean(parsed.casual),
         hasFormal: Boolean(parsed.formal),
+        hasSharedRevisionNotes: Array.isArray((parsed as Record<string, unknown>).sharedRevisionNotes),
         parseStatus: "ok",
       });
     } catch (parseError) {
@@ -835,16 +931,17 @@ Language rules:
     }
 
     const fallback = buildFallbackResponse(userText);
-    const normalized: FeedbackResponse = {
+    const normalized = withSharedRevisionNotes({
       casual: normalizeLevel(parsed.casual, userText, fallback.casual.nativeSay, fallback.casual.analysis),
       business: normalizeLevel(parsed.business, userText, fallback.business.nativeSay, fallback.business.analysis),
       formal: normalizeLevel(parsed.formal, userText, fallback.formal.nativeSay, fallback.formal.analysis),
-    };
+    }, normalizeRevisionNotes((parsed as Record<string, unknown>).sharedRevisionNotes));
 
     debugExpressionHint("normalized status", {
       businessNativePreview: normalized.business.nativeSay.slice(0, 80),
       casualNativePreview: normalized.casual.nativeSay.slice(0, 80),
       formalNativePreview: normalized.formal.nativeSay.slice(0, 80),
+      sharedRevisionNotesCount: normalized.sharedRevisionNotes?.length ?? 0,
     });
 
     const finalResult = resolveFinalResponse(normalized, uiLanguage, userText);

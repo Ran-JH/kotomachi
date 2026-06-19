@@ -250,6 +250,50 @@ function parseFeedbackAnalysisSections(analysis: string): {
   };
 }
 
+function renderRevisionNoteCard(
+  note: NonNullable<ReturnType<typeof normalizeRevisionNotes>>[number],
+  key: string,
+  npcId: NpcId,
+  uiLanguage: UiLanguage,
+  originalPartLabel: string,
+  revisedPartLabel: string,
+  revisionWhyLabel: string,
+) {
+  return (
+    <div
+      key={key}
+      className="rounded-md bg-[#FAF6EE] px-2.5 py-2 text-[10px] leading-relaxed text-[#4A4438]"
+    >
+      {note.originalPart && (
+        <p className="break-words [overflow-wrap:anywhere]">
+          <span className="text-[9px] font-medium text-[#7A7060]">{originalPartLabel}: </span>
+          {note.originalPart}
+        </p>
+      )}
+      {note.revisedPart && (
+        <SelectableLookupText
+          npcId={npcId}
+          uiLanguage={uiLanguage}
+          sourceText={note.revisedPart}
+          onPlayAudio={(word) => {
+            void fetchAndPlayTts(word, npcId, `feedback-revision:${key}:${word}`).catch(() => undefined);
+          }}
+          className={note.originalPart ? "mt-1" : undefined}
+        >
+          <p className="break-words [overflow-wrap:anywhere]">
+            <span className="text-[9px] font-medium text-[#7A7060]">{revisedPartLabel}: </span>
+            {note.revisedPart}
+          </p>
+        </SelectableLookupText>
+      )}
+      <p className={`${note.originalPart || note.revisedPart ? "mt-1" : ""} break-words text-[#4A4438] [overflow-wrap:anywhere]`}>
+        <span className="text-[9px] font-medium text-[#7A7060]">{revisionWhyLabel}: </span>
+        {note.explanation}
+      </p>
+    </div>
+  );
+}
+
 function FeedbackDrawer({
   open, loading, userText, feedback, npcId, messageId, userAudioBlob, userAudioUrl, feedbackError, uiLanguage, onClose, onSuggestionPlayed, onRegenerate,
 }: FeedbackDrawerProps) {
@@ -265,6 +309,11 @@ function FeedbackDrawer({
   const hasUserRecording = Boolean(userAudioUrl || userAudioBlob);
   const copy = getUiCopy(uiLanguage);
   const pauseLabel = uiLanguage === "zh" ? "\u6682\u505c" : "Pause";
+  const sharedRevisionNotes = normalizeRevisionNotes(feedback?.sharedRevisionNotes);
+  const sharedRevisionNotesTitle = copy.feedback.sharedRevisionNotesTitle;
+  const originalPartLabel = copy.feedback.originalPartLabel;
+  const revisedPartLabel = copy.feedback.revisedPartLabel;
+  const revisionWhyLabel = copy.feedback.revisionWhyLabel;
 
   const revokeUserTempAudioUrl = useCallback(() => {
     if (!userTempAudioUrlRef.current) return;
@@ -498,7 +547,26 @@ function FeedbackDrawer({
                 <p className="text-xs text-[#7A7060]">{copy.feedback.error}</p>
               </div>
             ) : (
-              FEEDBACK_LEVEL_META.filter(meta => feedback[meta.key].nativeSay.trim()).map((meta) => {
+              <>
+                {sharedRevisionNotes?.length ? (
+                  <section className="rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/45 px-3.5 sm:px-4 py-3">
+                    <p className="text-[10px] font-medium text-[#7A7060]">{sharedRevisionNotesTitle}</p>
+                    <div className="mt-2 space-y-2">
+                      {sharedRevisionNotes.map((note, index) =>
+                        renderRevisionNoteCard(
+                          note,
+                          `shared-${index}`,
+                          npcId,
+                          uiLanguage,
+                          originalPartLabel,
+                          revisedPartLabel,
+                          revisionWhyLabel,
+                        )
+                      )}
+                    </div>
+                  </section>
+                ) : null}
+                {FEEDBACK_LEVEL_META.filter(meta => feedback[meta.key].nativeSay.trim()).map((meta) => {
                 const level = feedback[meta.key];
                 const isTtsLoading = ttsLoadingKey === meta.key;
                 const isTtsPlaying = ttsPlayingKey === meta.key;
@@ -511,7 +579,7 @@ function FeedbackDrawer({
                   business: { label: "普通自然", subtitle: "ふつう" },
                   formal: { label: "严肃正式", subtitle: "フォーマル" },
                 };
-                const displayLabels = uiLanguage === "zh" ? zhLabels[meta.key] : labels;
+                const displayLabels = labels;
                 const analysisText = level.analysis.trim();
                 const analysisSections = parseFeedbackAnalysisSections(analysisText);
                 const detailText = analysisSections.details;
@@ -635,39 +703,17 @@ function FeedbackDrawer({
                         <div className="rounded-md border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/45 px-2.5 py-2.5">
                           <p className="text-[9px] font-medium text-[#7A7060]">{revisionNotesTitle}</p>
                           <div className="mt-2 space-y-2">
-                            {revisionNotes?.map((note, index) => (
-                              <div
-                                key={`${meta.key}-revision-note-${index}`}
-                                className="rounded-md bg-[#FAF6EE] px-2.5 py-2 text-[10px] leading-relaxed text-[#4A4438]"
-                              >
-                                {note.originalPart && (
-                                  <p className="break-words [overflow-wrap:anywhere]">
-                                    <span className="text-[9px] font-medium text-[#7A7060]">{originalPartLabel}: </span>
-                                    {note.originalPart}
-                                  </p>
-                                )}
-                                {note.revisedPart && (
-                                  <SelectableLookupText
-                                    npcId={npcId}
-                                    uiLanguage={uiLanguage}
-                                    sourceText={note.revisedPart}
-                                    onPlayAudio={(word) => {
-                                      void fetchAndPlayTts(word, npcId, `feedback-revision:${meta.key}:${index}:${word}`).catch(() => undefined);
-                                    }}
-                                    className={note.originalPart ? "mt-1" : undefined}
-                                  >
-                                    <p className="break-words [overflow-wrap:anywhere]">
-                                      <span className="text-[9px] font-medium text-[#7A7060]">{revisedPartLabel}: </span>
-                                      {note.revisedPart}
-                                    </p>
-                                  </SelectableLookupText>
-                                )}
-                                <p className={`${note.originalPart || note.revisedPart ? "mt-1" : ""} break-words text-[#4A4438] [overflow-wrap:anywhere]`}>
-                                  <span className="text-[9px] font-medium text-[#7A7060]">{revisionWhyLabel}: </span>
-                                  {note.explanation}
-                                </p>
-                              </div>
-                            ))}
+                            {revisionNotes?.map((note, index) =>
+                              renderRevisionNoteCard(
+                                note,
+                                `${meta.key}-${index}`,
+                                npcId,
+                                uiLanguage,
+                                originalPartLabel,
+                                revisedPartLabel,
+                                revisionWhyLabel,
+                              )
+                            )}
                           </div>
                           {detailText && (
                             <p className="mt-2 whitespace-pre-wrap break-words text-[10px] text-[#7A7060] [overflow-wrap:anywhere]">
@@ -726,7 +772,8 @@ function FeedbackDrawer({
                     </div>
                   </article>
                 );
-              })
+              })}
+              </>
             )
           ) : null}
         </div>
