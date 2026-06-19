@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  normalizeRevisionNotes,
   normalizeStructureNote,
   type FeedbackLevel,
   type FeedbackResponse,
+  type RevisionNote,
 } from "@/lib/feedback-types";
 import { createChatCompletion } from "@/lib/llm";
 
@@ -78,6 +80,129 @@ Good reusable pattern examples:
 - 「〜という感じです」
 - 「〜たことがあります」
 
+Do not output any extra fields.`;
+
+// Keep the stable 3-level output, but make the model explain concrete rewrites instead of vague praise.
+const EXPRESSION_HINT_PROMPT = `You are the Expression Hint assistant for Kotomachi.
+The user opened Expression Hint because they want a best-effort rewrite of what they just said into natural, reusable Japanese.
+Do not act like a strict teacher. Do not reject rough spoken input.
+
+Return strict JSON only. No markdown code block. Use this shape:
+{
+  "casual": {
+    "nativeSay": "natural casual Japanese",
+    "analysis": "one concise summary of the main improvement in the user's UI language",
+    "revisionNotes": [
+      {
+        "type": "fluency",
+        "originalPart": "optional original fragment",
+        "revisedPart": "optional revised Japanese fragment",
+        "explanation": "specific explanation in the user's UI language"
+      }
+    ],
+    "structureNote": {
+      "pattern": "optional reusable Japanese pattern",
+      "explanation": "optional short explanation in the user's UI language",
+      "examples": ["up to 2 short Japanese examples"]
+    }
+  },
+  "business": {
+    "nativeSay": "natural neutral/polite Japanese",
+    "analysis": "one concise summary of the main improvement in the user's UI language"
+  },
+  "formal": {
+    "nativeSay": "natural more formal Japanese",
+    "analysis": "one concise summary of the main improvement in the user's UI language"
+  }
+}
+
+Workflow:
+- Before rewriting, infer the user's intended meaning.
+- The user's input may come from speech-to-text and may contain fillers, repeated words, false starts, broken punctuation, code-switching, or disfluent fragments.
+- Preserve the user's intended meaning, not the surface wording.
+- Ignore fillers, stutters, repeated words, broken punctuation, and fragmented starts when deciding what the user wants to say.
+
+Hard requirements:
+- Keep all three levels: casual, business, formal.
+- Each level must produce a distinct natural Japanese version.
+- nativeSay must be a natural Japanese sentence that a real speaker might say in that situation.
+- nativeSay is the improved Japanese sentence, not a lightly cleaned copy of the user's original text.
+- The user's input may be messy spoken Japanese with fillers like "えっと" or "あの", repeated fragments, speech recognition mistakes, mixed Chinese/English, proper nouns, product names, company names, titles, acronyms, or organization names. Do not reject it. Do a best-effort rewrite.
+- If the input contains fillers, repeated words, false starts, unnatural word order, wrong counters, mixed-language fragments, broken sentence structure, or overly literal translation, rewrite it into complete natural Japanese.
+- Translate ordinary English or Chinese wording used as a placeholder into natural Japanese when possible.
+- But proper nouns, event names, tournament names, organization names, company names, product names, app names, platform names, model names, titles, personal names, place names, and acronyms may be kept, transliterated into katakana, or rewritten naturally in Japanese.
+- If a Latin token is the topic itself rather than a placeholder for missing Japanese, do not reject the sentence just because that token is in Latin letters.
+- nativeSay should be mostly Japanese overall, but it may contain a small number of necessary Latin proper nouns or acronyms.
+- Do not keep ordinary English phrases or long English sentence fragments in nativeSay. Translate those into Japanese.
+- Do not reject or fail just because the user's message contains an acronym or proper noun written in Latin letters.
+- If meaning is partly unclear, infer conservatively and avoid overcorrecting.
+- Do not copy the user's original sentence as nativeSay.
+- Do not merely remove fillers while keeping an awkward structure.
+- Do not say "no major change is needed" when the original is disfluent.
+- Do not use "wait for more context" as the main advice.
+
+Register guidance:
+- casual: natural spoken Japanese for friends, classmates, familiar NPCs, or relaxed conversation.
+- business: neutral polite spoken Japanese for shops, part-time work, neighbors, teachers, or ordinary social situations. This is not stiff email Japanese.
+- formal: more careful spoken Japanese for interviews, customers, superiors, or formal first meetings. Still natural, not overly written.
+- The three levels should differ by register and situation, not by copying the original.
+
+analysis rules:
+- analysis should be one concise summary of the main improvement.
+- Do not output empty summaries like "more natural" or "more polite" by themselves.
+
+revisionNotes rules:
+- revisionNotes is optional, but include 1 to 5 notes whenever there are clear changes worth learning.
+- Each note must explain one real improvement in the rewrite.
+- Use these types when relevant: meaning, structure, wording, grammar, tone, counter, fluency.
+- originalPart should quote the original fragment that was changed when possible.
+- revisedPart should show the improved Japanese fragment when possible.
+- explanation must be specific and concrete in the user's UI language.
+- Do not write empty advice like "more natural", "more polite", "better", or "more suitable" unless you explain exactly what changed and why.
+- For speech-to-text style broken input, include at least one fluency or structure note.
+- If there is an obvious counter mistake, include a counter note.
+- revisionNotes should explain the rewrite, not explain why you avoided rewriting.
+
+structureNote rules:
+- structureNote is optional.
+- structureNote is rare and optional.
+- Do not include structureNote by default.
+- Across the three levels, include structureNote for at most one level in most cases. If unsure, omit it.
+- Only include structureNote when there is a concrete reusable Japanese pattern that would help the learner make future sentences.
+- For messy, fragmented, or unclear input, usually omit structureNote.
+- Do not create structureNote for ordinary wording improvements, filler cleanup, word order cleanup, or general smoothing.
+- Do not explain ordinary vocabulary in structureNote.
+- Keep structureNote short and practical.
+
+Bad cases for structureNote:
+- only removing fillers
+- only fixing word order
+- only changing vocabulary
+- only making the sentence smoother
+- input is too fragmented to identify a reusable pattern
+
+Good reusable pattern examples:
+- 「〜てもいいですか？」
+- 「〜てみたいです」
+- 「〜ことがあります」
+- 「〜ようにしています」
+- 「〜という感じです」
+- 「〜たことがあります」
+
+Quality reference:
+- Bad input can be fragmented, repetitive, and mixed up, for example:
+  「お、おほうじ茶ラテと、ええと、アイス、それはアイス。カフェラテは両方いいですね。ええと、ええと、この2人の中で選んだらおすすめはありますか。」
+- Infer the intended meaning first, then rewrite it into natural Japanese.
+- A good casual rewrite can be:
+  「ほうじ茶ラテとアイスで迷ってて、カフェラテも気になってるんだけど、この2つならどっちがおすすめ？」
+- A good business rewrite can be:
+  「ほうじ茶ラテとアイスで迷っているんですが、カフェラテも気になっています。この2つならどちらがおすすめですか？」
+- A good formal rewrite can be:
+  「ほうじ茶ラテとアイスで迷っているのですが、この2つでしたらどちらがおすすめでしょうか？」
+- Good revision notes for this kind of case explain things like:
+  - fillers and repetitions reorganized into 「AとBで迷っている」
+  - wrong counter 「2人」 corrected to 「2つ」
+  - awkward recommendation question changed into 「どちらがおすすめですか」
 Do not output any extra fields.`;
 
 function parseNpcId(value: unknown): string | null {
@@ -254,6 +379,13 @@ function feedbackLevel(nativeSay: string, analysis: string): FeedbackLevel {
   return { nativeSay, analysis };
 }
 
+function withRevisionNotes(level: FeedbackLevel, revisionNotes?: RevisionNote[]): FeedbackLevel {
+  return {
+    ...level,
+    ...(revisionNotes?.length ? { revisionNotes } : {}),
+  };
+}
+
 function buildGenericFallback(userText: string): FeedbackResponse {
   const cleaned = sanitizeUserTextForFallback(userText);
   const safeBase = containsJapanese(cleaned)
@@ -261,34 +393,82 @@ function buildGenericFallback(userText: string): FeedbackResponse {
     : "この内容を自然な日本語に言い直すと、もう少し短く整理して伝える言い方になります。";
 
   return {
-    casual: feedbackLevel(
-      safeBase,
-      "先保留你的原意，把断裂和重复尽量整理成可以继续对话的表达。"
+    casual: withRevisionNotes(
+      feedbackLevel(
+        safeBase,
+        "先把零散停顿整理成完整一句，再用更顺的口语表达同样的意思。"
+      ),
+      [
+        {
+          type: "fluency",
+          explanation: "如果原句里有停顿、重复或半句，先整理成完整句子，再根据场景调整语气，会更容易继续对话。",
+        },
+      ]
     ),
-    business: feedbackLevel(
-      sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
-      "这次输入信息比较多，也混有停顿或专名，所以先保守整理，避免误改原意。"
+    business: withRevisionNotes(
+      feedbackLevel(
+        sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
+        "先把信息顺序理清，再换成普通礼貌的说法，会更清楚也更自然。"
+      ),
+      [
+        {
+          type: "structure",
+          explanation: "可以先说背景或选项，再说想问什么；这样比把碎片信息并排堆在一起更容易懂。",
+        },
+      ]
     ),
-    formal: feedbackLevel(
-      sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
-      "正式一点时通常要再拆清重点；这次先保守保留主要信息，不做过度推断。"
+    formal: withRevisionNotes(
+      feedbackLevel(
+        sameExpression(safeBase, cleaned) ? safeBase : cleaned || safeBase,
+        "正式场景里把重点拆清，再补上礼貌句尾，会比直译原句稳妥。"
+      ),
+      [
+        {
+          type: "tone",
+          explanation: "正式表达通常会把请求或提问说完整，并用更稳妥的礼貌结尾，而不是只做表面清理。",
+        },
+      ]
     ),
   };
 }
 
 function buildHardFallback(): FeedbackResponse {
   return {
-    casual: feedbackLevel(
-      "言いたいことを短く言うと、こんな感じです。",
-      "这次先用最保守的方式给出可继续参考的表达。"
+    casual: withRevisionNotes(
+      feedbackLevel(
+        "言いたいことを短く言うと、こんな感じです。",
+        "先把想说的内容缩成一整句，会更像真实对话里的说法。"
+      ),
+      [
+        {
+          type: "fluency",
+          explanation: "先说完整一句，再按关系距离微调，会比保留碎片停顿更有参考价值。",
+        },
+      ]
     ),
-    business: feedbackLevel(
-      "もう少し整理して言うと、このような言い方になります。",
-      "这次先保留可显示的表达结果，避免因为解析失败而整条提示消失。"
+    business: withRevisionNotes(
+      feedbackLevel(
+        "もう少し整理して言うと、このような言い方になります。",
+        "把信息顺序整理好，再换成普通礼貌说法，会更容易直接拿去用。"
+      ),
+      [
+        {
+          type: "structure",
+          explanation: "先整理句子结构，再调整礼貌度，通常比逐字照搬原句更自然。",
+        },
+      ]
     ),
-    formal: feedbackLevel(
-      "少し丁寧に言うと、このように表現できます。",
-      "这是一条最后兜底的正式表达，用来保证非空输入时仍能看到结果。"
+    formal: withRevisionNotes(
+      feedbackLevel(
+        "少し丁寧に言うと、このように表現できます。",
+        "正式说法通常会补齐句子骨架和礼貌结尾，让意思更完整。"
+      ),
+      [
+        {
+          type: "tone",
+          explanation: "正式场景里，完整句式和礼貌收尾比只删口头停顿更重要。",
+        },
+      ]
     ),
   };
 }
@@ -365,6 +545,20 @@ function localizeStructureNote(
   };
 }
 
+function localizeRevisionNotes(
+  notes: ReturnType<typeof normalizeRevisionNotes>,
+  uiLanguage: UiLanguage
+): RevisionNote[] | undefined {
+  if (!notes?.length) {
+    return undefined;
+  }
+
+  return notes.map((note) => ({
+    ...note,
+    explanation: localizeAnalysisText(note.explanation, uiLanguage),
+  }));
+}
+
 function normalizeLevel(
   level: unknown,
   fallbackSay: string,
@@ -382,11 +576,13 @@ function normalizeLevel(
   const candidateNative = normalizeNativeSay(source.nativeSay);
   const nativeSay = isSafeHintExpression(candidateNative) ? candidateNative : fallbackNative;
   const analysis = pickAnalysis(source.analysis) || fallbackAnalysisText;
+  const revisionNotes = normalizeRevisionNotes(source.revisionNotes);
   const structureNote = normalizeStructureNote(source.structureNote);
 
   return {
     nativeSay,
     analysis,
+    ...(revisionNotes?.length ? { revisionNotes } : {}),
     ...(structureNote ? { structureNote } : {}),
   };
 }
@@ -403,6 +599,7 @@ function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
       limited[key] = {
         nativeSay: level.nativeSay,
         analysis: level.analysis,
+        ...(level.revisionNotes?.length ? { revisionNotes: level.revisionNotes } : {}),
         structureNote: note,
       };
       keptOne = true;
@@ -412,6 +609,7 @@ function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
     limited[key] = {
       nativeSay: level.nativeSay,
       analysis: level.analysis,
+      ...(level.revisionNotes?.length ? { revisionNotes: level.revisionNotes } : {}),
     };
   }
 
@@ -423,11 +621,13 @@ function localizeFeedbackResponse(response: FeedbackResponse, uiLanguage: UiLang
 
   for (const key of FEEDBACK_LEVEL_KEYS) {
     const level = response[key];
+    const revisionNotes = localizeRevisionNotes(normalizeRevisionNotes(level.revisionNotes), uiLanguage);
     const structureNote = localizeStructureNote(normalizeStructureNote(level.structureNote), uiLanguage);
 
     localized[key] = {
       nativeSay: level.nativeSay,
       analysis: localizeAnalysisText(level.analysis, uiLanguage),
+      ...(revisionNotes?.length ? { revisionNotes } : {}),
       ...(structureNote ? { structureNote } : {}),
     };
   }
@@ -501,7 +701,7 @@ export async function POST(req: NextRequest) {
   try {
     const npcId = parseNpcId(body.npcId);
     const npcExpressionContext = getNpcExpressionContext(npcId);
-    const systemPrompt = `${SYSTEM_PROMPT}
+    const systemPrompt = `${EXPRESSION_HINT_PROMPT}
 
 NPC relationship context:
 ${npcExpressionContext}
@@ -520,11 +720,13 @@ Do not add emoji, kaomoji, markdown, or action descriptions.`;
 uiLanguage: ${uiLanguage}
 
 Language rules:
-- If uiLanguage is "en", analysis and structureNote.explanation must be in English only.
-- If uiLanguage is "zh", analysis and structureNote.explanation must be in Chinese only.
-- All suggested expressions and structureNote.examples must remain Japanese.
+- If uiLanguage is "en", analysis, revisionNotes.explanation, and structureNote.explanation must be in English only.
+- If uiLanguage is "zh", analysis, revisionNotes.explanation, and structureNote.explanation must be in Chinese only.
+- All suggested expressions, revisionNotes.revisedPart, structureNote.pattern, and structureNote.examples must remain Japanese.
+- revisionNotes.originalPart may quote the user's original fragment, even if it contains Chinese, English, or mixed-language input.
 - Do not fail just because the input is fragmented.
 - structureNote is optional. If there is no clear reusable pattern, omit it.
+- revisionNotes is optional. If there are no concrete changes worth calling out, omit it instead of padding.
 - Never fail the whole response just because no structureNote is available.`,
         },
       ],

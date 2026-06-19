@@ -1,4 +1,4 @@
-import type { FeedbackLevelKey } from "./feedback-types";
+import type { FeedbackLevelKey, RevisionNote } from "./feedback-types";
 
 const CACHE_VERSION = "v1";
 const STORAGE_KEY = `kotomachi_feedback_cache_${CACHE_VERSION}`;
@@ -7,6 +7,7 @@ const MAX_CACHE_ENTRIES = 50;
 interface CachedFeedbackLevel {
   nativeSay: string;
   analysis: string;
+  revisionNotes?: RevisionNote[];
 }
 
 export interface CachedFeedback {
@@ -111,19 +112,23 @@ export function removeCachedFeedback(
   saveCache(cache);
 }
 
-export function toCachedFeedback(f: { casual: { nativeSay: string; analysis: string }; business: { nativeSay: string; analysis: string }; formal: { nativeSay: string; analysis: string } }): CachedFeedback {
+export function toCachedFeedback(f: {
+  casual: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
+  business: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
+  formal: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
+}): CachedFeedback {
   return {
     v: CACHE_VERSION,
-    casual: { nativeSay: f.casual.nativeSay, analysis: f.casual.analysis },
-    business: { nativeSay: f.business.nativeSay, analysis: f.business.analysis },
-    formal: { nativeSay: f.formal.nativeSay, analysis: f.formal.analysis },
+    casual: { nativeSay: f.casual.nativeSay, analysis: f.casual.analysis, ...(f.casual.revisionNotes ? { revisionNotes: f.casual.revisionNotes } : {}) },
+    business: { nativeSay: f.business.nativeSay, analysis: f.business.analysis, ...(f.business.revisionNotes ? { revisionNotes: f.business.revisionNotes } : {}) },
+    formal: { nativeSay: f.formal.nativeSay, analysis: f.formal.analysis, ...(f.formal.revisionNotes ? { revisionNotes: f.formal.revisionNotes } : {}) },
   };
 }
 
-export function fromCachedFeedback(c: CachedFeedback): Record<FeedbackLevelKey, { nativeSay: string; analysis: string }> {
+export function fromCachedFeedback(c: CachedFeedback): Record<FeedbackLevelKey, { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] }> {
   return {
-    casual: { nativeSay: c.casual.nativeSay, analysis: c.casual.analysis },
-    business: { nativeSay: c.business.nativeSay, analysis: c.business.analysis },
-    formal: { nativeSay: c.formal.nativeSay, analysis: c.formal.analysis },
+    casual: { nativeSay: c.casual.nativeSay, analysis: c.casual.analysis, ...(c.casual.revisionNotes ? { revisionNotes: c.casual.revisionNotes } : {}) },
+    business: { nativeSay: c.business.nativeSay, analysis: c.business.analysis, ...(c.business.revisionNotes ? { revisionNotes: c.business.revisionNotes } : {}) },
+    formal: { nativeSay: c.formal.nativeSay, analysis: c.formal.analysis, ...(c.formal.revisionNotes ? { revisionNotes: c.formal.revisionNotes } : {}) },
   };
 }

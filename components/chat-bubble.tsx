@@ -6,6 +6,7 @@ import {
   FEEDBACK_LEVEL_META,
   type FeedbackLevelKey,
   type FeedbackResponse,
+  normalizeRevisionNotes,
   normalizeStructureNote,
 } from "@/lib/feedback-types";
 import { NPC_AVATARS, type NpcId } from "@/lib/npc";
@@ -514,10 +515,17 @@ function FeedbackDrawer({
                 const analysisText = level.analysis.trim();
                 const analysisSections = parseFeedbackAnalysisSections(analysisText);
                 const detailText = analysisSections.details;
+                const revisionNotes = normalizeRevisionNotes(level.revisionNotes);
+                const hasRevisionNotes = Boolean(revisionNotes?.length);
+                const hasExtraDetails = hasRevisionNotes || Boolean(detailText);
                 const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
                 const structureNote = normalizeStructureNote(level.structureNote);
                 const structureTitle = uiLanguage === "en" ? "Structure" : "表达结构";
                 const structureExampleLabel = uiLanguage === "en" ? "Example" : "例";
+                const revisionNotesTitle = copy.feedback.revisionNotesTitle;
+                const originalPartLabel = copy.feedback.originalPartLabel;
+                const revisedPartLabel = copy.feedback.revisedPartLabel;
+                const revisionWhyLabel = copy.feedback.revisionWhyLabel;
 
                 return (
                   <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3.5 sm:px-4 py-3.5">
@@ -601,7 +609,7 @@ function FeedbackDrawer({
                           </p>
                         </div>
                       )}
-                      {detailText && (
+                      {detailText && !hasRevisionNotes && (
                         <p
                           ref={setAnalysisRef(meta.key)}
                           className={`font-ui text-[10px] text-[#7A7060] leading-relaxed whitespace-pre-wrap break-words transition-all ${
@@ -611,7 +619,7 @@ function FeedbackDrawer({
                           {detailText}
                         </p>
                       )}
-                      {detailText && hasOverflowingAnalysis && (
+                      {hasExtraDetails && (hasRevisionNotes || hasOverflowingAnalysis) && (
                         <button
                           type="button"
                           aria-expanded={isExpanded}
@@ -621,6 +629,52 @@ function FeedbackDrawer({
                         >
                           {isExpanded ? copy.feedback.hideDetails : copy.feedback.showDetails}
                         </button>
+                      )}
+                      {hasRevisionNotes && isExpanded && (
+                        // Show fragment-level rewrite notes only when expanded so the stable card stays compact.
+                        <div className="rounded-md border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/45 px-2.5 py-2.5">
+                          <p className="text-[9px] font-medium text-[#7A7060]">{revisionNotesTitle}</p>
+                          <div className="mt-2 space-y-2">
+                            {revisionNotes?.map((note, index) => (
+                              <div
+                                key={`${meta.key}-revision-note-${index}`}
+                                className="rounded-md bg-[#FAF6EE] px-2.5 py-2 text-[10px] leading-relaxed text-[#4A4438]"
+                              >
+                                {note.originalPart && (
+                                  <p className="break-words [overflow-wrap:anywhere]">
+                                    <span className="text-[9px] font-medium text-[#7A7060]">{originalPartLabel}: </span>
+                                    {note.originalPart}
+                                  </p>
+                                )}
+                                {note.revisedPart && (
+                                  <SelectableLookupText
+                                    npcId={npcId}
+                                    uiLanguage={uiLanguage}
+                                    sourceText={note.revisedPart}
+                                    onPlayAudio={(word) => {
+                                      void fetchAndPlayTts(word, npcId, `feedback-revision:${meta.key}:${index}:${word}`).catch(() => undefined);
+                                    }}
+                                    className={note.originalPart ? "mt-1" : undefined}
+                                  >
+                                    <p className="break-words [overflow-wrap:anywhere]">
+                                      <span className="text-[9px] font-medium text-[#7A7060]">{revisedPartLabel}: </span>
+                                      {note.revisedPart}
+                                    </p>
+                                  </SelectableLookupText>
+                                )}
+                                <p className={`${note.originalPart || note.revisedPart ? "mt-1" : ""} break-words text-[#4A4438] [overflow-wrap:anywhere]`}>
+                                  <span className="text-[9px] font-medium text-[#7A7060]">{revisionWhyLabel}: </span>
+                                  {note.explanation}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          {detailText && (
+                            <p className="mt-2 whitespace-pre-wrap break-words text-[10px] text-[#7A7060] [overflow-wrap:anywhere]">
+                              {detailText}
+                            </p>
+                          )}
+                        </div>
                       )}
                       {structureNote && (
                         <div className="rounded-lg border border-[rgba(201,168,76,0.18)] bg-[#F6EFD9]/72 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
