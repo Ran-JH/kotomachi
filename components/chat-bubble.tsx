@@ -701,8 +701,8 @@ export function ChatBubble({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [userAudioError, setUserAudioError] = useState(false);
+  const [isUserAudioPlaying, setIsUserAudioPlaying] = useState(false);
   const [feedbackRecordId, setFeedbackRecordId] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
   const [isNpcAudioLoading, setIsNpcAudioLoading] = useState(false);
@@ -720,6 +720,7 @@ export function ChatBubble({
   const npcObjectUrlRef = useRef<string | null>(null);
   const copy = getUiCopy(uiLanguage);
   const pauseLabel = uiLanguage === "zh" ? "\u6682\u505c" : "Pause";
+  const userRecordingLabel = uiLanguage === "zh" ? "回听" : copy.audio.listenRecording;
   const actionButtonClass =
     "mt-1 inline-flex items-center gap-1.5 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/72 px-2.5 py-1 text-[9px] text-[#6F6658] transition-colors hover:bg-[#E8E0CE] hover:text-[#2D4A1F] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
   const closeDrawer = useCallback(() => {
@@ -941,15 +942,52 @@ export function ChatBubble({
     }
   };
 
+  const stopUserAudio = useCallback(() => {
+    if (!userAudioRef.current) return;
+    try {
+      userAudioRef.current.pause();
+      userAudioRef.current.currentTime = 0;
+      userAudioRef.current.onended = null;
+      userAudioRef.current.onerror = null;
+      userAudioRef.current.src = "";
+      userAudioRef.current.load();
+    } catch {
+      // no-op
+    }
+    userAudioRef.current = null;
+    setIsUserAudioPlaying(false);
+    revokeUserTempAudioUrl();
+  }, [revokeUserTempAudioUrl]);
+
   const playUserAudio = useCallback(() => {
     setUserAudioError(false);
-    userAudioRef.current?.pause();
-    revokeUserTempAudioUrl();
+    if (isUserAudioPlaying) {
+      stopUserAudio();
+      return;
+    }
+    stopUserAudio();
+
+    const bindUserAudio = (audio: HTMLAudioElement) => {
+      userAudioRef.current = audio;
+      audio.onended = () => {
+        setIsUserAudioPlaying(false);
+        revokeUserTempAudioUrl();
+      };
+      audio.onerror = () => {
+        setIsUserAudioPlaying(false);
+        revokeUserTempAudioUrl();
+        setUserAudioError(true);
+      };
+      setIsUserAudioPlaying(true);
+      void audio.play().catch(() => {
+        stopUserAudio();
+        setUserAudioError(true);
+      });
+    };
 
     if (userAudioUrl) {
       const audio = new Audio(userAudioUrl);
-      userAudioRef.current = audio;
-      void audio.play().catch(() => setUserAudioError(true));
+      bindUserAudio(audio);
       return;
     }
 
@@ -957,15 +995,9 @@ export function ChatBubble({
       const url = URL.createObjectURL(userAudioBlob);
       userTempAudioUrlRef.current = url;
       const audio = new Audio(url);
-      userAudioRef.current = audio;
-      audio.onended = revokeUserTempAudioUrl;
-      audio.onerror = revokeUserTempAudioUrl;
-      void audio.play().catch(() => {
-        revokeUserTempAudioUrl();
-        setUserAudioError(true);
-      });
+      bindUserAudio(audio);
     }
-  }, [revokeUserTempAudioUrl, userAudioBlob, userAudioUrl]);
+  }, [isUserAudioPlaying, revokeUserTempAudioUrl, stopUserAudio, userAudioBlob, userAudioUrl]);
 
   const handleToggleTranslation = useCallback(async () => {
     if (sender !== "assistant") return;
@@ -1021,11 +1053,8 @@ export function ChatBubble({
 
   return (
     <>
-      {/* 娑堟伅琛岋細鏁磋 hover 鎰熺煡鍖哄煙 */}
       <div
         className={`flex flex-col ${sender === "user" ? "items-end" : "items-start"}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <div
           className={`flex items-start gap-3 min-w-0 ${
@@ -1054,12 +1083,22 @@ export function ChatBubble({
               {text}
             </div>
 
-            {/* 鎸夐挳鍖哄煙锛氭皵娉″閮ㄤ笅鏂癸紝hover 娣″叆 */}
+            {/* 消息操作常驻显示：桌面端和移动端都能直接点到。 */}
             <div
-              className={`flex flex-wrap gap-2 transition-all duration-200 ${
-                isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 pointer-events-none"
-              } ${sender === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-wrap gap-2 ${sender === "user" ? "justify-end" : "justify-start"}`}
             >
+              {hasUserRecording && (
+                <button
+                  type="button"
+                  onClick={playUserAudio}
+                  aria-label={isUserAudioPlaying ? pauseLabel : copy.feedback.userRecording}
+                  title={isUserAudioPlaying ? pauseLabel : copy.feedback.userRecording}
+                  className={actionButtonClass}
+                >
+                  <VolumeIcon size={12} />
+                  <span>{isUserAudioPlaying ? pauseLabel : userRecordingLabel}</span>
+                </button>
+              )}
               {sender === "assistant" && isVoiceMessage && (
                 <button
                   type="button"
@@ -1092,18 +1131,6 @@ export function ChatBubble({
                   <span>
                     {isTranslating ? copy.chat.translating : copy.chat.translate}
                   </span>
-                </button>
-              )}
-              {hasUserRecording && (
-                <button
-                  type="button"
-                  onClick={playUserAudio}
-                  aria-label={copy.feedback.userRecording}
-                  title={copy.audio.listenRecording}
-                  className={actionButtonClass}
-                >
-                  <VolumeIcon size={12} />
-                  <span>{copy.audio.listenRecording}</span>
                 </button>
               )}
               {sender === "user" && (

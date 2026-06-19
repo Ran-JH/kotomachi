@@ -85,8 +85,15 @@ interface ChatMessage {
   source?: "welcome" | "scene";
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
+  userAudioDurationMs?: number | null;
   npcAudioUrl?: string | null;
 }
+
+type PendingVoiceMessage = {
+  blob: Blob;
+  objectUrl: string;
+  durationMs: number | null;
+};
 
 interface LocalChatMarker {
   id: string;
@@ -382,6 +389,10 @@ export default function ChatPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
   const userAudioUrlsRef = useRef<string[]>([]);
+  // 语音录音只在当前页内短暂保存：下一次发送时挂到 user message，
+  // 不写入 localStorage，避免刷新后留下失效的 blob: URL。
+  const pendingVoiceMessageRef = useRef<PendingVoiceMessage | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
   const activeNpcRef = useRef<NpcId>(npcId);
   const generatedInitialWelcomeForNpcRef = useRef<Set<NpcId>>(new Set());
   const generatedRevisitWelcomeSourcesRef = useRef<Set<string>>(new Set());
@@ -459,10 +470,36 @@ export default function ChatPage() {
     if (!shouldStickToBottomOnPreSendOpenRef.current) return;
     scrollToBottom();
   }, [isPreSendPanelOpen, preSendPanelHeight]);
-  useEffect(() => {
-    const audioUrls = userAudioUrlsRef.current;
-    return () => { audioUrls.forEach((url) => URL.revokeObjectURL(url)); };
+  const revokeTrackedUserAudioUrl = useCallback((url: string | null | undefined) => {
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    userAudioUrlsRef.current = userAudioUrlsRef.current.filter((item) => item !== url);
   }, []);
+
+  const revokeAllTrackedUserAudioUrls = useCallback(() => {
+    const urls = userAudioUrlsRef.current;
+    if (urls.length === 0) return;
+    urls.forEach((url) => URL.revokeObjectURL(url));
+    userAudioUrlsRef.current = [];
+  }, []);
+
+  const clearPendingVoiceMessage = useCallback((options?: { keepTrackedUrl?: boolean }) => {
+    const pending = pendingVoiceMessageRef.current;
+    if (!pending) return;
+    // keepTrackedUrl 用在“已经发送成功并交给消息列表管理”的场景。
+    // 这时不能立刻 revoke，否则用户刚发出的那条语音消息会无法回听。
+    if (!options?.keepTrackedUrl) {
+      revokeTrackedUserAudioUrl(pending.objectUrl);
+    }
+    pendingVoiceMessageRef.current = null;
+  }, [revokeTrackedUserAudioUrl]);
+
+  useEffect(() => {
+    return () => {
+      clearPendingVoiceMessage({ keepTrackedUrl: true });
+      revokeAllTrackedUserAudioUrls();
+    };
+  }, [clearPendingVoiceMessage, revokeAllTrackedUserAudioUrls]);
   useEffect(() => {
     return () => {
       if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
@@ -832,6 +869,8 @@ export default function ChatPage() {
     setAllSummaryCards(loadSummaryCards());
     setSelectedSummaryCard(null);
     setSummaryToast(null);
+    clearPendingVoiceMessage();
+    revokeAllTrackedUserAudioUrls();
     const storedMemories = getLocalNPCMemories(npcId);
     setMemories(storedMemories);
     const history = loadChatHistory(npcId);
@@ -851,7 +890,7 @@ export default function ChatPage() {
     setMessages([]);
     if (suppressWelcomeForSceneRef.current) return;
     void triggerInitialWelcome(npcId, storedMemories);
-  }, [npcId, triggerInitialWelcome, triggerRevisitWelcome]);
+  }, [clearPendingVoiceMessage, npcId, revokeAllTrackedUserAudioUrls, triggerInitialWelcome, triggerRevisitWelcome]);
 
   const fetchTtsUrl = useCallback(async (text: string): Promise<string | null> => {
     const cacheKey = `${npcId}:${text}`;
@@ -917,14 +956,28 @@ export default function ChatPage() {
     }
   };
 
-  const sendToNpc = async (userText: string, userAudioBlob?: Blob | null) => {
+  const sendToNpc = async (
+    userText: string,
+    voicePayload?: { blob?: Blob | null; objectUrl?: string | null; durationMs?: number | null },
+  ) => {
     if (!userText.trim()) return;
     setApiError(null);
     const userCreatedAt = new Date().toISOString();
-    const userAudioUrl = userAudioBlob ? URL.createObjectURL(userAudioBlob) : null;
-    if (userAudioUrl) userAudioUrlsRef.current.push(userAudioUrl);
-    const userMsg: ChatMessage = { id: `user-${Date.now()}`, sender: "user", text: userText, type: userAudioBlob ? "voice" : "text", createdAt: userCreatedAt, userAudioBlob: userAudioBlob ?? null, userAudioUrl };
+    const userAudioBlob = voicePayload?.blob ?? null;
+    const userAudioUrl = voicePayload?.objectUrl?.trim() || null;
+    const userAudioDurationMs = voicePayload?.durationMs ?? null;
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: "user",
+      text: userText,
+      type: userAudioUrl || userAudioBlob ? "voice" : "text",
+      createdAt: userCreatedAt,
+      userAudioBlob: userAudioBlob ?? null,
+      userAudioUrl,
+      userAudioDurationMs,
+    };
     setMessages((prev) => [...prev, userMsg]);
+    clearPendingVoiceMessage({ keepTrackedUrl: true });
     setInputText(""); setIsTyping(true);
     incrementConversationCount(npcId);
     const historyForApi: StoredMessage[] = messages.filter((m) => m.sender === "user" || m.sender === "assistant").map((m) => ({
@@ -1011,7 +1064,20 @@ export default function ChatPage() {
     } finally { setIsTyping(false); }
   };
 
-  const handleSend = () => { setVoiceHint(null); void sendToNpc(inputText); };
+  const handleSend = () => {
+    setVoiceHint(null);
+    const pendingVoiceMessage = pendingVoiceMessageRef.current;
+    void sendToNpc(
+      inputText,
+      pendingVoiceMessage
+        ? {
+            blob: pendingVoiceMessage.blob,
+            objectUrl: pendingVoiceMessage.objectUrl,
+            durationMs: pendingVoiceMessage.durationMs,
+          }
+        : undefined,
+    );
+  };
   const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter") return;
     if (isInputComposing) return;
@@ -1148,6 +1214,8 @@ export default function ChatPage() {
     try {
       setApiError(null);
       setVoiceHint(null);
+      clearPendingVoiceMessage();
+      recordingStartedAtRef.current = Date.now();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = pickRecorderMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -1156,12 +1224,19 @@ export default function ChatPage() {
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: mimeType || recorder.mimeType || "audio/webm" });
+        const durationMs = recordingStartedAtRef.current
+          ? Math.max(0, Date.now() - recordingStartedAtRef.current)
+          : null;
+        recordingStartedAtRef.current = null;
+        const objectUrl = URL.createObjectURL(blob);
+        userAudioUrlsRef.current.push(objectUrl);
         setIsTranscribing(true);
         try {
           const formData = new FormData(); formData.append("audio", blob);
           const sttRes = await fetch(buildClientApiUrl("/api/stt"), { method: "POST", body: formData });
           const sttData = await sttRes.json();
           if (!sttRes.ok) {
+            revokeTrackedUserAudioUrl(objectUrl);
             if (sttData.code === "NO_SPEECH") {
               showVoiceHint(copy.chat.noSpeech);
             } else {
@@ -1171,19 +1246,26 @@ export default function ChatPage() {
             return;
           }
           if (sttData.code === "NO_SPEECH" || !sttData.text?.trim()) {
+            revokeTrackedUserAudioUrl(objectUrl);
             showVoiceHint(copy.chat.noSpeech);
             setIsTranscribing(false);
             return;
           }
+          clearPendingVoiceMessage();
+          pendingVoiceMessageRef.current = { blob, objectUrl, durationMs };
           stageVoiceTranscript(sttData.text);
           setIsTranscribing(false);
         } catch {
+          revokeTrackedUserAudioUrl(objectUrl);
           setApiError(copy.chat.sttError);
           setIsTranscribing(false);
         }
       };
       recorder.start(); setIsRecording(true);
-    } catch { setApiError(copy.chat.micError); }
+    } catch {
+      recordingStartedAtRef.current = null;
+      setApiError(copy.chat.micError);
+    }
   };
 
   const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
@@ -2507,6 +2589,8 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => {
                   clearNpcChatData(npcId);
+                  clearPendingVoiceMessage();
+                  revokeAllTrackedUserAudioUrls();
                   setMessages([]);
                   setActiveSceneId(null);
                   setLocalChatMarkers([]);
