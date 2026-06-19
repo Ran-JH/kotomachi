@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   FEEDBACK_LEVEL_META,
+  type FeedbackApiResponse,
   type FeedbackLevelKey,
   type FeedbackResponse,
   normalizeRevisionNotes,
@@ -211,6 +212,7 @@ interface FeedbackDrawerProps {
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   feedbackError: boolean;
+  feedbackErrorMessage?: string | null;
   uiLanguage: UiLanguage;
   onClose: () => void;
   onSuggestionPlayed?: (key: FeedbackLevelKey) => void;
@@ -295,7 +297,7 @@ function renderRevisionNoteCard(
 }
 
 function FeedbackDrawer({
-  open, loading, userText, feedback, npcId, messageId, userAudioBlob, userAudioUrl, feedbackError, uiLanguage, onClose, onSuggestionPlayed, onRegenerate,
+  open, loading, userText, feedback, npcId, messageId, userAudioBlob, userAudioUrl, feedbackError, feedbackErrorMessage, uiLanguage, onClose, onSuggestionPlayed, onRegenerate,
 }: FeedbackDrawerProps) {
   const [ttsLoadingKey, setTtsLoadingKey] = useState<FeedbackLevelKey | null>(null);
   const [ttsErrorKey, setTtsErrorKey] = useState<FeedbackLevelKey | null>(null);
@@ -508,7 +510,7 @@ function FeedbackDrawer({
             {copy.feedback.title}
           </h2>
           <p className="text-[9px] text-[#7A7060]">{copy.feedback.subtitle}</p>
-          {feedback && !loading && (
+          {!loading && (feedback || feedbackError) && (
             <button
               type="button"
               onClick={onRegenerate}
@@ -527,7 +529,7 @@ function FeedbackDrawer({
 
           {feedbackError && (
             <p className="mt-2 rounded-lg bg-[#E8E0CE]/55 px-3 py-2 text-[10px] leading-relaxed text-[#7A7060]">
-              {copy.feedback.error}
+              {feedbackErrorMessage || copy.feedback.error}
             </p>
           )}
 
@@ -561,7 +563,7 @@ function FeedbackDrawer({
           ) : feedback ? (
             FEEDBACK_LEVEL_META.filter(meta => feedback[meta.key].nativeSay.trim()).length === 0 ? (
               <div className="py-10 text-center">
-                <p className="text-xs text-[#7A7060]">{copy.feedback.error}</p>
+                <p className="text-xs text-[#7A7060]">{feedbackErrorMessage || copy.feedback.error}</p>
               </div>
             ) : (
               <>
@@ -812,6 +814,50 @@ function hasValidFeedbackSuggestions(feedback: FeedbackResponse): boolean {
   return FEEDBACK_LEVEL_META.some((meta) => isValidExpressionHintText(feedback[meta.key].nativeSay));
 }
 
+function getFeedbackErrorMessage(
+  uiLanguage: UiLanguage,
+  payload?: { message?: string } | null
+): string {
+  const fallback =
+    uiLanguage === "en"
+      ? "Expression hint failed to generate. Please try again."
+      : "表达提示生成失败了，可以再试一次。";
+
+  return payload?.message?.trim() || fallback;
+}
+
+function unwrapFeedbackApiResponse(
+  payload: FeedbackApiResponse | FeedbackResponse
+): {
+  feedback: FeedbackResponse | null;
+  fallbackUsed: boolean;
+  message?: string;
+  ok: boolean;
+} {
+  if ("ok" in payload) {
+    if (payload.ok) {
+      return {
+        ok: true,
+        feedback: payload.feedback,
+        fallbackUsed: payload.fallbackUsed === true,
+      };
+    }
+
+    return {
+      ok: false,
+      feedback: null,
+      fallbackUsed: false,
+      message: payload.message,
+    };
+  }
+
+  return {
+    ok: true,
+    feedback: payload,
+    fallbackUsed: false,
+  };
+}
+
 export function ChatBubble({
   messageId, sender, text, npcId, uiLanguage = "zh", userAudioBlob, userAudioUrl, npcAudioUrl, onPlayNpcAudio, isVoiceMessage,
 }: ChatBubbleProps) {
@@ -822,6 +868,7 @@ export function ChatBubble({
   const [isUserAudioPlaying, setIsUserAudioPlaying] = useState(false);
   const [feedbackRecordId, setFeedbackRecordId] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
+  const [feedbackErrorMessage, setFeedbackErrorMessage] = useState<string | null>(null);
   const [isNpcAudioLoading, setIsNpcAudioLoading] = useState(false);
   const [isNpcAudioPlaying, setIsNpcAudioPlaying] = useState(false);
   const [isTranslationOpen, setIsTranslationOpen] = useState(false);
@@ -843,6 +890,7 @@ export function ChatBubble({
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
     setFeedbackError(false);
+    setFeedbackErrorMessage(null);
   }, []);
   const hasUserRecording = sender === "user" && Boolean(userAudioUrl || userAudioBlob);
   const {
@@ -957,6 +1005,7 @@ export function ChatBubble({
       } else {
         setFeedback(restored);
         setFeedbackError(false);
+        setFeedbackErrorMessage(null);
         recordExpressionHintOpened(restored);
         return;
       }
@@ -968,23 +1017,51 @@ export function ChatBubble({
     });
     setLoading(true);
     setFeedbackError(false);
+    setFeedbackErrorMessage(null);
     try {
       const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null, forceRefresh: false }),
       });
-      if (!res.ok) throw new Error("feedback failed");
-      const nextFeedback = (await res.json()) as FeedbackResponse;
+      const payload = (await res.json()) as FeedbackApiResponse | FeedbackResponse;
+      const unwrapped = unwrapFeedbackApiResponse(payload);
+      if (!res.ok || !unwrapped.ok || !unwrapped.feedback) {
+        const message = getFeedbackErrorMessage(
+          language,
+          !unwrapped.ok ? { message: unwrapped.message } : null
+        );
+        debugExpressionHintClient("cache skipped due to request_failed", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+          reason: message,
+        });
+        setFeedbackError(true);
+        setFeedbackErrorMessage(message);
+        setFeedback(null);
+        return;
+      }
+      const nextFeedback = unwrapped.feedback;
       if (!hasValidFeedbackSuggestions(nextFeedback)) {
         throw new Error("invalid feedback");
       }
       setFeedback(nextFeedback);
       setFeedbackError(false);
-      setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
+      setFeedbackErrorMessage(null);
+      if (unwrapped.fallbackUsed) {
+        debugExpressionHintClient("cache skipped due to fallbackUsed", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+        });
+      } else {
+        setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
+      }
       recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
       setFeedbackError(true);
+      setFeedbackErrorMessage(getFeedbackErrorMessage(language));
       setFeedback(null);
     } finally { setLoading(false); }
   };
@@ -999,23 +1076,52 @@ export function ChatBubble({
     });
     setLoading(true);
     setFeedbackError(false);
+    setFeedbackErrorMessage(null);
     try {
       const res = await fetch(buildClientApiUrl("/api/feedback"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userText: text, uiLanguage: language, npcId: npcId ?? null, forceRefresh: true }),
       });
-      if (!res.ok) throw new Error("feedback failed");
-      const nextFeedback = (await res.json()) as FeedbackResponse;
+      const payload = (await res.json()) as FeedbackApiResponse | FeedbackResponse;
+      const unwrapped = unwrapFeedbackApiResponse(payload);
+      if (!res.ok || !unwrapped.ok || !unwrapped.feedback) {
+        const message = getFeedbackErrorMessage(
+          language,
+          !unwrapped.ok ? { message: unwrapped.message } : null
+        );
+        debugExpressionHintClient("cache skipped due to request_failed", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+          reason: message,
+        });
+        setFeedback(null);
+        setFeedbackError(true);
+        setFeedbackErrorMessage(message);
+        return;
+      }
+      const nextFeedback = unwrapped.feedback;
       if (!hasValidFeedbackSuggestions(nextFeedback)) {
         throw new Error("invalid feedback");
       }
       setFeedback(nextFeedback);
       setFeedbackError(false);
-      setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
+      setFeedbackErrorMessage(null);
+      if (unwrapped.fallbackUsed) {
+        debugExpressionHintClient("cache skipped due to fallbackUsed", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+        });
+      } else {
+        setCachedFeedback(npcId, messageId, text, language, toCachedFeedback(nextFeedback));
+      }
       recordExpressionHintOpened(nextFeedback);
     } catch (err) {
       console.error(err);
       setFeedbackError(true);
+      setFeedbackErrorMessage(getFeedbackErrorMessage(language));
+      setFeedback(null);
     } finally { setLoading(false); }
   };
 
@@ -1323,7 +1429,7 @@ export function ChatBubble({
 
       <FeedbackDrawer
         open={drawerOpen} loading={loading} userText={text} feedback={feedback}
-        npcId={npcId} messageId={messageId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} feedbackError={feedbackError} uiLanguage={uiLanguage} onClose={closeDrawer}
+        npcId={npcId} messageId={messageId} userAudioBlob={userAudioBlob} userAudioUrl={userAudioUrl} feedbackError={feedbackError} feedbackErrorMessage={feedbackErrorMessage} uiLanguage={uiLanguage} onClose={closeDrawer}
         onSuggestionPlayed={recordSuggestionPlayed}
         onRegenerate={handleRegenerateFeedback}
       />

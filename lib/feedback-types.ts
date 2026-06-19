@@ -148,6 +148,24 @@ export interface FeedbackResponse {
   sharedRevisionNotes?: RevisionNote[];
 }
 
+export interface FeedbackApiSuccessResponse {
+  ok: true;
+  feedback: FeedbackResponse;
+  fallbackUsed?: boolean;
+  source?: "primary" | "generic" | "hard";
+}
+
+export interface FeedbackApiErrorResponse {
+  ok: false;
+  error: string;
+  message: string;
+  retryable: boolean;
+}
+
+export type FeedbackApiResponse =
+  | FeedbackApiSuccessResponse
+  | FeedbackApiErrorResponse;
+
 /** 抽屉内三档场合的展示元数据 */
 export const FEEDBACK_LEVEL_META = [
   {

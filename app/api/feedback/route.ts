@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  type FeedbackApiErrorResponse,
+  type FeedbackApiSuccessResponse,
   type FeedbackLevelKey,
   normalizeRevisionNotes,
   normalizeStructureNote,
@@ -7,7 +9,7 @@ import {
   type FeedbackResponse,
   type RevisionNote,
 } from "@/lib/feedback-types";
-import { createChatCompletion } from "@/lib/llm";
+import { ChatCompletionError, createChatCompletion } from "@/lib/llm";
 
 export const runtime = "nodejs";
 
@@ -878,6 +880,26 @@ function buildFallbackResponse(userText: string): FeedbackResponse {
   return buildGenericFallback(userText);
 }
 
+function buildFeedbackFailurePayload(
+  uiLanguage: UiLanguage
+): FeedbackApiErrorResponse {
+  if (uiLanguage === "en") {
+    return {
+      ok: false,
+      error: "feedback_generation_failed",
+      message: "Expression hint failed to generate. Please try again.",
+      retryable: true,
+    };
+  }
+
+  return {
+    ok: false,
+    error: "feedback_generation_failed",
+    message: "表达提示生成失败了，可以再试一次。",
+    retryable: true,
+  };
+}
+
 function resolveFinalResponse(
   source: FeedbackResponse,
   uiLanguage: UiLanguage,
@@ -968,7 +990,15 @@ Language rules:
 - Never fail the whole response just because no structureNote is available.`,
         },
       ],
-      { temperature: 0.5, jsonMode: true }
+      {
+        temperature: 0.5,
+        jsonMode: true,
+        providerTimeouts: {
+          deepseekMs: 15000,
+          arkMs: 15000,
+        },
+        traceLabel: "Expression Hint",
+      }
     );
 
     debugExpressionHint("raw model text", {
@@ -999,7 +1029,12 @@ Language rules:
         reason: "parse_failed",
         source: fallbackResult.source,
       });
-      return NextResponse.json(fallbackResult.response);
+      return NextResponse.json({
+        ok: true,
+        feedback: fallbackResult.response,
+        fallbackUsed: true,
+        source: fallbackResult.source,
+      } satisfies FeedbackApiSuccessResponse);
     }
 
     const fallback = buildFallbackResponse(userText);
@@ -1033,7 +1068,12 @@ Language rules:
         reason: "no_valid_expressions_after_normalization",
         source: fallbackResult.source,
       });
-      return NextResponse.json(fallbackResult.response);
+      return NextResponse.json({
+        ok: true,
+        feedback: fallbackResult.response,
+        fallbackUsed: true,
+        source: fallbackResult.source,
+      } satisfies FeedbackApiSuccessResponse);
     }
 
     if (finalResult.source !== "primary") {
@@ -1043,20 +1083,27 @@ Language rules:
       });
     }
 
-    return NextResponse.json(finalResponse);
+    return NextResponse.json({
+      ok: true,
+      feedback: finalResponse,
+      fallbackUsed: finalResult.source !== "primary",
+      source: finalResult.source,
+    } satisfies FeedbackApiSuccessResponse);
   } catch (error) {
     debugExpressionHint("request failed", {
       reason: error instanceof Error ? error.message : "unknown",
+      provider:
+        error instanceof ChatCompletionError ? error.provider ?? "unknown" : "unknown",
+      code: error instanceof ChatCompletionError ? error.code : "unknown",
     });
-    console.warn("[api/feedback] Using fallback expression hints", {
+    debugExpressionHint("returning retryable error", {
       reason: error instanceof Error ? error.message : "unknown",
-      userTextLength: userText.length,
+      provider:
+        error instanceof ChatCompletionError ? error.provider ?? "unknown" : "unknown",
+      code: error instanceof ChatCompletionError ? error.code : "unknown",
     });
-    const fallbackResult = resolveFinalResponse(buildFallbackResponse(userText), uiLanguage, userText);
-    debugExpressionHint("fallback used", {
-      reason: "request_failed",
-      source: fallbackResult.source,
+    return NextResponse.json(buildFeedbackFailurePayload(uiLanguage), {
+      status: 502,
     });
-    return NextResponse.json(fallbackResult.response);
   }
 }
