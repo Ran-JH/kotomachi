@@ -466,6 +466,9 @@ function FeedbackDrawer({
     const level = feedback[key];
     if (!isValidExpressionHintText(level.nativeSay)) return;
     const structureNote = normalizeStructureNote(level.structureNote);
+    const sharedRevisionNotes = normalizeRevisionNotes(feedback.sharedRevisionNotes);
+    const revisionNotes = normalizeRevisionNotes(level.revisionNotes);
+    const levelLabel = displayLevelLabels[key].label;
     const item: SavedExpression = {
       id: createSummaryId("saved-expr"),
       type: "expression",
@@ -473,11 +476,15 @@ function FeedbackDrawer({
       original: userText,
       suggestion: level.nativeSay,
       level: levelToSavedLevel(key),
+      levelLabel,
+      ...(level.usage?.trim() ? { usage: level.usage.trim() } : {}),
       note: level.analysis.trim() || undefined,
       source: "feedback",
       sourceMessageId: messageId,
       createdAt: new Date().toISOString(),
       uiLanguageAtSave: uiLanguage === "en" ? "en" : "zh",
+      ...(sharedRevisionNotes?.length ? { sharedRevisionNotes } : {}),
+      ...(revisionNotes?.length ? { revisionNotes } : {}),
       ...(structureNote ? { structureNote } : {}),
     };
     const result = toggleSavedItem(item);
@@ -605,9 +612,10 @@ function FeedbackDrawer({
                 const detailText = parsedDetailText || (level.usage?.trim() ? analysisText : "");
                 const revisionNotes = normalizeRevisionNotes(level.revisionNotes);
                 const hasRevisionNotes = Boolean(revisionNotes?.length);
-                const hasExtraDetails = hasRevisionNotes || Boolean(detailText);
-                const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
                 const structureNote = normalizeStructureNote(level.structureNote);
+                const hasExtraDetails =
+                  hasRevisionNotes || Boolean(detailText) || Boolean(structureNote);
+                const hasOverflowingAnalysis = Boolean(overflowingAnalysisKeys[meta.key]);
                 const structureTitle = uiLanguage === "en" ? "Structure" : "表达结构";
                 const structureExampleLabel = uiLanguage === "en" ? "Example" : "例";
                 const revisionNotesTitle = revisionNotesTitleLabel;
@@ -696,7 +704,7 @@ function FeedbackDrawer({
                           {detailText}
                         </p>
                       )}
-                      {hasExtraDetails && (hasRevisionNotes || hasOverflowingAnalysis) && (
+                      {hasExtraDetails && (hasRevisionNotes || hasOverflowingAnalysis || Boolean(structureNote)) && (
                         <button
                           type="button"
                           aria-expanded={isExpanded}
@@ -731,7 +739,7 @@ function FeedbackDrawer({
                           )}
                         </div>
                       )}
-                      {structureNote && (
+                      {structureNote && isExpanded && (
                         <div className="rounded-lg border border-[rgba(201,168,76,0.18)] bg-[#F6EFD9]/72 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
                           <div className="flex items-start gap-2.5">
                             <span className="mt-0.5 h-10 w-1 shrink-0 rounded-full bg-[#C9A84C]/65" aria-hidden="true" />

@@ -1,5 +1,5 @@
 import type { NpcId } from "./npc";
-import type { StructureNote } from "./feedback-types";
+import type { RevisionNote, StructureNote } from "./feedback-types";
 
 const STORAGE_KEY = "kotomachi_saved_items_v1";
 export const SAVED_ITEMS_UPDATED_EVENT = "kotomachi:saved-items-updated";
@@ -25,7 +25,11 @@ export interface SavedExpression {
   original: string;
   suggestion: string;
   level: "casual" | "neutral" | "polite" | "summary_upgrade";
+  levelLabel?: string;
+  usage?: string;
   note?: string;
+  sharedRevisionNotes?: RevisionNote[];
+  revisionNotes?: RevisionNote[];
   userNote?: string;
   reviewCount?: number;
   lastReviewedAt?: string;

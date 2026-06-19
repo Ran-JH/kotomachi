@@ -9,7 +9,7 @@ import {
   type SavedItem,
   type SavedWord,
 } from "@/lib/saved-items";
-import { normalizeStructureNote } from "@/lib/feedback-types";
+import { normalizeRevisionNotes, normalizeStructureNote } from "@/lib/feedback-types";
 import { getNpcDisplayName, isNpcId, type NpcId } from "@/lib/npc";
 import type { UiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
@@ -284,10 +284,16 @@ function getExpressionDetailLabels(isEn: boolean) {
         backToSaved: "Back to saved items",
         original: "Original",
         suggestion: "Suggested expression",
-        level: "Tone",
+        level: "Style",
+        usage: "Best for",
         analysis: "Why this works",
-        structure: "Structure",
+        sharedChanges: "Things to fix first",
+        revisionChanges: "Register-specific changes",
+        structure: "Reusable pattern",
         structureBadge: "Structure note",
+        originalPart: "Original part",
+        revisedPart: "Improved",
+        why: "Why this works",
         example: "Example",
         myNote: "My note",
         noNoteYet: "No note yet",
@@ -299,23 +305,55 @@ function getExpressionDetailLabels(isEn: boolean) {
         notePlaceholder: "Add a note about usage, tone, or context",
       }
     : {
-        detailTitle: "表达卡片",
-        backToSaved: "返回收藏",
+        detailTitle: "收藏详情",
+        backToSaved: "返回",
         original: "原句",
         suggestion: "建议表达",
-        level: "语气",
-        analysis: "表达说明",
+        level: "档位",
+        usage: "使用场景",
+        analysis: "说明",
+        sharedChanges: "需要先调整的地方",
+        revisionChanges: "这一档的表达差异",
         structure: "表达结构",
-        structureBadge: "有结构说明",
+        structureBadge: "表达结构",
+        originalPart: "原句部分",
+        revisedPart: "修改后",
+        why: "为什么这样改",
         example: "例句",
         myNote: "我的笔记",
         noNoteYet: "还没有笔记",
         saveNote: "保存",
-        cancelEdit: "恢复",
-        from: "来源",
-        saved: "保存时间",
+        cancelEdit: "取消",
+        from: "收藏自",
+        saved: "收藏时间",
         lastReviewed: (value: string) => `上次看过：${value}`,
-        notePlaceholder: "写一点你想记住的用法、语气或场景",
+        notePlaceholder: "写点备注...",
+      };
+}
+
+function getExpressionLearningLabels(isEn: boolean) {
+  return isEn
+    ? {
+        structureBadge: "Structure note",
+        structure: "Reusable pattern",
+        sharedChanges: "Things to fix first",
+        revisionChanges: "Register-specific changes",
+        usage: "Best for",
+        originalPart: "Original part",
+        revisedPart: "Improved",
+        why: "Why this works",
+        example: "Example",
+      }
+    : {
+        structureBadge: "表达结构",
+        structure: "表达结构",
+        sharedChanges: "需要先调整的地方",
+        revisionChanges: "这一档的表达差异",
+        usage: "使用场景",
+        originalPart: "原句部分",
+        revisedPart: "修改后",
+        why: "为什么这样改",
+        example: "例句",
       };
 }
 
@@ -383,6 +421,46 @@ function hasActiveTextSelection(): boolean {
   return Boolean(window.getSelection()?.toString().trim());
 }
 
+function renderSavedRevisionNoteCard(
+  item: SavedExpression,
+  note: NonNullable<ReturnType<typeof normalizeRevisionNotes>>[number],
+  index: number,
+  keyPrefix: string,
+  uiLanguage: UiLanguage,
+  labels: ReturnType<typeof getExpressionLearningLabels>
+) {
+  return (
+    <div
+      key={`${item.id}-${keyPrefix}-${index}`}
+      className="rounded-xl bg-[#FAF6EE] px-3 py-2.5"
+    >
+      {note.originalPart && (
+        <p className="break-words text-[11px] leading-relaxed text-[#4A4438] [overflow-wrap:anywhere]">
+          <span className="font-medium text-[#7A7060]">{labels.originalPart}: </span>
+          {note.originalPart}
+        </p>
+      )}
+      {note.revisedPart && (
+        <SelectableLookupText
+          npcId={item.npcId}
+          uiLanguage={uiLanguage}
+          sourceText={note.revisedPart}
+          className={note.originalPart ? "mt-1 block" : "block"}
+        >
+          <p className="break-words text-[11px] leading-relaxed text-[#4A4438] [overflow-wrap:anywhere]">
+            <span className="font-medium text-[#7A7060]">{labels.revisedPart}: </span>
+            {note.revisedPart}
+          </p>
+        </SelectableLookupText>
+      )}
+      <p className="mt-1 break-words text-[11px] leading-relaxed text-[#4A4438] [overflow-wrap:anywhere]">
+        <span className="font-medium text-[#7A7060]">{labels.why}: </span>
+        {note.explanation}
+      </p>
+    </div>
+  );
+}
+
 function ExpressionCard({
   item,
   copy,
@@ -398,6 +476,7 @@ function ExpressionCard({
   onDelete: () => void;
   onOpen: () => void;
 }) {
+  const learningLabels = getExpressionLearningLabels(isEn);
   const structureNote = normalizeStructureNote(item.structureNote);
   const structureTitle = isEn ? "Structure" : "表达结构";
   const structureBadge = isEn ? "Structure note" : "有结构说明";
@@ -475,42 +554,6 @@ function ExpressionCard({
         </div>
       )}
 
-      {structureNote && (
-        <div className="mt-2 rounded-lg border border-[rgba(40,35,26,0.06)] bg-[#FCF8F0]/75 px-3 py-2.5">
-          <span className="mb-1 block text-[8px] font-medium text-[#7A7060]/70">
-            {structureTitle}
-          </span>
-          {structureNote.pattern && (
-            <SelectableLookupText
-              npcId={item.npcId}
-              uiLanguage={uiLanguage}
-              sourceText={structureNote.pattern}
-            >
-              <p className="font-ja break-words text-[11px] font-medium leading-relaxed text-[#2D4A1F] [overflow-wrap:anywhere]">
-                {structureNote.pattern}
-              </p>
-            </SelectableLookupText>
-          )}
-          {structureNote.explanation && (
-            <p className="mt-1 break-words text-[10px] leading-relaxed text-[#4A4438]/88 [overflow-wrap:anywhere]">
-              {structureNote.explanation}
-            </p>
-          )}
-          {structureNote.examples?.map((example, index) => (
-            <SelectableLookupText
-              key={`${item.id}-structure-example-${index}`}
-              npcId={item.npcId}
-              uiLanguage={uiLanguage}
-              sourceText={example}
-            >
-              <p className="mt-1 break-words text-[9px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]">
-                {structureExampleLabel}: {example}
-              </p>
-            </SelectableLookupText>
-          ))}
-        </div>
-      )}
-
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
           {reviewBadge}
@@ -519,7 +562,7 @@ function ExpressionCard({
           {copy.sidebar.savedExpressionBadge}
         </span>
         <span className="inline-block rounded-full bg-[#C9A84C]/12 px-2.5 py-0.5 text-[8px] font-medium text-[#8B7430]/75">
-          {LEVEL_LABELS[item.level] ?? item.level}
+          {item.levelLabel ?? LEVEL_LABELS[item.level] ?? item.level}
         </span>
         {showSourceBadge && item.source === "summary_card" && (
           <span className="inline-block rounded-full bg-[#7A7060]/8 px-2.5 py-0.5 text-[8px] font-medium text-[#7A7060]/55">
@@ -528,7 +571,7 @@ function ExpressionCard({
         )}
         {structureNote && (
           <span className="inline-block rounded-full bg-[#E8E0CE]/65 px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
-            {structureBadge}
+            {learningLabels.structureBadge}
           </span>
         )}
       </div>
@@ -550,8 +593,11 @@ function ExpressionDetailCard({
   onSaveNote: (expressionId: string, note: string) => void;
 }) {
   const labels = getExpressionDetailLabels(isEn);
+  const learningLabels = getExpressionLearningLabels(isEn);
   const locale = isEn ? "en-US" : "zh-CN";
   const structureNote = normalizeStructureNote(item.structureNote);
+  const sharedRevisionNotes = normalizeRevisionNotes(item.sharedRevisionNotes);
+  const revisionNotes = normalizeRevisionNotes(item.revisionNotes);
   const userNote = item.userNote?.trim() ?? "";
   const reviewSummary = getExpressionReviewSummaryLabel(item, isEn);
   const lastReviewedText = item.lastReviewedAt
@@ -609,7 +655,7 @@ function ExpressionDetailCard({
                 {reviewSummary}
               </span>
               <span className="inline-flex items-center rounded-full bg-[#C9A84C]/12 px-3 py-1 text-[10px] font-medium text-[#8B7430]/80">
-                {LEVEL_LABELS[item.level] ?? item.level}
+                {item.levelLabel ?? LEVEL_LABELS[item.level] ?? item.level}
               </span>
               {hasStructureContent(item) && (
                 <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-3 py-1 text-[10px] font-medium text-[#6D624F]">
@@ -638,6 +684,15 @@ function ExpressionDetailCard({
             </SelectableLookupText>
           </div>
 
+          {item.usage && (
+            <div className="rounded-2xl bg-[#F7F2E8] p-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {learningLabels.usage}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#3B352C]">{item.usage}</p>
+            </div>
+          )}
+
           {item.note && (
             <div className="rounded-2xl bg-[#F7F2E8] p-4">
               <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
@@ -647,10 +702,36 @@ function ExpressionDetailCard({
             </div>
           )}
 
+          {sharedRevisionNotes?.length ? (
+            <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0] p-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {learningLabels.sharedChanges}
+              </p>
+              <div className="mt-2 space-y-2">
+                {sharedRevisionNotes.map((note, index) =>
+                  renderSavedRevisionNoteCard(item, note, index, "shared", uiLanguage, learningLabels)
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {revisionNotes?.length ? (
+            <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0] p-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
+                {learningLabels.revisionChanges}
+              </p>
+              <div className="mt-2 space-y-2">
+                {revisionNotes.map((note, index) =>
+                  renderSavedRevisionNoteCard(item, note, index, "level", uiLanguage, learningLabels)
+                )}
+              </div>
+            </div>
+          ) : null}
+
           {structureNote && (
             <div className="rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FCF8F0] p-4">
               <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A7060]">
-                {labels.structure}
+                {learningLabels.structure}
               </p>
               {structureNote.pattern && (
                 <SelectableLookupText
@@ -676,7 +757,7 @@ function ExpressionDetailCard({
                   sourceText={example}
                 >
                   <p className="mt-2 text-[11px] leading-relaxed text-[#7A7060] [overflow-wrap:anywhere]">
-                    {labels.example}: {example}
+                    {learningLabels.example}: {example}
                   </p>
                 </SelectableLookupText>
               ))}
