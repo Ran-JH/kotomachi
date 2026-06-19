@@ -174,13 +174,16 @@ analysis rules:
 - Do not output empty summaries like "more natural" or "more polite" by themselves.
 
 sharedRevisionNotes rules:
-- Use sharedRevisionNotes for corrections or rewrites shared by all three suggestions.
-- sharedRevisionNotes should usually contain 2 to 4 notes.
+- sharedRevisionNotes means things to fix first in the original expression before choosing a register.
+- Use sharedRevisionNotes only for core fixes that affect meaning, grammar, word choice, counters, sentence structure, or naturalness in an obvious way.
+- sharedRevisionNotes should usually contain 2 to 4 notes when there are clear fixable issues, but it may be omitted entirely.
 - Put shared corrections here only once, not in multiple levels.
-- Good shared topics include removing fillers or repetition, fixing wrong counters, reorganizing scattered fragments, and converting literal wording into a reusable sentence structure.
+- Include only things like wrong counters, wrong particles, wrong tense or form, wrong word choice, unnatural literal translation, disfluent filler or repetition from STT, or fragmented structure that must be reorganized for the sentence to make sense.
 - originalPart and revisedPart must be short fragments, not full sentences.
 - Do not use the whole user input or the whole rewritten sentence here.
-- sharedRevisionNotes are the place for common mistakes such as filler cleanup, STT fragment repair, counter fixes, literal wording fixes, or base sentence restructuring.
+- Do not put whole-sentence summaries, ordinary style polishing, or casual-versus-polite differences here.
+- Do not use sharedRevisionNotes for general naturalness improvements if the original already makes sense.
+- If the user input is mainly Chinese or English and needs translation into Japanese, do not force sharedRevisionNotes unless there is a clear Japanese usage issue. In that case, focus on the three suggested Japanese expressions instead.
 
 revisionNotes rules:
 - level.revisionNotes are for register-specific differences only.
@@ -285,6 +288,10 @@ function getNpcExpressionContext(npcId: string | null): string {
 
 function containsJapanese(text: string): boolean {
   return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
+}
+
+function containsKana(text: string): boolean {
+  return /[\u3040-\u30ff]/.test(text);
 }
 
 function containsChinese(text: string): boolean {
@@ -670,6 +677,20 @@ function localizeRevisionNotes(
   }));
 }
 
+function shouldSuppressSharedRevisionNotes(userText: string): boolean {
+  if (isPrimarilyEnglish(userText)) {
+    return true;
+  }
+
+  // If the input has Chinese characters but no kana, it is usually Chinese text
+  // that needs Japanese suggestions rather than fragment-level Japanese error notes.
+  if (containsChinese(userText) && !containsKana(userText)) {
+    return true;
+  }
+
+  return false;
+}
+
 function compactRevisionFragment(value: string | undefined): string {
   return (value ?? "").replace(/\s+/g, "").trim();
 }
@@ -863,17 +884,27 @@ function resolveFinalResponse(
   userText: string
 ): { response: FeedbackResponse; source: FinalResponseSource } {
   const primary = limitStructureNotes(localizeFeedbackResponse(source, uiLanguage));
+  if (shouldSuppressSharedRevisionNotes(userText)) {
+    delete primary.sharedRevisionNotes;
+  }
   if (hasValidExpressions(primary)) {
     return { response: primary, source: "primary" };
   }
 
   const fallback = limitStructureNotes(localizeFeedbackResponse(buildFallbackResponse(userText), uiLanguage));
+  if (shouldSuppressSharedRevisionNotes(userText)) {
+    delete fallback.sharedRevisionNotes;
+  }
   if (hasValidExpressions(fallback)) {
     return { response: fallback, source: "generic" };
   }
 
+  const hardFallback = limitStructureNotes(localizeFeedbackResponse(buildHardFallback(), uiLanguage));
+  if (shouldSuppressSharedRevisionNotes(userText)) {
+    delete hardFallback.sharedRevisionNotes;
+  }
   return {
-    response: limitStructureNotes(localizeFeedbackResponse(buildHardFallback(), uiLanguage)),
+    response: hardFallback,
     source: "hard",
   };
 }

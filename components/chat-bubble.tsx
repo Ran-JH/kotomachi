@@ -317,6 +317,8 @@ function FeedbackDrawer({
   const originalPartLabel = uiLanguage === "en" ? "Original part" : "原句片段";
   const revisedPartLabel = uiLanguage === "en" ? "Improved" : "优化后";
   const revisionWhyLabel = uiLanguage === "en" ? "Why this works" : "为什么这样改";
+  const coreFixesTitle =
+    uiLanguage === "en" ? "Things to fix first" : "需要先调整的地方";
   const displayLevelLabels: Record<FeedbackLevelKey, { label: string; subtitle: string }> =
     uiLanguage === "en"
       ? {
@@ -565,7 +567,7 @@ function FeedbackDrawer({
               <>
                 {sharedRevisionNotes?.length ? (
                   <section className="rounded-xl border border-[rgba(40,35,26,0.08)] bg-[#F3EDE0]/45 px-3.5 sm:px-4 py-3">
-                    <p className="text-[10px] font-medium text-[#7A7060]">{sharedRevisionNotesTitle}</p>
+                    <p className="text-[10px] font-medium text-[#7A7060]">{coreFixesTitle}</p>
                     <div className="mt-2 space-y-2">
                       {sharedRevisionNotes.map((note, index) =>
                         renderRevisionNoteCard(
