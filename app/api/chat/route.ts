@@ -8,6 +8,11 @@ import { getConversationScene } from "@/lib/conversation-scenes";
 
 import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
 
+// This route depends on runtime-only inputs such as env-backed LLM access
+// and per-request context. Mark it explicitly so Next does not try to
+// treat it like a static data target during build collection.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 
 type ChatRequestBody = {

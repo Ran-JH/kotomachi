@@ -109,6 +109,7 @@ Return strict JSON only. No markdown code block. Use this shape:
   ],
   "casual": {
     "nativeSay": "natural casual Japanese",
+    "usage": "one or two concise sentences about who this level fits and which expressions create that tone",
     "analysis": "one concise summary of the main improvement in the user's UI language",
     "revisionNotes": [
       {
@@ -126,10 +127,12 @@ Return strict JSON only. No markdown code block. Use this shape:
   },
   "business": {
     "nativeSay": "natural neutral/polite Japanese",
+    "usage": "one or two concise sentences about who this level fits and which expressions create that tone",
     "analysis": "one concise summary of the main improvement in the user's UI language"
   },
   "formal": {
     "nativeSay": "natural more formal Japanese",
+    "usage": "one or two concise sentences about who this level fits and which expressions create that tone",
     "analysis": "one concise summary of the main improvement in the user's UI language"
   }
 }
@@ -167,6 +170,7 @@ Register guidance:
 
 analysis rules:
 - analysis should be one concise summary of the main improvement.
+- analysis should focus on the overall rewrite strategy, not on relationship distance or register fit.
 - Do not output empty summaries like "more natural" or "more polite" by themselves.
 
 sharedRevisionNotes rules:
@@ -176,6 +180,7 @@ sharedRevisionNotes rules:
 - Good shared topics include removing fillers or repetition, fixing wrong counters, reorganizing scattered fragments, and converting literal wording into a reusable sentence structure.
 - originalPart and revisedPart must be short fragments, not full sentences.
 - Do not use the whole user input or the whole rewritten sentence here.
+- sharedRevisionNotes are the place for common mistakes such as filler cleanup, STT fragment repair, counter fixes, literal wording fixes, or base sentence restructuring.
 
 revisionNotes rules:
 - level.revisionNotes are for register-specific differences only.
@@ -183,6 +188,7 @@ revisionNotes rules:
 - Do not repeat the same correction in multiple levels.
 - If a correction applies to all levels, put it in sharedRevisionNotes only.
 - If a level note duplicates sharedRevisionNotes, omit it.
+- Do not repeat shared corrections such as filler removal, wrong counters, or base sentence restructuring inside level.revisionNotes.
 - Each note must explain one real improvement specific to that level's tone, wording, or politeness.
 - Use these types when relevant: meaning, structure, wording, grammar, tone, counter, fluency.
 - originalPart should quote the original fragment that was changed when possible.
@@ -196,6 +202,16 @@ revisionNotes rules:
 - Casual level notes should focus on choices like 「どっち」, 「迷ってて」, or other relaxed spoken phrasing.
 - Neutral level notes should focus on everyday polite choices like 「どちら」, 「ですか」, or 「〜ています」.
 - Polite level notes should focus on careful spoken choices like 「のですが」, 「でしょうか」, or more formal verbs when they are actually used.
+
+usage rules:
+- level.usage explains when and with whom this register fits.
+- usage should be 1 to 2 concise sentences.
+- usage must mention the suitable relationship or scene.
+- usage must mention one or two concrete expressions from nativeSay that create this tone.
+- Do not explain shared corrections such as filler removal, counter fixes, or sentence restructuring in usage.
+- Do not repeat sharedRevisionNotes inside usage.
+- usage is the default visible "Best for" explanation, so keep it short, useful, and focused on relationship distance, tone, and register.
+- Good usage examples mention expressions like "迷ってて", "どっち", "どちら", "ですか", "のですが", or "でしょうか" to show why this level feels casual, neutral, or polite.
 
 structureNote rules:
 - structureNote is optional.
@@ -390,6 +406,14 @@ function pickAnalysis(raw: unknown): string {
   return "";
 }
 
+function pickUsage(raw: unknown): string {
+  if (typeof raw === "string" && raw.trim()) {
+    return raw.trim();
+  }
+
+  return "";
+}
+
 function isSafeHintExpression(nativeSay: string): boolean {
   const text = nativeSay.trim();
   if (!text) return false;
@@ -471,10 +495,11 @@ function buildGenericFallback(userText: string): FeedbackResponse {
 
   return {
     casual: withRevisionNotes(
-      feedbackLevel(
-        casualFallback,
-        "先把零散停顿整理成完整一句，再用更顺的口语表达同样的意思。"
-      ),
+      {
+        nativeSay: casualFallback,
+        usage: "适合和熟人、朋友或轻松聊天时说。会更偏口语，也更随和。",
+        analysis: "先把零散停顿整理成完整一句，再用更顺的口语表达同样的意思。",
+      },
       [
         {
           type: "fluency",
@@ -483,10 +508,11 @@ function buildGenericFallback(userText: string): FeedbackResponse {
       ]
     ),
     business: withRevisionNotes(
-      feedbackLevel(
-        businessFallback,
-        "先把信息顺序理清，再换成普通礼貌的说法，会更清楚也更自然。"
-      ),
+      {
+        nativeSay: businessFallback,
+        usage: "适合向店员、同学或不太熟的人自然地询问。会保持礼貌，但不会太硬。",
+        analysis: "先把信息顺序理清，再换成普通礼貌的说法，会更清楚也更自然。",
+      },
       [
         {
           type: "structure",
@@ -495,10 +521,11 @@ function buildGenericFallback(userText: string): FeedbackResponse {
       ]
     ),
     formal: withRevisionNotes(
-      feedbackLevel(
-        formalFallback,
-        "正式场景里把重点拆清，再补上礼貌句尾，会比直译原句稳妥。"
-      ),
+      {
+        nativeSay: formalFallback,
+        usage: "适合想更客气地询问时说。会用更完整、更委婉的句尾。",
+        analysis: "正式场景里把重点拆清，再补上礼貌句尾，会比直译原句稳妥。",
+      },
       [
         {
           type: "tone",
@@ -512,10 +539,11 @@ function buildGenericFallback(userText: string): FeedbackResponse {
 function buildHardFallback(): FeedbackResponse {
   return {
     casual: withRevisionNotes(
-      feedbackLevel(
-        "言いたいことを短く言うと、こんな感じです。",
-        "先把想说的内容缩成一整句，会更像真实对话里的说法。"
-      ),
+      {
+        nativeSay: "言いたいことを短く言うと、こんな感じです。",
+        usage: "适合轻松聊天时先参考这种更短的说法。",
+        analysis: "先把想说的内容缩成一整句，会更像真实对话里的说法。",
+      },
       [
         {
           type: "fluency",
@@ -524,10 +552,11 @@ function buildHardFallback(): FeedbackResponse {
       ]
     ),
     business: withRevisionNotes(
-      feedbackLevel(
-        "もう少し整理して言うと、このような言い方になります。",
-        "把信息顺序整理好，再换成普通礼貌说法，会更容易直接拿去用。"
-      ),
+      {
+        nativeSay: "もう少し整理して言うと、このような言い方になります。",
+        usage: "适合日常礼貌场景里先参考这种更稳妥的说法。",
+        analysis: "把信息顺序整理好，再换成普通礼貌说法，会更容易直接拿去用。",
+      },
       [
         {
           type: "structure",
@@ -536,10 +565,11 @@ function buildHardFallback(): FeedbackResponse {
       ]
     ),
     formal: withRevisionNotes(
-      feedbackLevel(
-        "少し丁寧に言うと、このように表現できます。",
-        "正式说法通常会补齐句子骨架和礼貌结尾，让意思更完整。"
-      ),
+      {
+        nativeSay: "少し丁寧に言うと、このように表現できます。",
+        usage: "适合需要更客气、更完整表达的场景先参考这种说法。",
+        analysis: "正式说法通常会补齐句子骨架和礼貌结尾，让意思更完整。",
+      },
       [
         {
           type: "tone",
@@ -622,6 +652,10 @@ function localizeStructureNote(
   };
 }
 
+function localizeUsageText(text: string, uiLanguage: UiLanguage): string {
+  return localizeAnalysisText(text, uiLanguage);
+}
+
 function localizeRevisionNotes(
   notes: ReturnType<typeof normalizeRevisionNotes>,
   uiLanguage: UiLanguage
@@ -695,20 +729,24 @@ function normalizeLevel(
   const fallbackNative = normalizeNativeSay(fallbackSay) || "自然な日本語に言い直すと、こういう形になります。";
   const fallbackAnalysisText =
     pickAnalysis(fallbackAnalysis) || "这样说更自然，也更容易让对方理解。";
+  const fallbackUsageText =
+    "适合按这一档的关系距离和礼貌度来说。";
 
   if (!level || typeof level !== "object" || Array.isArray(level)) {
-    return feedbackLevel(fallbackNative, fallbackAnalysisText);
+    return { nativeSay: fallbackNative, usage: fallbackUsageText, analysis: fallbackAnalysisText };
   }
 
   const source = level as Record<string, unknown>;
   const candidateNative = normalizeNativeSay(source.nativeSay);
   const nativeSay = shouldRejectNativeSay(candidateNative, userText) ? fallbackNative : candidateNative;
+  const usage = pickUsage(source.usage) || fallbackUsageText;
   const analysis = pickAnalysis(source.analysis) || fallbackAnalysisText;
   const revisionNotes = normalizeRevisionNotes(source.revisionNotes);
   const structureNote = normalizeStructureNote(source.structureNote);
 
   return {
     nativeSay,
+    usage,
     analysis,
     ...(revisionNotes?.length ? { revisionNotes } : {}),
     ...(structureNote ? { structureNote } : {}),
@@ -731,6 +769,7 @@ function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
     if (!keptOne && note) {
       limited[key] = {
         nativeSay: level.nativeSay,
+        ...(level.usage ? { usage: level.usage } : {}),
         analysis: level.analysis,
         ...(revisionNotes?.length ? { revisionNotes } : {}),
         structureNote: note,
@@ -741,6 +780,7 @@ function limitStructureNotes(response: FeedbackResponse): FeedbackResponse {
 
     limited[key] = {
       nativeSay: level.nativeSay,
+      ...(level.usage ? { usage: level.usage } : {}),
       analysis: level.analysis,
       ...(revisionNotes?.length ? { revisionNotes } : {}),
     };
@@ -772,6 +812,7 @@ function localizeFeedbackResponse(response: FeedbackResponse, uiLanguage: UiLang
 
     localized[key] = {
       nativeSay: level.nativeSay,
+      ...(level.usage ? { usage: localizeUsageText(level.usage, uiLanguage) } : {}),
       analysis: localizeAnalysisText(level.analysis, uiLanguage),
       ...(revisionNotes?.length ? { revisionNotes } : {}),
       ...(structureNote ? { structureNote } : {}),
@@ -885,8 +926,8 @@ uiLanguage: ${uiLanguage}
 
 Language rules:
 - If uiLanguage is "en", analysis, revisionNotes.explanation, and structureNote.explanation must be in English only.
-- If uiLanguage is "zh", analysis, sharedRevisionNotes.explanation, revisionNotes.explanation, and structureNote.explanation must be in Chinese only.
-- If uiLanguage is "en", analysis, sharedRevisionNotes.explanation, revisionNotes.explanation, and structureNote.explanation must be in English only.
+- If uiLanguage is "zh", usage, analysis, sharedRevisionNotes.explanation, revisionNotes.explanation, and structureNote.explanation must be in Chinese only.
+- If uiLanguage is "en", usage, analysis, sharedRevisionNotes.explanation, revisionNotes.explanation, and structureNote.explanation must be in English only.
 - All suggested expressions, sharedRevisionNotes.revisedPart, revisionNotes.revisedPart, structureNote.pattern, and structureNote.examples must remain Japanese.
 - sharedRevisionNotes.originalPart and revisionNotes.originalPart may quote the user's original fragment, even if it contains Chinese, English, or mixed-language input.
 - Do not fail just because the input is fragmented.

@@ -164,7 +164,7 @@ export function NpcMemoryPanel({
         ])
       ),
     });
-  }, []);
+  }, [npcId]);
 
   const loadPanelState = useCallback(() => {
     loadCurrentMemories();

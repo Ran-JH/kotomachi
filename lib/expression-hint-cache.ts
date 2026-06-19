@@ -1,11 +1,12 @@
 import type { FeedbackLevelKey, RevisionNote } from "./feedback-types";
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v5";
 const STORAGE_KEY = `kotomachi_feedback_cache_${CACHE_VERSION}`;
 const MAX_CACHE_ENTRIES = 50;
 
 interface CachedFeedbackLevel {
   nativeSay: string;
+  usage?: string;
   analysis: string;
   revisionNotes?: RevisionNote[];
 }
@@ -114,30 +115,30 @@ export function removeCachedFeedback(
 }
 
 export function toCachedFeedback(f: {
-  casual: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
-  business: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
-  formal: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
+  casual: { nativeSay: string; usage?: string; analysis: string; revisionNotes?: RevisionNote[] };
+  business: { nativeSay: string; usage?: string; analysis: string; revisionNotes?: RevisionNote[] };
+  formal: { nativeSay: string; usage?: string; analysis: string; revisionNotes?: RevisionNote[] };
   sharedRevisionNotes?: RevisionNote[];
 }): CachedFeedback {
   return {
     v: CACHE_VERSION,
-    casual: { nativeSay: f.casual.nativeSay, analysis: f.casual.analysis, ...(f.casual.revisionNotes ? { revisionNotes: f.casual.revisionNotes } : {}) },
-    business: { nativeSay: f.business.nativeSay, analysis: f.business.analysis, ...(f.business.revisionNotes ? { revisionNotes: f.business.revisionNotes } : {}) },
-    formal: { nativeSay: f.formal.nativeSay, analysis: f.formal.analysis, ...(f.formal.revisionNotes ? { revisionNotes: f.formal.revisionNotes } : {}) },
+    casual: { nativeSay: f.casual.nativeSay, ...(f.casual.usage ? { usage: f.casual.usage } : {}), analysis: f.casual.analysis, ...(f.casual.revisionNotes ? { revisionNotes: f.casual.revisionNotes } : {}) },
+    business: { nativeSay: f.business.nativeSay, ...(f.business.usage ? { usage: f.business.usage } : {}), analysis: f.business.analysis, ...(f.business.revisionNotes ? { revisionNotes: f.business.revisionNotes } : {}) },
+    formal: { nativeSay: f.formal.nativeSay, ...(f.formal.usage ? { usage: f.formal.usage } : {}), analysis: f.formal.analysis, ...(f.formal.revisionNotes ? { revisionNotes: f.formal.revisionNotes } : {}) },
     ...(f.sharedRevisionNotes ? { sharedRevisionNotes: f.sharedRevisionNotes } : {}),
   };
 }
 
 export function fromCachedFeedback(c: CachedFeedback): {
-  casual: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
-  business: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
-  formal: { nativeSay: string; analysis: string; revisionNotes?: RevisionNote[] };
+  casual: { nativeSay: string; usage?: string; analysis: string; revisionNotes?: RevisionNote[] };
+  business: { nativeSay: string; usage?: string; analysis: string; revisionNotes?: RevisionNote[] };
+  formal: { nativeSay: string; usage?: string; analysis: string; revisionNotes?: RevisionNote[] };
   sharedRevisionNotes?: RevisionNote[];
 } {
   return {
-    casual: { nativeSay: c.casual.nativeSay, analysis: c.casual.analysis, ...(c.casual.revisionNotes ? { revisionNotes: c.casual.revisionNotes } : {}) },
-    business: { nativeSay: c.business.nativeSay, analysis: c.business.analysis, ...(c.business.revisionNotes ? { revisionNotes: c.business.revisionNotes } : {}) },
-    formal: { nativeSay: c.formal.nativeSay, analysis: c.formal.analysis, ...(c.formal.revisionNotes ? { revisionNotes: c.formal.revisionNotes } : {}) },
+    casual: { nativeSay: c.casual.nativeSay, ...(c.casual.usage ? { usage: c.casual.usage } : {}), analysis: c.casual.analysis, ...(c.casual.revisionNotes ? { revisionNotes: c.casual.revisionNotes } : {}) },
+    business: { nativeSay: c.business.nativeSay, ...(c.business.usage ? { usage: c.business.usage } : {}), analysis: c.business.analysis, ...(c.business.revisionNotes ? { revisionNotes: c.business.revisionNotes } : {}) },
+    formal: { nativeSay: c.formal.nativeSay, ...(c.formal.usage ? { usage: c.formal.usage } : {}), analysis: c.formal.analysis, ...(c.formal.revisionNotes ? { revisionNotes: c.formal.revisionNotes } : {}) },
     ...(c.sharedRevisionNotes ? { sharedRevisionNotes: c.sharedRevisionNotes } : {}),
   };
 }

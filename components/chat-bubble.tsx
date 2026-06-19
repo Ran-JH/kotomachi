@@ -310,10 +310,25 @@ function FeedbackDrawer({
   const copy = getUiCopy(uiLanguage);
   const pauseLabel = uiLanguage === "zh" ? "\u6682\u505c" : "Pause";
   const sharedRevisionNotes = normalizeRevisionNotes(feedback?.sharedRevisionNotes);
-  const sharedRevisionNotesTitle = copy.feedback.sharedRevisionNotesTitle;
-  const originalPartLabel = copy.feedback.originalPartLabel;
-  const revisedPartLabel = copy.feedback.revisedPartLabel;
-  const revisionWhyLabel = copy.feedback.revisionWhyLabel;
+  const sharedRevisionNotesTitle = uiLanguage === "en" ? "Shared changes" : "共同修改点";
+  const usageLabel = uiLanguage === "en" ? "Best for" : "适合这样说";
+  const revisionNotesTitleLabel =
+    uiLanguage === "en" ? "Register-specific changes" : "这一档的表达差异";
+  const originalPartLabel = uiLanguage === "en" ? "Original part" : "原句片段";
+  const revisedPartLabel = uiLanguage === "en" ? "Improved" : "优化后";
+  const revisionWhyLabel = uiLanguage === "en" ? "Why this works" : "为什么这样改";
+  const displayLevelLabels: Record<FeedbackLevelKey, { label: string; subtitle: string }> =
+    uiLanguage === "en"
+      ? {
+          casual: { label: "Casual", subtitle: "カジュアル" },
+          business: { label: "Neutral", subtitle: "ニュートラル" },
+          formal: { label: "Polite", subtitle: "ポライト" },
+        }
+      : {
+          casual: { label: "亲近随和", subtitle: "カジュアル" },
+          business: { label: "普通自然", subtitle: "ニュートラル" },
+          formal: { label: "礼貌得体", subtitle: "ポライト" },
+        };
 
   const revokeUserTempAudioUrl = useCallback(() => {
     if (!userTempAudioUrlRef.current) return;
@@ -572,17 +587,18 @@ function FeedbackDrawer({
                 const isTtsPlaying = ttsPlayingKey === meta.key;
                 const isTtsActive = isTtsLoading || isTtsPlaying;
                 const isExpanded = expandedAnalysisKey === meta.key;
-                const levelLabels = copy.feedback.levels;
-                const labels = levelLabels[meta.key] || { label: meta.title, subtitle: meta.subtitle };
-                const zhLabels: Record<FeedbackLevelKey, { label: string; subtitle: string }> = {
-                  casual: { label: "亲近随和", subtitle: "カジュアル" },
-                  business: { label: "普通自然", subtitle: "ふつう" },
-                  formal: { label: "严肃正式", subtitle: "フォーマル" },
+                const displayLabels = displayLevelLabels[meta.key] || {
+                  label: meta.title,
+                  subtitle: meta.subtitle,
                 };
-                const displayLabels = labels;
                 const analysisText = level.analysis.trim();
                 const analysisSections = parseFeedbackAnalysisSections(analysisText);
-                const detailText = analysisSections.details;
+                const usageText = level.usage?.trim() || analysisSections.usage;
+                const parsedDetailText = [analysisSections.reason, analysisSections.details]
+                  .filter((section): section is string => Boolean(section && section.trim()))
+                  .join(" ")
+                  .trim();
+                const detailText = parsedDetailText || (level.usage?.trim() ? analysisText : "");
                 const revisionNotes = normalizeRevisionNotes(level.revisionNotes);
                 const hasRevisionNotes = Boolean(revisionNotes?.length);
                 const hasExtraDetails = hasRevisionNotes || Boolean(detailText);
@@ -590,10 +606,7 @@ function FeedbackDrawer({
                 const structureNote = normalizeStructureNote(level.structureNote);
                 const structureTitle = uiLanguage === "en" ? "Structure" : "表达结构";
                 const structureExampleLabel = uiLanguage === "en" ? "Example" : "例";
-                const revisionNotesTitle = copy.feedback.revisionNotesTitle;
-                const originalPartLabel = copy.feedback.originalPartLabel;
-                const revisedPartLabel = copy.feedback.revisedPartLabel;
-                const revisionWhyLabel = copy.feedback.revisionWhyLabel;
+                const revisionNotesTitle = revisionNotesTitleLabel;
 
                 return (
                   <article key={meta.key} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.08)] px-3.5 sm:px-4 py-3.5">
@@ -661,19 +674,11 @@ function FeedbackDrawer({
                       </p>
                     )}
                     <div className="mt-2.5 space-y-2">
-                      {analysisSections.usage && (
+                      {usageText && (
                         <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
-                          <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.usageLabel}</p>
+                          <p className="text-[9px] font-medium text-[#7A7060]">{usageLabel}</p>
                           <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
-                            {analysisSections.usage}
-                          </p>
-                        </div>
-                      )}
-                      {analysisSections.reason && (
-                        <div className="rounded-md bg-[#F3EDE0]/55 px-2.5 py-2">
-                          <p className="text-[9px] font-medium text-[#7A7060]">{copy.feedback.whyLabel}</p>
-                          <p className="mt-0.5 text-[10px] sm:text-[11px] leading-relaxed text-[#4A4438] break-words">
-                            {analysisSections.reason}
+                            {usageText}
                           </p>
                         </div>
                       )}

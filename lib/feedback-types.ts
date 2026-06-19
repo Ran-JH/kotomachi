@@ -130,6 +130,8 @@ export function normalizeRevisionNotes(value: unknown): RevisionNote[] | undefin
 export interface FeedbackLevel {
   /** 该场合下最自然的建议表达 */
   nativeSay: string;
+  /** 这一档适合怎样说：关系距离、场景、以及形成语气的关键表达 */
+  usage?: string;
   /** 双层分析：场合为何这么说 + 原句为何不够自然 */
   analysis: string;
   /** 轻量修改说明：逐项对照原句片段和优化后的片段 */
