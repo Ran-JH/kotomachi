@@ -394,7 +394,7 @@ function getWordCardLabels(isEn: boolean) {
         reading: "读音",
         meaning: "释义",
         detailedNote: "详细解释",
-        sentenceMeaning: "这句话里的意思",
+        sentenceMeaning: "这句里的意思",
         sourceSentence: "出处原句",
         sourceSentenceFallback: "暂无出处原句",
         myNote: "我的笔记",
@@ -838,15 +838,6 @@ function ExpressionDetailCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-        >
-          {labels.backToSaved}
-        </button>
-      </div>
     </div>
   );
 }
@@ -1249,17 +1240,7 @@ function WordReviewCard({
             {labels.backToSaved}
           </button>
         </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-full border border-[rgba(40,35,26,0.1)] bg-[#F3EDE0] px-4 py-2 text-[11px] font-medium text-[#4A4438] transition-colors hover:bg-[#E8E0CE] hover:text-[#28231A]"
-          >
-            {labels.backToSaved}
-          </button>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
