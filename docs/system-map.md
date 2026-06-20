@@ -102,6 +102,50 @@ Notes:
 - 当前 NPC memory panel 是 memory v0 的主入口。
 - 当前 session 内的 memory curator 触发逻辑也在这里。
 
+### Expression Hint
+
+Primary files:
+
+- `app/api/feedback/route.ts` — generation API and provider/fallback handling
+- `lib/feedback-types.ts` — response and note types
+- `lib/expression-hint-cache.ts` — local cache for expression hints
+- `components/chat-bubble.tsx` — drawer/card UI and save action
+- `components/saved-items-panel.tsx` — saved item detail rendering
+- `lib/saved-items.ts` — saved item storage and types
+
+Data flow:
+
+1. User selects or opens Expression Hint from a chat message.
+2. Client calls `/api/feedback`.
+3. API returns three levels plus optional shared notes and structure notes.
+4. Feedback drawer renders:
+   - original text;
+   - core fixes (`sharedRevisionNotes`);
+   - three suggested expressions;
+   - usage (`usage`) for each level;
+   - level-specific notes (`revisionNotes`);
+   - reusable pattern (`structureNote`) inside expanded explanation.
+5. User may save one selected level.
+6. Saved item stores the selected level plus relevant explanation data.
+7. Saved items panel can show the saved expression with original text and learning notes.
+
+Current status:
+
+- Three-level semantics implemented: Casual / Neutral / Polite.
+- Internal keys may still be `casual` / `business` / `formal`; `business` maps to Neutral and `formal` maps to Polite.
+- `sharedRevisionNotes` highlights core fixes in the original expression.
+- `usage` explains when to use each level.
+- `revisionNotes` explains level-specific register differences.
+- `structureNote` is shown inside expanded explanation, not as always-visible content.
+- Provider failure / fallback handling prevents failed generation from appearing as a normal learning card.
+- Fallback results are not cached; `forceRefresh` bypasses cache.
+- Previous `learningPoints` design has been removed.
+
+Known deferred items:
+
+- `structureNote` is not currently cached in Expression Hint cache.
+- Some visible level labels may still use earlier wording; can be copy-polished later to Casual / Neutral / Polite: 亲近随和 / 普通自然 / 礼貌得体.
+
 ### Memory system v0
 
 Primary files:

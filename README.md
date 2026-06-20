@@ -130,10 +130,12 @@ Kotomachi 想做的不是把聊天做成考试，也不是把 AI 做成纠错老
 ### Expression Hints
 
 - 用户发送消息后可主动打开表达提示。
-- 提供三档语气：亲近随和 / 普通自然 / 更正式。
-- 每档建议都尽量保持“可直接拿来再说一次”的风格。
+- Expression Hint compares the user's original expression with three natural Japanese alternatives, highlights core fixes (`需要先调整的地方`), explains register differences (`这一档的表达差异`), and can save the selected expression with its learning notes.
+- 提供三档语气：亲近随和 / 普通自然 / 礼貌得体。每档显示"适合这样说"说明使用场景。
+- 表达结构 (`表达结构`) 作为可复用句型，仅在展开说明中展示。
+- 收藏表达时会一并保存这些学习说明：原句、当前档表达、档位、usage、sharedRevisionNotes、revisionNotes、structureNote。
 - 建议表达支持播放语音，也可以直接收藏。
-- 它和“我想说……”不同：前者是发送前扶手，后者是发送后回看和优化。
+- 它和"我想说……"不同：前者是发送前扶手，后者是发送后回看和优化。
 
 ### Lightweight Expression Structure
 
@@ -292,9 +294,17 @@ Kotomachi 想做的不是把聊天做成考试，也不是把 AI 做成纠错老
 - 没有后端数据库，也没有多设备同步。
 - AI 输出仍有波动，尤其在混输、专有名词、碎片化口语输入时。
 - Expression Hint 可能被英文缩写、专有名词或语音识别碎片拉低质量。
+- Expression Hint 质量仍依赖 LLM 输出；应持续收集真实语音转录坏例。
 - 语音、翻译、TTS / STT 仍依赖外部 provider 状态。
-- 当前仍处于小范围真实使用测试阶段，重点观察用户是否会反复打开、是否能自然使用“我想说……”和“下一句怎么接”、多 NPC 的关系语境是否足够清晰，以及学习资产是否真的会回流到下一次输出。
+- 当前仍处于小范围真实使用测试阶段，重点观察用户是否会反复打开、是否能自然使用"我想说……"和"下一句怎么接"、多 NPC 的关系语境是否足够清晰，以及学习资产是否真的会回流到下一次输出。
 - 这是一个小范围测试中的 prototype，不是 production SaaS。
+
+## Known Risks / Future Work
+
+- Expression Hint 质量仍依赖 LLM 输出；应持续收集真实语音转录坏例，避免根据个案 prompt 调整。
+- `structureNote` 目前未进入 Expression Hint 缓存，缓存的反馈可能无法恢复可复用句型数据。
+- 部分可见的档位标签可能仍使用早期措辞；后续可统一为 Casual / Neutral / Polite：亲近随和 / 普通自然 / 礼貌得体。
+- 不要重新引入之前的 `learningPoints` 设计，除非有更强的评估依据。
 
 ## Roadmap / Next
 
