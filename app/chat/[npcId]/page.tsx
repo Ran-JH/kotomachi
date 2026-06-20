@@ -1928,7 +1928,12 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F1EBDD]">
+    <div
+      className="flex h-screen min-h-[100dvh] overflow-hidden bg-[#F1EBDD] supports-[height:100dvh]:h-[100dvh]"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+      }}
+    >
       {/* ====== 移动端 NPC drawer ====== */}
       <button
         type="button"
@@ -1943,7 +1948,7 @@ export default function ChatPage() {
       <aside
         aria-label={copy.sidebar.navigationLabel}
         aria-hidden={!isSidebarOpen}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
           isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
@@ -1956,9 +1961,9 @@ export default function ChatPage() {
       </aside>
 
       {/* ====== 右侧聊天主区域 — 自适应宽屏 ====== */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[linear-gradient(180deg,#F4EEE1_0%,#F1EBDD_100%)]">
+      <main className="flex min-w-0 flex-1 flex-col bg-[linear-gradient(180deg,#F4EEE1_0%,#F1EBDD_100%)]">
         {/* 顶部栏 */}
-        <div className="px-4 py-3.5 md:px-8 md:py-4 bg-[#FAF6EE]/96 border-b border-[rgba(40,35,26,0.08)]">
+        <div className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/96 px-4 py-3.5 md:px-8 md:py-4">
           <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-3">
             <button
               type="button"
@@ -1989,8 +1994,8 @@ export default function ChatPage() {
         )}
 
         {/* 聊天消息区域 — max-w-4xl 居中 */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
+        <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto max-w-5xl space-y-4 px-4 pb-8 pt-6 md:px-8 md:pb-10">
             {npcId === "saku" && <SakuResidentNote uiLanguage={uiLanguage} />}
 
             {showStarterPrompts && (
@@ -2132,7 +2137,7 @@ export default function ChatPage() {
         </div>
 
         {/* 底部输入区域 */}
-        <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#F8F2E6]/96">
+        <div className="shrink-0 border-t border-[rgba(40,35,26,0.08)] bg-[#F8F2E6]/96">
           {voiceHint && (
             <div className="max-w-5xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
@@ -2207,7 +2212,7 @@ export default function ChatPage() {
               </section>
             </div>
           )}
-          <div className="max-w-5xl mx-auto px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-8 flex items-center gap-3 rounded-t-2xl">
+          <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-t-2xl px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:px-8">
             <button
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
@@ -2243,7 +2248,7 @@ export default function ChatPage() {
                     }}
                   />
                   <div
-                    className="fixed inset-x-3 bottom-24 z-50 max-h-[min(72vh,calc(100dvh-7rem))] overflow-y-auto overflow-x-hidden rounded-3xl border border-[rgba(59,52,38,0.14)] bg-[#FBF8F0] p-1.5 shadow-[0_18px_50px_rgba(35,31,20,0.14)] sm:absolute sm:inset-x-auto sm:bottom-11 sm:left-0 sm:z-30 sm:max-h-[min(70vh,32rem)] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl sm:border-[rgba(59,52,38,0.12)] sm:shadow-[0_14px_36px_rgba(35,31,20,0.12)]"
+                    className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 max-h-[min(72vh,calc(100dvh-7rem))] overflow-y-auto overflow-x-hidden rounded-3xl border border-[rgba(59,52,38,0.14)] bg-[#FBF8F0] p-1.5 shadow-[0_18px_50px_rgba(35,31,20,0.14)] sm:absolute sm:inset-x-auto sm:bottom-11 sm:left-0 sm:z-30 sm:max-h-[min(70vh,32rem)] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl sm:border-[rgba(59,52,38,0.12)] sm:shadow-[0_14px_36px_rgba(35,31,20,0.12)]"
                   >
                     <button
                       type="button"

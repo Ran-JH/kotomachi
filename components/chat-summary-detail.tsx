@@ -111,27 +111,25 @@ export function ChatSummaryDetail({
       />
       <aside className="relative flex h-full w-full max-w-lg flex-col bg-[#F3EDE0] border-l border-[rgba(40,35,26,0.08)] shadow-[-8px_0_30px_rgba(40,35,26,0.12)]">
         <header className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] px-5 py-4 sm:px-6 sm:py-5">
-          <div className="mb-1 flex items-center gap-2 pr-8">
-            <button
-              type="button"
-              onClick={onClose}
-              data-lookup-disabled="true"
-              className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
-            >
-              {backToChatLabel}
-            </button>
-            {card && (
-              <>
-                <span className="text-[10px] text-[#7A7060]/45">/</span>
-                <button
-                  type="button"
-                  onClick={onBackToList}
-                  data-lookup-disabled="true"
-                  className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
-                >
-                  {backToListLabel}
-                </button>
-              </>
+          <div className="mb-1 flex items-center pr-8">
+            {card ? (
+              <button
+                type="button"
+                onClick={onBackToList}
+                data-lookup-disabled="true"
+                className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+              >
+                {backToListLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                data-lookup-disabled="true"
+                className="inline-flex items-center rounded-md px-2 py-1 text-[12px] font-medium text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A] transition-colors"
+              >
+                {backToChatLabel}
+              </button>
             )}
           </div>
           <button

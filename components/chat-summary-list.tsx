@@ -7,6 +7,16 @@ function formatSummaryDate(value: string): string {
   return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(date);
 }
 
+function getCardMetaLine(card: SessionSummaryCard, isEn: boolean): string {
+  const expressionCount = card.reusableExpressions.length;
+  const wordCount = card.reviewWords.length;
+  const nextTopicCount = card.nextTalkPrompt ? 1 : 0;
+
+  return isEn
+    ? `${expressionCount} expressions · ${wordCount} words · ${nextTopicCount} next topic`
+    : `${expressionCount} 个表达 · ${wordCount} 个词语 · ${nextTopicCount} 个下次话题`;
+}
+
 interface ChatSummaryListProps {
   copy: UiCopy;
   cards: SessionSummaryCard[];
@@ -27,6 +37,7 @@ export function ChatSummaryList({
   onOpenSummaryCard,
 }: ChatSummaryListProps) {
   const recentCards = cards.slice(0, 5);
+  const isEn = copy.summary.title === "Review Card";
 
   return (
     <section className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
@@ -61,6 +72,9 @@ export function ChatSummaryList({
             >
               <span className="block truncate text-[10px] text-[#D4C8A8]">{card.title}</span>
               <span className="mt-0.5 block text-[8px] text-[#D4C8A8]/40">{formatSummaryDate(card.createdAt)}</span>
+              <span className="mt-1 block text-[8px] text-[#D4C8A8]/55">
+                {getCardMetaLine(card, isEn)}
+              </span>
             </button>
           ))
         ) : (
