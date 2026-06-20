@@ -16,6 +16,7 @@ export interface RecentLookup {
   wasCorrected?: boolean;
   reading?: string;
   meaning?: string;
+  sentenceMeaning?: string;
   sourceSentence?: string;
   messageId?: string;
   createdAt: string;
@@ -57,6 +58,9 @@ export interface ReviewWord {
   word: string;
   reading?: string;
   meaning: string;
+  basicMeaning?: string;
+  sentenceMeaning?: string;
+  sourceSentence?: string;
   example?: string;
   source: ReviewWordSource;
 }
@@ -373,6 +377,7 @@ export function saveLookupHistory(lookup: RecentLookup): void {
     wasCorrected: lookup.wasCorrected,
     reading: trimText(lookup.reading, 80),
     meaning: trimText(lookup.meaning, 120),
+    sentenceMeaning: trimText(lookup.sentenceMeaning, 160),
     sourceSentence: trimText(lookup.sourceSentence, 220),
     messageId: lookup.messageId,
     createdAt: lookup.createdAt,

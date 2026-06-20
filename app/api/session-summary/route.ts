@@ -522,6 +522,9 @@ function normalizeReviewWords(value: unknown): ReviewWord[] {
       word,
       reading: truncate(pickString(raw.reading), 80) || undefined,
       meaning,
+      basicMeaning: truncate(pickString(raw.basicMeaning), 120) || undefined,
+      sentenceMeaning: truncate(pickString(raw.sentenceMeaning), 160) || undefined,
+      sourceSentence: truncate(pickString(raw.sourceSentence), 160) || undefined,
       example: truncate(pickString(raw.example), 160) || undefined,
       source: normalizeWordSource(raw.source),
     });
@@ -672,15 +675,24 @@ function reviewWordFromLookup(
   const word = pickString(lookup.word);
   if (isLowValueReviewWord(word)) return null;
   const known = knownReviewWord(word);
-  const rawMeaning = pickString(lookup.meaning) || known?.meaning || "查过的词，建议结合原句复习。";
-  const resolvedMeaning = uiLanguage === "en" ? englishMeaningFromWord(word, rawMeaning) : rawMeaning;
-  if (!resolvedMeaning || isBlockedFillerText(resolvedMeaning)) return null;
+  const rawBasicMeaning = pickString(lookup.meaning) || known?.meaning || "查过的词，建议结合原句复习。";
+  const resolvedBasicMeaning = uiLanguage === "en"
+    ? englishMeaningFromWord(word, rawBasicMeaning)
+    : rawBasicMeaning;
+  if (!resolvedBasicMeaning || isBlockedFillerText(resolvedBasicMeaning)) return null;
+
+  const sentenceMeaning = truncate(pickString(lookup.sentenceMeaning), 160) || undefined;
+  const sourceSentence = truncate(pickString(lookup.sourceSentence), 160) || undefined;
+  const example = truncate(sourceSentence || known?.example || "", 160) || undefined;
 
   return {
     word,
     reading: pickString(lookup.reading) || known?.reading,
-    meaning: resolvedMeaning,
-    example: truncate(pickString(lookup.sourceSentence) || known?.example || "", 160) || undefined,
+    meaning: resolvedBasicMeaning,
+    basicMeaning: resolvedBasicMeaning,
+    sentenceMeaning,
+    sourceSentence,
+    example,
     source: "looked_up",
   };
 }
@@ -908,6 +920,13 @@ function localizeCardTeachingText(
     meaning: containsChineseText(item.meaning) || isGenericEnglishText(item.meaning)
       ? englishMeaningFromWord(item.word, item.meaning)
       : item.meaning,
+    basicMeaning: item.basicMeaning
+      ? (
+          containsChineseText(item.basicMeaning) || isGenericEnglishText(item.basicMeaning)
+            ? englishMeaningFromWord(item.word, item.basicMeaning)
+            : item.basicMeaning
+        )
+      : undefined,
   })).filter((item) => Boolean(item.meaning && !isBlockedFillerText(item.meaning)));
 
   const nextTalkPrompt = containsChineseText(card.nextTalkPrompt) || isFormulaicNextTopic(card.nextTalkPrompt)

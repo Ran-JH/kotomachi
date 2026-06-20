@@ -28,6 +28,7 @@ type ExpressionNpcFilter = WordNpcFilter;
 type ExpressionSort = "newest" | "oldest" | "reviewAsc" | "reviewDesc";
 type WordCardMode = "queue" | "detail";
 type ReviewSessionLimit = 5 | 10 | "all";
+type LearningChipKind = "status" | "type" | "attribute" | "meta";
 type SavedPanelIntent = {
   type: "default" | "wordReview";
   token: number;
@@ -421,6 +422,24 @@ function hasActiveTextSelection(): boolean {
   return Boolean(window.getSelection()?.toString().trim());
 }
 
+function getLearningChipClass(kind: LearningChipKind, size: "list" | "detail" = "list"): string {
+  const sizeClass =
+    size === "detail"
+      ? "px-3 py-1 text-[10px] font-medium"
+      : "px-2.5 py-0.5 text-[8px] font-medium";
+
+  const toneClass =
+    kind === "status"
+      ? "bg-[#E8EFE4] text-[#2D4A1F]/80"
+      : kind === "type"
+        ? "bg-[#2D4A1F]/10 text-[#2D4A1F]/70"
+        : kind === "attribute"
+          ? "bg-[#E8E0CE]/65 text-[#6D624F]"
+          : "bg-[#7A7060]/8 text-[#7A7060]/55";
+
+  return `inline-flex items-center rounded-full ${sizeClass} ${toneClass}`;
+}
+
 function renderSavedRevisionNoteCard(
   item: SavedExpression,
   note: NonNullable<ReturnType<typeof normalizeRevisionNotes>>[number],
@@ -555,23 +574,23 @@ function ExpressionCard({
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
+        <span className={getLearningChipClass("status")}>
           {reviewBadge}
         </span>
-        <span className="inline-block rounded-full bg-[#2D4A1F]/10 px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/70">
+        <span className={getLearningChipClass("type")}>
           {copy.sidebar.savedExpressionBadge}
         </span>
-        <span className="inline-block rounded-full bg-[#C9A84C]/12 px-2.5 py-0.5 text-[8px] font-medium text-[#8B7430]/75">
+        <span className="inline-flex items-center rounded-full bg-[#C9A84C]/12 px-2.5 py-0.5 text-[8px] font-medium text-[#8B7430]/75">
           {item.levelLabel ?? LEVEL_LABELS[item.level] ?? item.level}
         </span>
-        {showSourceBadge && item.source === "summary_card" && (
-          <span className="inline-block rounded-full bg-[#7A7060]/8 px-2.5 py-0.5 text-[8px] font-medium text-[#7A7060]/55">
-            {copy.sidebar.savedBadgeSummary}
+        {structureNote && (
+          <span className={getLearningChipClass("attribute")}>
+            {learningLabels.structureBadge}
           </span>
         )}
-        {structureNote && (
-          <span className="inline-block rounded-full bg-[#E8E0CE]/65 px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
-            {learningLabels.structureBadge}
+        {showSourceBadge && item.source === "summary_card" && (
+          <span className={getLearningChipClass("meta")}>
+            {copy.sidebar.savedBadgeSummary}
           </span>
         )}
       </div>
@@ -599,6 +618,7 @@ function ExpressionDetailCard({
   const sharedRevisionNotes = normalizeRevisionNotes(item.sharedRevisionNotes);
   const revisionNotes = normalizeRevisionNotes(item.revisionNotes);
   const userNote = item.userNote?.trim() ?? "";
+  const expressionTypeChip = isEn ? "Expression" : "表达";
   const reviewSummary = getExpressionReviewSummaryLabel(item, isEn);
   const lastReviewedText = item.lastReviewedAt
     ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
@@ -651,14 +671,17 @@ function ExpressionDetailCard({
             </div>
 
             <div className="flex shrink-0 flex-wrap justify-end gap-2">
-              <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
+              <span className={getLearningChipClass("status", "detail")}>
                 {reviewSummary}
+              </span>
+              <span className={getLearningChipClass("type", "detail")}>
+                {expressionTypeChip}
               </span>
               <span className="inline-flex items-center rounded-full bg-[#C9A84C]/12 px-3 py-1 text-[10px] font-medium text-[#8B7430]/80">
                 {item.levelLabel ?? LEVEL_LABELS[item.level] ?? item.level}
               </span>
               {hasStructureContent(item) && (
-                <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-3 py-1 text-[10px] font-medium text-[#6D624F]">
+                <span className={getLearningChipClass("attribute", "detail")}>
                   {labels.structureBadge}
                 </span>
               )}
@@ -861,6 +884,7 @@ function WordCard({
   const hasNote = Boolean(item.note?.trim());
   const isMastered = Boolean(item.masteredAt);
   const readings = getSavedWordReadings(item);
+  const statusBadge = isMastered ? (isEn ? "Mastered" : "已掌握") : reviewBadge;
 
   return (
     <div
@@ -910,16 +934,34 @@ function WordCard({
         </SelectableLookupText>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5 pr-2">
-          <span className="inline-flex items-center rounded-full bg-[#E8EFE4] px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/80">
-            {reviewBadge}
+          <span className={getLearningChipClass("status")}>
+            {statusBadge}
+          </span>
+          <span className={getLearningChipClass("type")}>
+            {copy.sidebar.savedWordBadge}
           </span>
           {hasNote && (
-            <span className="inline-flex items-center rounded-full bg-[#F3EDE0] px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
+            <span className="hidden">
               {isEn ? "Has note" : "有笔记"}
             </span>
           )}
+          {hasNote && (
+            <span className={getLearningChipClass("attribute")}>
+              {isEn ? "Has note" : "有笔记"}
+            </span>
+          )}
+          {item.source === "lookup" && (
+            <span className={getLearningChipClass("meta")}>
+              {copy.sidebar.savedBadgeLookup}
+            </span>
+          )}
+          {item.source === "summary_card" && (
+            <span className={getLearningChipClass("meta")}>
+              {copy.sidebar.savedBadgeSummary}
+            </span>
+          )}
           {isMastered && (
-            <span className="inline-flex items-center rounded-full bg-[#E8E0CE] px-2.5 py-0.5 text-[8px] font-medium text-[#6D624F]">
+            <span className="hidden">
               {isEn ? "Mastered" : "已掌握"}
             </span>
           )}
@@ -943,7 +985,7 @@ function WordCard({
         </SelectableLookupText>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <div className="hidden">
         <span className="inline-block rounded-full bg-[#2D4A1F]/10 px-2.5 py-0.5 text-[8px] font-medium text-[#2D4A1F]/70">
           {copy.sidebar.savedWordBadge}
         </span>
@@ -997,11 +1039,14 @@ function WordReviewCard({
   const note = item.note?.trim() ?? "";
   const readings = getSavedWordReadings(item);
   const hasDetailedNote = Boolean(nuanceExplanation || sentenceMeaning);
+  const wordTypeChip = isEn ? "Word" : "词语";
   const reviewSummary = getWordReviewSummaryLabel(item, isEn);
+  const hasNote = Boolean(note);
   const lastReviewedText = item.lastReviewedAt
     ? labels.lastReviewed(formatReviewDate(item.lastReviewedAt, locale))
     : null;
   const isMastered = Boolean(item.masteredAt);
+  const statusBadge = isMastered ? (isEn ? "Mastered" : "已掌握") : reviewSummary;
   const masteredActionLabel = isMastered
     ? (isEn ? "Undo mastered" : "撤销已掌握")
     : labels.markMastered;
@@ -1055,25 +1100,40 @@ function WordReviewCard({
       <div className="overflow-hidden rounded-2xl border border-[rgba(40,35,26,0.08)] bg-[#FAF6EE] p-4 sm:p-5">
         <div className="border-b border-[rgba(40,35,26,0.08)] pb-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="font-ja break-words text-[24px] font-semibold leading-tight text-[#2D4A1F] sm:text-[28px]">
-              {item.word}
-            </p>
-            <div className="flex shrink-0 flex-wrap justify-end gap-2">
-              <span className="inline-flex items-center rounded-full bg-[#2D4A1F]/10 px-3 py-1 text-[10px] font-medium text-[#2D4A1F]/80">
-                {reviewSummary}
-              </span>
-              <button
-                type="button"
-                onClick={handleToggleMastered}
-                className={`rounded-full border px-3 py-1 text-[10px] font-medium transition-colors ${
-                  isMastered
-                    ? "border-[#D6C9AE] bg-[#E8E0CE] text-[#6D624F] hover:bg-[#E2D8C2] hover:text-[#5A5144]"
-                    : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A]"
-                }`}
-              >
-                {masteredActionLabel}
-              </button>
+            <div className="min-w-0 flex-1">
+              <p className="font-ja break-words text-[24px] font-semibold leading-tight text-[#2D4A1F] sm:text-[28px]">
+                {item.word}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className={getLearningChipClass("status", "detail")}>
+                  {statusBadge}
+                </span>
+                <span className={getLearningChipClass("type", "detail")}>
+                  {wordTypeChip}
+                </span>
+                {hasNote && (
+                  <span className="hidden">
+                    {isEn ? "Has note" : "有笔记"}
+                  </span>
+                )}
+                {hasNote && (
+                  <span className={getLearningChipClass("attribute", "detail")}>
+                    {isEn ? "Has note" : "有笔记"}
+                  </span>
+                )}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={handleToggleMastered}
+              className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-medium transition-colors ${
+                isMastered
+                  ? "border-[#D6C9AE] bg-[#E8E0CE] text-[#6D624F] hover:bg-[#E2D8C2] hover:text-[#5A5144]"
+                  : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[#4A4438] hover:bg-[#E8E0CE] hover:text-[#28231A]"
+              }`}
+            >
+              {masteredActionLabel}
+            </button>
           </div>
           {lastReviewedText && (
             <p className="mt-2 text-[11px] leading-relaxed text-[#7A7060]">{lastReviewedText}</p>

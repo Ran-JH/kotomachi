@@ -130,6 +130,7 @@ export function WordPopover({
             word: nextWord,
             reading: nextPrimaryReading,
             meaning: json.translation,
+            sentenceMeaning: json.sentence_meaning,
             sourceSentence: fullSentence,
             originalSelection: (json.originalSelection ?? selectedText).trim() || selectedText,
             wasCorrected: Boolean(json.wasCorrected && nextWord !== selectedText),

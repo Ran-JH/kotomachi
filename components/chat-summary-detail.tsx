@@ -9,14 +9,118 @@ function formatSummaryDate(value: string): string {
   return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(date);
 }
 
+type SummaryAssetChipKind = "expression" | "word" | "rewrite" | "topic";
+
+type SummaryAssetChip = {
+  kind: SummaryAssetChipKind;
+  label: string;
+};
+
+function getCardAssetChips(card: SessionSummaryCard, isEn: boolean): SummaryAssetChip[] {
+  const chips: SummaryAssetChip[] = [];
+
+  // 这里直接复用现有 summary card 数据，不新增任何字段。
+  if (card.reusableExpressions.length > 0) {
+    chips.push({
+      kind: "expression",
+      label: isEn
+        ? `${card.reusableExpressions.length} expression${
+            card.reusableExpressions.length > 1 ? "s" : ""
+          }`
+        : `${card.reusableExpressions.length} 个表达`,
+    });
+  }
+
+  if (card.reviewWords.length > 0) {
+    chips.push({
+      kind: "word",
+      label: isEn
+        ? `${card.reviewWords.length} word${card.reviewWords.length > 1 ? "s" : ""}`
+        : `${card.reviewWords.length} 个词语`,
+    });
+  }
+
+  if (card.expressionUpgrades.length > 0) {
+    chips.push({
+      kind: "rewrite",
+      label: isEn
+        ? `${card.expressionUpgrades.length} rewrite${
+            card.expressionUpgrades.length > 1 ? "s" : ""
+          }`
+        : `${card.expressionUpgrades.length} 个改写`,
+    });
+  }
+
+  if (card.nextTalkPrompt.trim()) {
+    chips.push({ kind: "topic", label: isEn ? "Next topic" : "下次话题" });
+  }
+
+  return chips;
+}
+
 function getUpgradeSourceLabel(source: string, copy: UiCopy): string {
   if (source === "expression_hint") return copy.summary.fromHint;
   if (source === "non_japanese_span") return copy.summary.fromGap;
   return copy.summary.fromConversation;
 }
 
+function getAssetChipClassName(kind: SummaryAssetChipKind): string {
+  if (kind === "expression") {
+    return "border border-[#D7E2CF] bg-[#E8EFE4] text-[#2D4A1F]/82";
+  }
+
+  if (kind === "rewrite") {
+    return "border border-[#E7D7A9] bg-[#C9A84C]/12 text-[#8B7430]/82";
+  }
+
+  if (kind === "topic") {
+    return "border border-[rgba(122,112,96,0.12)] bg-[#F3EDE0] text-[#6D624F]";
+  }
+
+  return "border border-[rgba(122,112,96,0.12)] bg-[#E8E0CE]/72 text-[#6D624F]";
+}
+
+function SummaryAssetChipRow({
+  chips,
+  size = "list",
+}: {
+  chips: SummaryAssetChip[];
+  size?: "list" | "detail";
+}) {
+  if (chips.length === 0) return null;
+
+  const itemClass =
+    size === "detail"
+      ? "px-2.5 py-1 text-[10px] font-medium"
+      : "px-2.5 py-1 text-[10px] font-medium";
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {chips.map((chip) => (
+        <span
+          key={`${chip.kind}-${chip.label}`}
+          className={`inline-flex items-center rounded-full ${itemClass} ${getAssetChipClassName(chip.kind)}`}
+        >
+          {chip.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function getWordSourceLabel(source: string, copy: UiCopy): string {
   return source === "looked_up" ? copy.summary.lookedUp : copy.summary.fromConversation;
+}
+
+function getReviewWordLabels(copy: UiCopy, isEn: boolean) {
+  return {
+    sentenceMeaning: isEn ? "In context" : "句中意思",
+    basicMeaning: isEn ? "Meaning" : "意思",
+  };
+}
+
+function normalizeReviewWordText(value: string | undefined): string {
+  return value?.trim() ?? "";
 }
 
 function shouldShowLearningNote(note: string | undefined): boolean {
@@ -83,18 +187,29 @@ export function ChatSummaryDetail({
         </p>
       ) : (
         <div className="space-y-2.5">
-          {cards.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onOpenCard(item)}
-              className="w-full rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3 text-left transition-colors hover:bg-[#F3EDE0]"
-            >
-              <p className="text-[10px] text-[#7A7060]">{getNpcName(item.npcId)} · {formatSummaryDate(item.createdAt)}</p>
-              <p className="mt-1 text-[14px] leading-relaxed text-[#28231A]">{item.title}</p>
-              <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[#6B6254]">{item.topicSummary}</p>
-            </button>
-          ))}
+          {cards.map((item) => {
+            const assetChips = getCardAssetChips(item, isEn);
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onOpenCard(item)}
+                className="w-full rounded-xl border border-[rgba(40,35,26,0.07)] bg-[#FAF6EE] px-4 py-3 text-left transition-colors hover:bg-[#F3EDE0]"
+              >
+                <p className="text-[10px] text-[#7A7060]">
+                  {getNpcName(item.npcId)} · {formatSummaryDate(item.createdAt)}
+                </p>
+                <p className="mt-1 text-[14px] leading-relaxed text-[#28231A]">{item.title}</p>
+                <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[#6B6254]">
+                  {item.topicSummary}
+                </p>
+                <div className="mt-2">
+                  <SummaryAssetChipRow chips={assetChips} />
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -145,6 +260,12 @@ export function ChatSummaryDetail({
             <>
               <p className="font-ui text-[10px] text-[#7A7060]">{getNpcName(card.npcId)} · {formatSummaryDate(card.createdAt)} · {copy.summary.title} / {copy.summary.subtitle}</p>
               <h2 className="font-ui mt-1.5 pr-8 text-base font-semibold leading-snug text-[#28231A]">{card.title}</h2>
+              <div className="mt-2 pr-8">
+                <SummaryAssetChipRow
+                  chips={getCardAssetChips(card, isEn)}
+                  size="detail"
+                />
+              </div>
             </>
           ) : (
             <>
@@ -239,51 +360,62 @@ export function ChatSummaryDetail({
                 <section>
                   <SectionTitle jp={copy.summary.wordsJp} zh={copy.summary.words} />
                   <div className="mt-3 space-y-2.5">
-                    {card.reviewWords.map((item, index) => (
-                      <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3.5">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <SelectableLookupText
-                            npcId={card.npcId}
-                            uiLanguage={lookupUiLanguage}
-                            sourceText={item.example || item.word}
-                            className="min-w-0"
-                          >
-                            <p className="font-ja text-[15px] font-medium text-[#28231A]">{item.word}</p>
-                          </SelectableLookupText>
-                          <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source, copy)}</span>
+                    {card.reviewWords.map((item, index) => {
+                      const labels = getReviewWordLabels(copy, isEn);
+                      const sourceText =
+                        normalizeReviewWordText(item.sourceSentence) ||
+                        normalizeReviewWordText(item.example) ||
+                        item.word;
+                      const sentenceMeaning = normalizeReviewWordText(item.sentenceMeaning);
+                      const basicMeaning =
+                        normalizeReviewWordText(item.basicMeaning) ||
+                        normalizeReviewWordText(item.meaning);
+                      const showSentenceMeaning =
+                        Boolean(sentenceMeaning) &&
+                        sentenceMeaning !== basicMeaning;
+                      const showBasicMeaning = Boolean(basicMeaning);
+
+                      return (
+                        <div key={`${item.word}-${index}`} className="rounded-xl bg-[#FAF6EE] border border-[rgba(40,35,26,0.07)] px-4 py-3.5">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <SelectableLookupText
+                              npcId={card.npcId}
+                              uiLanguage={lookupUiLanguage}
+                              sourceText={sourceText}
+                              className="min-w-0"
+                            >
+                              <p className="font-ja text-[15px] font-medium text-[#28231A]">{item.word}</p>
+                            </SelectableLookupText>
+                            <span className="font-ui shrink-0 rounded-full bg-[#E8E0CE] px-2 py-0.5 text-[10px] text-[#6B6254]">{getWordSourceLabel(item.source, copy)}</span>
+                          </div>
+                          {item.reading && (
+                            <SelectableLookupText
+                              npcId={card.npcId}
+                              uiLanguage={lookupUiLanguage}
+                              sourceText={sourceText}
+                              className="mt-1.5"
+                            >
+                              <p className="text-[11px] text-[#7A7060]">
+                                <span className="font-ui font-medium">{copy.summary.readingLabel}</span>
+                                <span className="font-ja ml-1">{item.reading}</span>
+                              </p>
+                            </SelectableLookupText>
+                          )}
+                          {showSentenceMeaning && (
+                            <p className="mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">
+                              <span className="font-ui font-medium text-[#7A7060]">{labels.sentenceMeaning}</span>
+                              <span className="font-ui ml-1">{sentenceMeaning}</span>
+                            </p>
+                          )}
+                          {showBasicMeaning && (
+                            <p className="mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">
+                              <span className="font-ui font-medium text-[#7A7060]">{labels.basicMeaning}</span>
+                              <span className="font-ui ml-1">{basicMeaning}</span>
+                            </p>
+                          )}
                         </div>
-                        {item.reading && (
-                          <SelectableLookupText
-                            npcId={card.npcId}
-                            uiLanguage={lookupUiLanguage}
-                            sourceText={item.example || item.word}
-                            className="mt-1.5"
-                          >
-                            <p className="text-[11px] text-[#7A7060]">
-                              <span className="font-ui font-medium">{copy.summary.readingLabel}</span>
-                              <span className="font-ja ml-1">{item.reading}</span>
-                            </p>
-                          </SelectableLookupText>
-                        )}
-                        <p className="mt-1.5 text-[12px] leading-relaxed text-[#4A4438]">
-                          <span className="font-ui font-medium text-[#7A7060]">{copy.summary.meaningLabel}</span>
-                          <span className="font-ui ml-1">{item.meaning}</span>
-                        </p>
-                        {item.example && (
-                          <SelectableLookupText
-                            npcId={card.npcId}
-                            uiLanguage={lookupUiLanguage}
-                            sourceText={item.example}
-                            className="mt-1.5"
-                          >
-                            <p className="text-[12px] leading-relaxed text-[#6B6254]">
-                              <span className="font-ui font-medium text-[#7A7060]">{copy.summary.exampleLabel}</span>
-                              <span className="font-ja ml-1">{item.example}</span>
-                            </p>
-                          </SelectableLookupText>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
               )}

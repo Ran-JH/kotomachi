@@ -146,6 +146,24 @@ Known deferred items:
 - `structureNote` is not currently cached in Expression Hint cache.
 - Some visible level labels may still use earlier wording; can be copy-polished later to Casual / Neutral / Polite: 亲近随和 / 普通自然 / 礼貌得体.
 
+### Review cards
+
+Primary files:
+
+- `app/chat/[npcId]/page.tsx` — trigger review card creation and save the generated card
+- `app/api/session-summary/route.ts` — normalize model output and merge lookup / conversation evidence
+- `components/chat-summary-detail.tsx` — right-side review card list and detail rendering
+- `lib/session-summary.ts` — review card and lookup-history types plus localStorage helpers
+- `components/word-popover.tsx` — saves lookup history that review cards can reuse
+
+Data flow:
+
+1. User looks up a word from chat in `components/word-popover.tsx`.
+2. Lookup history stores `meaning`, optional `sentenceMeaning`, and `sourceSentence`.
+3. Chat page sends recent lookups into `/api/session-summary`.
+4. Session summary route merges lookup-backed words and conversation-picked words into `reviewWords`.
+5. Review card detail renders lookup words with context-first priority when those optional fields exist.
+
 ### Memory system v0
 
 Primary files:
