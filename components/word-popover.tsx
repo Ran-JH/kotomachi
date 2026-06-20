@@ -224,6 +224,12 @@ export function WordPopover({
   const lookupLabel = uiLanguage === "en" ? "Word lookup" : "查词";
   const readingLabel = uiLanguage === "en" ? "Reading" : "读音";
   const detailLabel = uiLanguage === "en" ? "Detailed explanation" : "详细解释";
+  const sentenceMeaningText = data?.sentence_meaning?.trim() ?? "";
+  const translationText = data?.translation?.trim() ?? "";
+  const primaryMeaningLabel = sentenceMeaningText ? copy.explain.sentenceMeaning : copy.explain.basicMeaning;
+  const primaryMeaningText = sentenceMeaningText || translationText;
+  const showBasicMeaning = Boolean(sentenceMeaningText && translationText);
+  const saveButtonLabel = isSaved ? copy.explain.savedWord : copy.explain.saveWord;
 
   if (!mounted) {
     return null;
@@ -274,8 +280,8 @@ export function WordPopover({
           </p>
         ) : data && (
           <>
-            <div className="mb-2.5 flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            <div className="mb-2.5 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-[8px] font-medium tracking-wide text-[#7A7060] md:text-[11px]">{lookupLabel}</p>
                 <span className="font-ja mt-0.5 block break-words text-[14px] font-medium leading-snug text-[#28231A] md:text-[18px]">{displayWord}</span>
                 {wasCorrected && (
@@ -285,67 +291,78 @@ export function WordPopover({
                       : `已从「${originalSelection}」自动修正`}
                   </p>
                 )}
-                {displayReadings.length > 0 && (
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-[8px] font-medium text-[#7A7060] md:text-[11px]">{readingLabel}</span>
-                    <span className="font-ja min-w-0 break-words text-[10px] text-[#4A4438] md:text-[13px]">
-                      {displayReadings.join(" / ")}
-                    </span>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {displayReadings.length > 0 && (
+                    <>
+                      <span className="text-[8px] font-medium text-[#7A7060] md:text-[11px]">{readingLabel}</span>
+                      <span className="font-ja min-w-0 break-words text-[10px] text-[#4A4438] md:text-[13px]">
+                        {displayReadings.join(" / ")}
+                      </span>
+                    </>
+                  )}
+                  {onPlayAudio && (
                     <button
                       type="button"
-                      onClick={() => onPlayAudio?.(displayWord)}
+                      onClick={() => onPlayAudio(displayWord)}
                       className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#7A7060]/80 transition-colors hover:bg-[#E8E0CE]/75 hover:text-[#2D4A1F] md:h-6 md:w-6"
                       aria-label={copy.explain.listen}
                       title={copy.explain.listen}
                     >
                       <VolumeIcon size={12} />
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={copy.explain.close}
-                className="shrink-0 text-[9px] leading-none text-[#7A7060]/45 transition-colors hover:text-[#28231A] md:text-xs"
-              >
-                ×
-              </button>
+              <div className="flex shrink-0 flex-wrap items-start justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleToggleSave}
+                  className={`rounded-md border px-2 py-1 text-[9px] font-medium transition-colors whitespace-nowrap md:px-2.5 md:py-1.5 md:text-[11px] ${
+                    isSaved
+                      ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
+                      : "border-[rgba(40,35,26,0.1)] bg-[#F3EDE0]/75 text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
+                  }`}
+                >
+                  <span className="sm:hidden">{isSaved ? copy.explain.savedWord : copy.explain.saveWordShort}</span>
+                  <span className="hidden sm:inline">{saveButtonLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label={copy.explain.close}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] leading-none text-[#7A7060]/55 transition-colors hover:bg-[rgba(40,35,26,0.06)] hover:text-[#28231A] md:h-8 md:w-8 md:text-xs"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             <div className="font-ui rounded-lg bg-[#F3EDE0]/70 px-2.5 py-2.5 md:px-3 md:py-3">
-              <p className="text-[9px] font-medium text-[#7A7060] md:text-[11px]">{copy.explain.shortMeaning}</p>
-              <p className="mt-1 break-words text-[12px] font-medium leading-snug text-[#2D4A1F] md:text-[15px] md:leading-relaxed">{data.translation}</p>
+              <p className="text-[9px] font-medium text-[#7A7060] md:text-[11px]">{primaryMeaningLabel}</p>
+              <p className="mt-1 break-words text-[12px] font-medium leading-snug text-[#2D4A1F] md:text-[15px] md:leading-relaxed">
+                {primaryMeaningText}
+              </p>
+              {explainError && (
+                <p className="font-ui mt-2 rounded-md bg-[#FCF8F0]/85 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060] md:text-[11px]">
+                  {copy.explain.error}
+                </p>
+              )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleToggleSave}
-              className={`mt-2 w-full rounded-md border px-2 py-1.5 text-[9px] font-medium transition-colors md:px-3 md:py-2 md:text-[11px] ${
-                isSaved
-                  ? "border-[#C9A84C]/30 bg-[#C9A84C]/10 text-[#8B7430]"
-                  : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE] text-[#7A7060] hover:border-[rgba(40,35,26,0.2)] hover:text-[#2D4A1F]"
-              }`}
-            >
-              {isSaved ? copy.explain.savedWord : copy.explain.saveWord}
-            </button>
             {showSavedFeedback && (
               <p className="mt-1.5 text-[9px] leading-relaxed text-[#7A7060] md:text-[11px]">
                 {copy.explain.savedWordFeedback}
               </p>
             )}
 
-            <div className="mt-2 border-t border-[rgba(40,35,26,0.08)] pt-2">
-              <p className="font-ui text-[9px] font-medium text-[#7A7060] md:text-[11px]">{copy.explain.sentenceMeaning}</p>
-              <p className="font-ui mt-0.5 break-words text-[10px] leading-relaxed text-[#4A4438] md:text-[13px] md:leading-relaxed">
-                {data.sentence_meaning}
-              </p>
-              {explainError && (
-                <p className="font-ui mt-1.5 rounded-md bg-[#F3EDE0]/65 px-2 py-1.5 text-[9px] leading-relaxed text-[#7A7060] md:text-[11px]">
-                  {copy.explain.error}
+            {showBasicMeaning && (
+              <div className="mt-2 border-t border-[rgba(40,35,26,0.08)] pt-2">
+                <p className="font-ui text-[9px] font-medium text-[#7A7060] md:text-[11px]">{copy.explain.basicMeaning}</p>
+                <p className="font-ui mt-0.5 break-words text-[10px] leading-relaxed text-[#4A4438] md:text-[13px] md:leading-relaxed">
+                  {translationText}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {showNuance && (
               <div className="mt-2 border-t border-[rgba(40,35,26,0.08)] pt-2">

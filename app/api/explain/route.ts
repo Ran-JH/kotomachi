@@ -28,9 +28,9 @@ const SYSTEM_PROMPT: ChatCompletionMessageParam = {
   "originalSelection": "用户原始选区 selectedText",
   "wasCorrected": true/false,
   "pronunciation": "selectedText 或 word 的读音；不确定可为空",
-  "translation": "word 本身的简短释义；如果是整句，要写明这是句意",
-  "sentence_meaning": "word 在 fullSentence 里的意思，或整句自然意思",
-  "nuance_explanation": "语感 / 使用场景 / 可复用例句，3-4 句，简短但有信息量"
+  "translation": "word 的基本意思，保持简短自然，避免生硬直译；如果是整句，要写明这是句意",
+  "sentence_meaning": "selectedText 在当前 fullSentence 里的实际意思，要优先给出自然中文/英文表达，不要只做字面拆解",
+  "nuance_explanation": "轻量补充语感、使用场景，必要时可简短说明原形或活用来源，但不要写成语法课"
 }
 
 规则：
@@ -40,6 +40,10 @@ const SYSTEM_PROMPT: ChatCompletionMessageParam = {
 4) 日语原词、读音、日语例句保持日语，不要替换成英文词本体。
 5) 不要翻译 NPC 原句引用。
 6) translation / sentence_meaning / nuance_explanation 的语言跟随 uiLanguage。
+7) sentence_meaning 必须优先解释它在这句话里的自然意思。例如「取れています」在「時間は取れていますか」里应接近“有腾出时间吗 / have you been able to make time”，不要写成“正在取得时间”。
+8) 遇到动词活用、ている形、过去式、可能形等，优先解释当前句子里的自然含义；如果有帮助，可以在 nuance_explanation 里简短补一句原形或活用来源，例如「取れています」来自「取れる」。
+9) 像「落ち着く時間」这类搭配，要按自然语境理解，不要硬译成“拥有平静的时间”这类不自然说法。
+10) 保持轻量、陪伴式查词，不要把解释写成完整语法课或长篇词典条目。
 `,
 };
 
@@ -286,7 +290,10 @@ If selectedText is a short phrase, prefer the most natural overall reading for t
 2) uiLanguage 为 zh 时，translation / sentence_meaning / nuance_explanation 必须用中文。
 3) 日语原词、读音、日语例句保持日语，不要替换成英文词本体。
 4) 不要翻译 NPC 原句引用。
-5) 如果 selectedText 只是一个词的一部分，请返回更完整、更自然的 word，并同时保留 originalSelection 和 wasCorrected。`,
+5) 如果 selectedText 只是一个词的一部分，请返回更完整、更自然的 word，并同时保留 originalSelection 和 wasCorrected。
+6) sentence_meaning 先回答“这句里是什么意思”，translation 再给基本意思。
+7) 避免字面硬译，尤其是动词活用和固定搭配。像「取れています」要优先解释成“有腾出 / 留出”，不是“正在取得”。
+8) 如有必要，可在 nuance_explanation 里轻量说明原形或活用来源，但不要展开成语法课。`,
     };
 
     const raw = await createChatCompletion([SYSTEM_PROMPT, userMsg], {
