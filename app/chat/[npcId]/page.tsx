@@ -1928,12 +1928,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div
-      className="flex h-screen min-h-[100dvh] overflow-hidden bg-[#F1EBDD] supports-[height:100dvh]:h-[100dvh]"
-      style={{
-        paddingTop: "env(safe-area-inset-top)",
-      }}
-    >
+    <div className="flex h-screen overflow-hidden bg-[#F1EBDD]">
       {/* ====== 移动端 NPC drawer ====== */}
       <button
         type="button"
@@ -1948,7 +1943,7 @@ export default function ChatPage() {
       <aside
         aria-label={copy.sidebar.navigationLabel}
         aria-hidden={!isSidebarOpen}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-xs flex-col bg-[#1E2A16] pb-[env(safe-area-inset-bottom)] text-[#D4C8A8] shadow-2xl transition-transform duration-300 ease-out md:hidden ${
           isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
@@ -1961,9 +1956,9 @@ export default function ChatPage() {
       </aside>
 
       {/* ====== 右侧聊天主区域 — 自适应宽屏 ====== */}
-      <main className="flex min-w-0 flex-1 flex-col bg-[linear-gradient(180deg,#F4EEE1_0%,#F1EBDD_100%)]">
+      <main className="flex-1 flex flex-col min-w-0 bg-[linear-gradient(180deg,#F4EEE1_0%,#F1EBDD_100%)]">
         {/* 顶部栏 */}
-        <div className="shrink-0 border-b border-[rgba(40,35,26,0.08)] bg-[#FAF6EE]/96 px-4 py-3.5 md:px-8 md:py-4">
+        <div className="px-4 py-3.5 md:px-8 md:py-4 bg-[#FAF6EE]/96 border-b border-[rgba(40,35,26,0.08)]">
           <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-3">
             <button
               type="button"
@@ -1994,8 +1989,8 @@ export default function ChatPage() {
         )}
 
         {/* 聊天消息区域 — max-w-4xl 居中 */}
-        <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="mx-auto max-w-5xl space-y-4 px-4 pb-8 pt-6 md:px-8 md:pb-10">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-4 pt-6 pb-8 md:px-8 md:pb-10 space-y-4">
             {npcId === "saku" && <SakuResidentNote uiLanguage={uiLanguage} />}
 
             {showStarterPrompts && (
@@ -2137,7 +2132,7 @@ export default function ChatPage() {
         </div>
 
         {/* 底部输入区域 */}
-        <div className="shrink-0 border-t border-[rgba(40,35,26,0.08)] bg-[#F8F2E6]/96">
+        <div className="border-t border-[rgba(40,35,26,0.08)] bg-[#F8F2E6]/96">
           {voiceHint && (
             <div className="max-w-5xl mx-auto px-4 pt-3 md:px-8">
               <p className="inline-flex rounded-full bg-[#E8E0CE]/70 px-3 py-1.5 text-[10px] text-[#7A7060]">
