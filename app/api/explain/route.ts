@@ -101,6 +101,153 @@ function normalizePronunciations(primary: string, raw: unknown): string[] {
   ).slice(0, 3);
 }
 
+const JAPANESE_MONTH_READINGS: Record<number, string> = {
+  1: "いちがつ",
+  2: "にがつ",
+  3: "さんがつ",
+  4: "しがつ",
+  5: "ごがつ",
+  6: "ろくがつ",
+  7: "しちがつ",
+  8: "はちがつ",
+  9: "くがつ",
+  10: "じゅうがつ",
+  11: "じゅういちがつ",
+  12: "じゅうにがつ",
+};
+
+const JAPANESE_DAY_SPECIAL_READINGS: Record<number, string> = {
+  1: "ついたち",
+  2: "ふつか",
+  3: "みっか",
+  4: "よっか",
+  5: "いつか",
+  6: "むいか",
+  7: "なのか",
+  8: "ようか",
+  9: "ここのか",
+  10: "とおか",
+  14: "じゅうよっか",
+  20: "はつか",
+  24: "にじゅうよっか",
+};
+
+const JAPANESE_DIGIT_READINGS = ["", "いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう"];
+
+function getJapaneseNumberReading(value: number): string {
+  if (!Number.isInteger(value) || value < 0) return "";
+  if (value === 0) return "ぜろ";
+  if (value < 10) return JAPANESE_DIGIT_READINGS[value];
+  if (value < 20) {
+    if (value === 10) return "じゅう";
+    return `じゅう${JAPANESE_DIGIT_READINGS[value - 10]}`;
+  }
+  if (value < 100) {
+    const tens = Math.floor(value / 10);
+    const ones = value % 10;
+    return `${tens === 1 ? "" : JAPANESE_DIGIT_READINGS[tens]}じゅう${ones === 0 ? "" : JAPANESE_DIGIT_READINGS[ones]}`;
+  }
+  if (value < 10000) {
+    const thousands = Math.floor(value / 1000);
+    const hundreds = Math.floor((value % 1000) / 100);
+    const tens = Math.floor((value % 100) / 10);
+    const ones = value % 10;
+    const thousandText =
+      thousands === 0 ? "" : thousands === 1 ? "せん" : `${JAPANESE_DIGIT_READINGS[thousands]}せん`;
+    const hundredText =
+      hundreds === 0 ? "" : hundreds === 1 ? "ひゃく" : `${JAPANESE_DIGIT_READINGS[hundreds]}ひゃく`;
+    const tenText =
+      tens === 0 ? "" : tens === 1 ? "じゅう" : `${JAPANESE_DIGIT_READINGS[tens]}じゅう`;
+    const oneText = ones === 0 ? "" : JAPANESE_DIGIT_READINGS[ones];
+    return `${thousandText}${hundredText}${tenText}${oneText}`;
+  }
+
+  return String(value)
+    .split("")
+    .map((digit) => JAPANESE_DIGIT_READINGS[Number(digit)] || "")
+    .join("");
+}
+
+function getJapaneseDateDayReading(day: number): string {
+  if (JAPANESE_DAY_SPECIAL_READINGS[day]) {
+    return JAPANESE_DAY_SPECIAL_READINGS[day];
+  }
+  if (day >= 1 && day <= 31) {
+    return `${getJapaneseNumberReading(day)}にち`;
+  }
+  return "";
+}
+
+function getJapaneseDateReadingFromText(text: string): string | null {
+  const normalized = text.trim();
+  if (!normalized) return null;
+
+  const slashMatch = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$|^(\d{1,2})\/(\d{1,2})$/);
+  const kanjiMatch = normalized.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$|^(\d{1,2})月(\d{1,2})日$/);
+
+  let year: number | null = null;
+  let month: number | null = null;
+  let day: number | null = null;
+
+  if (slashMatch) {
+    if (slashMatch[1] && slashMatch[2] && slashMatch[3]) {
+      year = Number(slashMatch[1]);
+      month = Number(slashMatch[2]);
+      day = Number(slashMatch[3]);
+    } else if (slashMatch[4] && slashMatch[5]) {
+      month = Number(slashMatch[4]);
+      day = Number(slashMatch[5]);
+    }
+  } else if (kanjiMatch) {
+    if (kanjiMatch[1] && kanjiMatch[2] && kanjiMatch[3]) {
+      year = Number(kanjiMatch[1]);
+      month = Number(kanjiMatch[2]);
+      day = Number(kanjiMatch[3]);
+    } else if (kanjiMatch[4] && kanjiMatch[5]) {
+      month = Number(kanjiMatch[4]);
+      day = Number(kanjiMatch[5]);
+    }
+  } else {
+    return null;
+  }
+
+  if (!month || !day || !JAPANESE_MONTH_READINGS[month]) {
+    return null;
+  }
+
+  const monthReading = JAPANESE_MONTH_READINGS[month];
+  const dayReading = getJapaneseDateDayReading(day);
+  if (!dayReading) return null;
+
+  if (year !== null) {
+    const yearReading = getJapaneseNumberReading(year);
+    if (!yearReading) return null;
+    return `${yearReading}ねん${monthReading}${dayReading}`;
+  }
+
+  return `${monthReading}${dayReading}`;
+}
+
+function applyDateReadingOverride(
+  response: ExplainResponse,
+  candidates: string[],
+): ExplainResponse {
+  const dateReadingOverride =
+    candidates
+      .map((value) => getJapaneseDateReadingFromText(value))
+      .find((value): value is string => Boolean(value)) ?? null;
+
+  if (!dateReadingOverride) {
+    return response;
+  }
+
+  return {
+    ...response,
+    pronunciation: dateReadingOverride,
+    pronunciations: [dateReadingOverride],
+  };
+}
+
 function isLikelySentence(value: string): boolean {
   const text = value.trim();
   return /[。！？?!、]/.test(text) || text.length >= 14;
@@ -156,7 +303,7 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
   const lookup = inferLookupWord(selectedText, fullSentence);
 
   if (KNOWN_EXPLAINS[selected]) {
-    return {
+    return applyDateReadingOverride({
       ...KNOWN_EXPLAINS[selected],
       pronunciations: normalizePronunciations(
         KNOWN_EXPLAINS[selected].pronunciation,
@@ -165,11 +312,11 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
       word: lookup.word,
       originalSelection: lookup.originalSelection,
       wasCorrected: lookup.wasCorrected,
-    };
+    }, [lookup.word, selected, lookup.originalSelection]);
   }
 
   if (sentenceSelected) {
-    return {
+    return applyDateReadingOverride({
       pronunciation: "",
       pronunciations: [],
       translation: `这句话的意思：${selected}`,
@@ -178,10 +325,10 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
       word: lookup.word,
       originalSelection: lookup.originalSelection,
       wasCorrected: lookup.wasCorrected,
-    };
+    }, [lookup.word, selected, lookup.originalSelection]);
   }
 
-  return {
+  return applyDateReadingOverride({
     pronunciation: "",
     pronunciations: [],
     translation: selected,
@@ -190,7 +337,7 @@ function fallbackExplain(selectedText: string, fullSentence: string): ExplainRes
     word: lookup.word,
     originalSelection: lookup.originalSelection,
     wasCorrected: lookup.wasCorrected,
-  };
+  }, [lookup.word, selected, lookup.originalSelection]);
 }
 
 function normalizeExplainResponse(
@@ -235,13 +382,21 @@ function normalizeExplainResponse(
   const word = lookup.wasCorrected ? lookup.word : (parsedWord || fallback.word || selectedText.trim());
   const originalSelection = parsedOriginalSelection || lookup.originalSelection || selectedText.trim();
   const wasCorrected = parsedWasCorrected ?? lookup.wasCorrected;
+  const dateReadingOverride =
+    getJapaneseDateReadingFromText(word) ??
+    getJapaneseDateReadingFromText(selectedText.trim()) ??
+    getJapaneseDateReadingFromText(originalSelection);
+  const finalPronunciation = dateReadingOverride ?? pronunciation;
+  const finalPronunciations = dateReadingOverride
+    ? [dateReadingOverride]
+    : pronunciations;
 
   if (known) {
     return {
-      pronunciation: pronunciation || known.pronunciation,
+      pronunciation: finalPronunciation || known.pronunciation,
       pronunciations:
-        pronunciations.length > 0
-          ? pronunciations
+        finalPronunciations.length > 0
+          ? finalPronunciations
           : normalizePronunciations(known.pronunciation, known.pronunciations),
       translation: known.translation,
       sentence_meaning: sentenceMeaning || known.sentence_meaning,
@@ -253,8 +408,8 @@ function normalizeExplainResponse(
   }
 
   return {
-    pronunciation,
-    pronunciations,
+    pronunciation: finalPronunciation,
+    pronunciations: finalPronunciations,
     translation,
     sentence_meaning: sentenceMeaning,
     nuance_explanation: nuance,
