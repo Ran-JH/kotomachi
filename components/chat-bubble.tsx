@@ -71,8 +71,64 @@ type ManagedAudioSource = {
   onStop?: () => void;
 };
 
+type TtsSessionCacheEntry = {
+  audioUrl: string;
+};
+
 let activeManagedAudio: ManagedAudioSource | null = null;
 let managedAudioRequestSeq = 0;
+const TTS_SESSION_CACHE_LIMIT = 50;
+const ttsSessionCache = new Map<string, TtsSessionCacheEntry>();
+
+function getTtsPlaybackContext(playbackKey: string): string {
+  const [context] = playbackKey.split(":");
+  return context?.trim() || "tts";
+}
+
+function createTtsSessionCacheKey(
+  text: string,
+  npcId: NpcId,
+  playbackKey: string,
+): string | null {
+  const normalizedText = text.trim();
+  if (!normalizedText) return null;
+
+  return JSON.stringify({
+    npcId,
+    text: normalizedText,
+    context: getTtsPlaybackContext(playbackKey),
+  });
+}
+
+function getCachedTtsAudioUrl(cacheKey: string): string | null {
+  const cached = ttsSessionCache.get(cacheKey);
+  if (!cached) return null;
+
+  // 命中时刷新顺序，淘汰时优先移除更久没有复用的音频。
+  ttsSessionCache.delete(cacheKey);
+  ttsSessionCache.set(cacheKey, cached);
+  return cached.audioUrl;
+}
+
+function setCachedTtsAudioUrl(cacheKey: string, audioUrl: string): void {
+  const existing = ttsSessionCache.get(cacheKey);
+  if (existing) {
+    ttsSessionCache.delete(cacheKey);
+  }
+
+  ttsSessionCache.set(cacheKey, { audioUrl });
+
+  while (ttsSessionCache.size > TTS_SESSION_CACHE_LIMIT) {
+    const oldestEntry = ttsSessionCache.entries().next().value as
+      | [string, TtsSessionCacheEntry]
+      | undefined;
+    if (!oldestEntry) break;
+
+    const [oldestKey, oldestCache] = oldestEntry;
+    ttsSessionCache.delete(oldestKey);
+    URL.revokeObjectURL(oldestCache.audioUrl);
+  }
+}
 
 function stopActiveManagedAudio(): void {
   if (!activeManagedAudio) return;
@@ -123,6 +179,9 @@ async function fetchAndPlayTts(
   const requestId = ++managedAudioRequestSeq;
   const controller = new AbortController();
   const sessionKey = playbackKey;
+  const cacheKey = providedAudioUrl
+    ? null
+    : createTtsSessionCacheKey(text, npcId, playbackKey);
   let cleanup: (() => void) | undefined;
   let audioUrl = providedAudioUrl?.trim() || null;
 
@@ -135,6 +194,12 @@ async function fetchAndPlayTts(
   };
 
   try {
+    if (!audioUrl) {
+      if (cacheKey) {
+        audioUrl = getCachedTtsAudioUrl(cacheKey);
+      }
+    }
+
     if (!audioUrl) {
       const req = await fetch(buildClientApiUrl("/api/tts"), {
         method: "POST",
@@ -151,7 +216,13 @@ async function fetchAndPlayTts(
 
       const blob = await req.blob();
       audioUrl = URL.createObjectURL(blob);
-      cleanup = () => URL.revokeObjectURL(audioUrl as string);
+
+      if (cacheKey) {
+        // 这里只保留页面 session 期间的内存缓存，刷新页面后自然失效。
+        setCachedTtsAudioUrl(cacheKey, audioUrl);
+      } else {
+        cleanup = () => URL.revokeObjectURL(audioUrl as string);
+      }
     }
 
     if (!activeManagedAudio || activeManagedAudio.requestId !== requestId || controller.signal.aborted) {
