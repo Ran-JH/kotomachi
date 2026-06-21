@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "合成文本不能为空" }, { status: 400 });
     }
 
-    const ttsText = normalizeTextForTts(text);
+    const safeNpcId = isNpcId(npcId) ? npcId : "misaki";
+    const ttsText = normalizeTextForTts(text, { npcId: safeNpcId });
     if (!ttsText) {
       return NextResponse.json(
         { error: "没有可朗读的文本" },
@@ -52,7 +53,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const safeNpcId = isNpcId(npcId) ? npcId : "misaki";
     const provider = (process.env.TTS_PROVIDER ?? "auto").toLowerCase();
     const volcConfigured = isVolcSpeechConfigured();
 
@@ -60,7 +60,8 @@ export async function POST(req: NextRequest) {
       npcId: safeNpcId,
       provider,
       volcConfigured,
-      textLength: ttsText.length,
+      textLength: text.length,
+      normalizedTextLength: ttsText.length,
     });
 
     let audio: Buffer | null = null;

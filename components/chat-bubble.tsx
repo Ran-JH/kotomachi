@@ -23,6 +23,8 @@ import { getCachedFeedback, setCachedFeedback, removeCachedFeedback, toCachedFee
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
 import { buildClientApiUrl } from "@/lib/client-api-url";
+import { TTS_TEXT_NORMALIZATION_VERSION } from "@/lib/tts-text";
+import { TTS_VOICE_PROFILE_VERSION } from "@/lib/tts-voice-profiles";
 import { SelectableLookupText } from "@/components/selectable-lookup-text";
 import { WordPopover } from "@/components/word-popover";
 import { LightbulbIcon, TranslateIcon, UserIcon, VolumeIcon } from "@/components/ui-icons";
@@ -78,6 +80,7 @@ type TtsSessionCacheEntry = {
 let activeManagedAudio: ManagedAudioSource | null = null;
 let managedAudioRequestSeq = 0;
 const TTS_SESSION_CACHE_LIMIT = 50;
+const TTS_CACHE_VERSION = `voice:${TTS_VOICE_PROFILE_VERSION}|text:${TTS_TEXT_NORMALIZATION_VERSION}`;
 const ttsSessionCache = new Map<string, TtsSessionCacheEntry>();
 
 function getTtsPlaybackContext(playbackKey: string): string {
@@ -94,6 +97,7 @@ function createTtsSessionCacheKey(
   if (!normalizedText) return null;
 
   return JSON.stringify({
+    version: TTS_CACHE_VERSION,
     npcId,
     text: normalizedText,
     context: getTtsPlaybackContext(playbackKey),
@@ -893,6 +897,17 @@ function hasValidFeedbackSuggestions(feedback: FeedbackResponse): boolean {
   return FEEDBACK_LEVEL_META.some((meta) => isValidExpressionHintText(feedback[meta.key].nativeSay));
 }
 
+function getFeedbackValidationDebugDetails(feedback: FeedbackResponse) {
+  return FEEDBACK_LEVEL_META.map((meta) => {
+    const nativeSay = feedback[meta.key].nativeSay;
+    return {
+      key: meta.key,
+      valid: isValidExpressionHintText(nativeSay),
+      preview: nativeSay.trim().slice(0, 80),
+    };
+  });
+}
+
 function getFeedbackErrorMessage(
   uiLanguage: UiLanguage,
   payload?: { message?: string } | null
@@ -1122,6 +1137,12 @@ export function ChatBubble({
       }
       const nextFeedback = unwrapped.feedback;
       if (!hasValidFeedbackSuggestions(nextFeedback)) {
+        debugExpressionHintClient("client validation rejected feedback", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+          levels: getFeedbackValidationDebugDetails(nextFeedback),
+        });
         throw new Error("invalid feedback");
       }
       setFeedback(nextFeedback);
@@ -1181,6 +1202,12 @@ export function ChatBubble({
       }
       const nextFeedback = unwrapped.feedback;
       if (!hasValidFeedbackSuggestions(nextFeedback)) {
+        debugExpressionHintClient("client validation rejected feedback", {
+          messageId,
+          npcId,
+          uiLanguage: language,
+          levels: getFeedbackValidationDebugDetails(nextFeedback),
+        });
         throw new Error("invalid feedback");
       }
       setFeedback(nextFeedback);

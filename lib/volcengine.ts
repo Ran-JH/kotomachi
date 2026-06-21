@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import type { NpcId } from "@/lib/npc";
+import { getNpcVoiceProfile } from "@/lib/tts-voice-profiles";
 
 const TTS_URL = "https://openspeech.bytedance.com/api/v1/tts";
 const ASR_FLASH_URL =
@@ -53,69 +54,6 @@ function getAsrHeaders(requestId: string): Record<string, string> {
   };
 }
 
-function getNpcVoiceConfig(npcId: NpcId): {
-  voiceType: string;
-  speedRatio: number;
-  pitchRatio: number;
-} {
-  const defaults: Record<
-    NpcId,
-    { voiceType: string; speedRatio: number; pitchRatio: number }
-  > = {
-    aoi: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_AOI ?? "BV421_streaming",
-      speedRatio: 1.02,
-      pitchRatio: 1.04,
-    },
-    haruka: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_HARUKA ?? "BV421_streaming",
-      speedRatio: 0.9,
-      pitchRatio: 0.92,
-    },
-    misaki: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_MISAKI ?? "BV421_streaming",
-      speedRatio: 0.98,
-      pitchRatio: 1.08,
-    },
-    kimura: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_KIMURA ?? "BV524_streaming",
-      speedRatio: 1.12,
-      pitchRatio: 1.0,
-    },
-    ren: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_KIMURA ?? "BV524_streaming",
-      speedRatio: 1.0,
-      pitchRatio: 1.0,
-    },
-    taisho: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_TAISHO ?? "BV524_streaming",
-      speedRatio: 0.9,
-      pitchRatio: 0.92,
-    },
-    nana: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_NANA ?? "BV421_streaming",
-      speedRatio: 0.98,
-      pitchRatio: 1.0,
-    },
-    mao: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_MAO ?? "BV421_streaming",
-      speedRatio: 0.98,
-      pitchRatio: 1.02,
-    },
-    riku: {
-      voiceType: "BV524_streaming",
-      speedRatio: 1.04,
-      pitchRatio: 0.98,
-    },
-    saku: {
-      voiceType: process.env.VOLCENGINE_TTS_VOICE_SAKU ?? "BV524_streaming",
-      speedRatio: 0.92,
-      pitchRatio: 0.94,
-    },
-  };
-  return defaults[npcId] ?? defaults.misaki;
-}
-
 /** 火山 TTS 业务错误，携带 code / 原始响应供上层打印 */
 export class VolcTtsError extends Error {
   constructor(
@@ -139,7 +77,14 @@ export async function synthesizeVolcTts(
   npcId: NpcId
 ): Promise<Buffer> {
   const { appId, token } = getSpeechCredentials();
-  const { voiceType, speedRatio, pitchRatio } = getNpcVoiceConfig(npcId);
+  const {
+    profileName,
+    voiceType,
+    speedRatio,
+    pitchRatio,
+    volumeRatio,
+    language = "ja",
+  } = getNpcVoiceProfile(npcId);
   const reqid = randomUUID();
   const cluster = process.env.VOLCENGINE_SPEECH_CLUSTER ?? "volcano_tts";
 
@@ -154,9 +99,9 @@ export async function synthesizeVolcTts(
       voice_type: voiceType,
       encoding: "mp3",
       speed_ratio: speedRatio,
-      volume_ratio: 1.0,
+      volume_ratio: volumeRatio,
       pitch_ratio: pitchRatio,
-      language: "ja",
+      language,
     },
     request: {
       reqid,
@@ -170,6 +115,7 @@ export async function synthesizeVolcTts(
     url: TTS_URL,
     reqid,
     npcId,
+    profileName,
     voiceType,
     cluster,
     appId,

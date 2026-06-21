@@ -195,27 +195,61 @@ function isLatinCharacterCode(code: number): boolean {
   return (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
 }
 
-function extractLatinWords(value: string): string[] {
-  const words: string[] = [];
-  let current = "";
+function countJapaneseCharacters(value: string): number {
+  let count = 0;
+  for (const char of value) {
+    if (isJapaneseCharacterCode(char.charCodeAt(0))) {
+      count += 1;
+    }
+  }
+  return count;
+}
 
+function countLatinLetters(value: string): number {
+  let count = 0;
   for (const char of value) {
     if (isLatinCharacterCode(char.charCodeAt(0))) {
-      current += char;
-      continue;
-    }
-
-    if (current) {
-      words.push(current);
-      current = "";
+      count += 1;
     }
   }
+  return count;
+}
 
-  if (current) {
-    words.push(current);
+function extractLatinTokens(value: string): string[] {
+  return value.match(/[A-Za-z0-9][A-Za-z0-9._-]*/g) ?? [];
+}
+
+function isLikelyExpressionHintLatinToken(token: string): boolean {
+  const cleaned = token.replace(/[^A-Za-z0-9]/g, "");
+  if (!cleaned) return false;
+
+  if (SAFE_HINT_LATIN_WORDS.has(cleaned.toUpperCase())) {
+    return true;
   }
 
-  return words;
+  // Expression Hint often needs to keep short acronyms, exam names, model names,
+  // or product terms such as JLPT, VNL, GPT-4, Wi-Fi, OpenAI, LINE, etc.
+  if (cleaned === cleaned.toUpperCase() && cleaned.length >= 2 && cleaned.length <= 10) {
+    return true;
+  }
+
+  if (/^[A-Z][A-Za-z0-9]{1,11}$/.test(cleaned)) {
+    return true;
+  }
+
+  if (token.includes("-") && cleaned.length <= 12) {
+    return true;
+  }
+
+  if (/[A-Za-z]/.test(cleaned) && /\d/.test(cleaned) && cleaned.length <= 12) {
+    return true;
+  }
+
+  return false;
+}
+
+function containsLongLatinPhrase(value: string): boolean {
+  return /[A-Za-z]{2,}(?:\s+[A-Za-z]{2,}){2,}/.test(value);
 }
 
 function isDecorativeEmojiCodePoint(code: number): boolean {
@@ -256,19 +290,23 @@ export function isValidExpressionHintText(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
 
-  let hasJapanese = false;
-  for (const char of trimmed) {
-    if (isJapaneseCharacterCode(char.charCodeAt(0))) {
-      hasJapanese = true;
-      break;
-    }
-  }
-  if (!hasJapanese) return false;
+  const japaneseCharacterCount = countJapaneseCharacters(trimmed);
+  if (japaneseCharacterCount === 0) return false;
   if (hasExpressionDecoration(trimmed)) return false;
 
-  const latinWords = extractLatinWords(trimmed);
-  if (latinWords.length === 0) return true;
-  return latinWords.every((word) => SAFE_HINT_LATIN_WORDS.has(word.toUpperCase()));
+  const latinTokens = extractLatinTokens(trimmed);
+  if (latinTokens.length === 0) return true;
+  if (containsLongLatinPhrase(trimmed)) return false;
+
+  const latinLetterCount = countLatinLetters(trimmed);
+  const unsupportedTokens = latinTokens.filter((token) => !isLikelyExpressionHintLatinToken(token));
+
+  // Allow a small number of unknown Latin tokens when the sentence is still
+  // clearly Japanese overall, but reject outputs that drift toward English text.
+  if (unsupportedTokens.length >= 3) return false;
+  if (unsupportedTokens.length > 0 && latinLetterCount > japaneseCharacterCount) return false;
+
+  return true;
 }
 
 export function isValidExpressionHintRecord(record: ExpressionHintRecord): boolean {
