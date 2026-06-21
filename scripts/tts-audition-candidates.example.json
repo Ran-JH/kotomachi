@@ -1,0 +1,7 @@
+{
+  "candidateVoiceTypes": [
+    "BV421_streaming",
+    "BV524_streaming",
+    "PASTE_MORE_CLASSIC_VOICE_TYPES_HERE"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "candidateVoiceTypes": [
+    "BV421_streaming",
+    "BV524_streaming",
+    "BV520_streaming",
+    "BV521_streaming",
+    "BV522_streaming",
+    "BV702_streaming",
+    "BV700_streaming"
+  ]
+}

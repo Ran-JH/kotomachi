@@ -1,6 +1,6 @@
 import type { NpcId } from "@/lib/npc";
 
-export const TTS_VOICE_PROFILE_VERSION = "v0-2026-06-21";
+export const TTS_VOICE_PROFILE_VERSION = "v1-2026-06-21";
 
 export type TtsVoiceProfile = {
   profileName: string;
@@ -11,45 +11,55 @@ export type TtsVoiceProfile = {
   language?: "ja";
 };
 
-const FEMALE_CLASSIC_VOICE = "BV421_streaming";
-const MALE_CLASSIC_VOICE = "BV524_streaming";
+// 421: default natural female
+const FEMALE_NATURAL_VOICE = "BV421_streaming";
+// 520: energetic young female, for Aoi
+const FEMALE_ENERGETIC_VOICE = "BV520_streaming";
+// 521: rejected, too anime-like / too affected
+// 700: clear/formal female
+const FEMALE_CLEAR_FORMAL_VOICE = "BV700_streaming";
+// 522: older/stable female backup
+// 524: younger active male
+const MALE_YOUNG_ACTIVE_VOICE = "BV524_streaming";
+// 702: mature stable male
+const MALE_MATURE_STABLE_VOICE = "BV702_streaming";
 
 const NPC_VOICE_PROFILES: Record<NpcId, TtsVoiceProfile> = {
   misaki: {
     profileName: "soft-calm",
-    voiceType: FEMALE_CLASSIC_VOICE,
-    speedRatio: 0.94,
-    pitchRatio: 1.03,
-    volumeRatio: 0.99,
+    voiceType: FEMALE_NATURAL_VOICE,
+    speedRatio: 0.95,
+    pitchRatio: 1.0,
+    volumeRatio: 1.0,
     language: "ja",
   },
   aoi: {
     profileName: "bright-friendly",
-    voiceType: FEMALE_CLASSIC_VOICE,
-    speedRatio: 1.05,
-    pitchRatio: 1.05,
+    voiceType: FEMALE_ENERGETIC_VOICE,
+    speedRatio: 1.04,
+    pitchRatio: 1.01,
     volumeRatio: 1.0,
     language: "ja",
   },
   haruka: {
     profileName: "clear-light-formal",
-    voiceType: FEMALE_CLASSIC_VOICE,
+    voiceType: FEMALE_CLEAR_FORMAL_VOICE,
     speedRatio: 0.99,
-    pitchRatio: 0.99,
+    pitchRatio: 1.0,
     volumeRatio: 1.0,
     language: "ja",
   },
   mao: {
     profileName: "steady-workday",
-    voiceType: FEMALE_CLASSIC_VOICE,
-    speedRatio: 0.98,
+    voiceType: FEMALE_NATURAL_VOICE,
+    speedRatio: 0.99,
     pitchRatio: 1.0,
     volumeRatio: 1.0,
     language: "ja",
   },
   nana: {
     profileName: "gentle-daily",
-    voiceType: FEMALE_CLASSIC_VOICE,
+    voiceType: FEMALE_NATURAL_VOICE,
     speedRatio: 0.99,
     pitchRatio: 1.0,
     volumeRatio: 1.0,
@@ -57,31 +67,31 @@ const NPC_VOICE_PROFILES: Record<NpcId, TtsVoiceProfile> = {
   },
   kimura: {
     profileName: "easygoing-coworker",
-    voiceType: MALE_CLASSIC_VOICE,
-    speedRatio: 1.06,
-    pitchRatio: 0.99,
+    voiceType: MALE_YOUNG_ACTIVE_VOICE,
+    speedRatio: 1.03,
+    pitchRatio: 1.0,
     volumeRatio: 1.0,
     language: "ja",
   },
   taisho: {
     profileName: "steady-grounded",
-    voiceType: MALE_CLASSIC_VOICE,
-    speedRatio: 0.93,
-    pitchRatio: 0.93,
-    volumeRatio: 1.01,
+    voiceType: MALE_MATURE_STABLE_VOICE,
+    speedRatio: 0.94,
+    pitchRatio: 0.99,
+    volumeRatio: 1.0,
     language: "ja",
   },
   ren: {
     profileName: "balanced-natural",
-    voiceType: MALE_CLASSIC_VOICE,
-    speedRatio: 1.0,
+    voiceType: MALE_MATURE_STABLE_VOICE,
+    speedRatio: 0.97,
     pitchRatio: 0.99,
     volumeRatio: 1.0,
     language: "ja",
   },
   riku: {
     profileName: "active-natural",
-    voiceType: MALE_CLASSIC_VOICE,
+    voiceType: MALE_YOUNG_ACTIVE_VOICE,
     speedRatio: 1.04,
     pitchRatio: 1.0,
     volumeRatio: 1.0,
@@ -89,10 +99,10 @@ const NPC_VOICE_PROFILES: Record<NpcId, TtsVoiceProfile> = {
   },
   saku: {
     profileName: "quiet-night",
-    voiceType: MALE_CLASSIC_VOICE,
-    speedRatio: 0.92,
-    pitchRatio: 0.95,
-    volumeRatio: 0.99,
+    voiceType: MALE_MATURE_STABLE_VOICE,
+    speedRatio: 0.9,
+    pitchRatio: 0.98,
+    volumeRatio: 1.0,
     language: "ja",
   },
 };
