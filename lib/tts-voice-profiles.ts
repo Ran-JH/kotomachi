@@ -35,10 +35,10 @@ const NPC_VOICE_PROFILES: Record<NpcId, TtsVoiceProfile> = {
   },
   aoi: {
     profileName: "bright-friendly",
-    voiceType: FEMALE_ENERGETIC_VOICE,
-    speedRatio: 1.04,
-    pitchRatio: 1.01,
-    volumeRatio: 1.0,
+    voiceType: FEMALE_NATURAL_VOICE,
+    speedRatio: 1.05,
+    pitchRatio: 1.02,
+    volumeRatio: 1.01,
     language: "ja",
   },
   haruka: {
