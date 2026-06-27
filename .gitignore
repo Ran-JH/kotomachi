@@ -32,6 +32,29 @@ yarn-error.log*
 *.tmp
 *.temp
 
+# Local temp / eval outputs
+tmp/
+
+# Local backups
+*.bak
+*.backup
+*.local.*
+*.local.json
+
+# Timestamped backup copies
+*.[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9].*
+*.bak-*
+*.backup-*
+
+# One-off local audit data
+scripts/*.local.json
+
+# Optional one-off migration script
+scripts/update-badcase-types.mjs
+
+# Local backup archives
+.local-backups/
+
 # env files
 .env
 .env.local
