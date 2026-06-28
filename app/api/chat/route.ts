@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
-import { createChatCompletion } from "@/lib/llm";
+import {
+  buildChatCompletionPayloadPreview,
+  createChatCompletion,
+} from "@/lib/llm";
 
 import { getConversationScene } from "@/lib/conversation-scenes";
 
@@ -40,6 +43,8 @@ type ChatRequestBody = {
   localDateContext?: Partial<LocalDateContext>;
 
   activeSceneId?: string;
+
+  debugPromptOnly?: boolean;
 
 };
 
@@ -374,7 +379,7 @@ ${memorySection ? `\n# Memory context\n${memorySection}\n` : ""}
 
 Respond to the meaning of the user's daily-life question first, as a person in the lounge.
 
-Help the user calmly identify what they may need to ask or confirm in daily-life situations.
+  Keep to the user's asked scope, and do not expand into a procedure or explanation unless the user clearly asks for it.
 
 Do not treat the user's message as a phrase submission or evaluate whether their Japanese is natural, correct, or ready to use.
 
@@ -388,7 +393,9 @@ Keep replies short: 2-3 sentences.
 
 Use light polite Japanese.
 
-Do not become a teacher, therapist, real estate agent, or administrative consultant.
+  Do not become a teacher, therapist, real estate agent, or administrative consultant.
+
+  Leave the user an easy opening to continue, but keep it natural and low-pressure.
 
 Do not mention real place names.`;
 
@@ -494,11 +501,24 @@ Visible reply must be standard Japanese only, with no emoji.`;
 
 
 
-function buildScenePrompt(activeSceneId?: string): string | null {
+function buildScenePrompt(
+  activeSceneId?: string,
+  historyLength = 0
+): string | null {
 
   const scene = getConversationScene(activeSceneId);
 
   if (!scene) return null;
+
+  // Keep guided-scenario constraints scoped to the opening exchange so free
+  // chat and later turns stay loose and natural.
+  const isFirstGuidedTurn = historyLength <= 1;
+  const sceneIntent = scene.starterIntentZh ?? scene.starterIntentEn ?? "";
+  const sceneMoment = scene.microEpisodeZh ?? scene.microEpisodeEn ?? "";
+  const sceneAvoidRules =
+    Array.isArray(scene.avoid) && scene.avoid.length > 0
+      ? ["Scene-specific avoid rules:", ...scene.avoid.map((rule) => `- ${rule}`)].join("\n")
+      : "";
 
 
 
@@ -509,6 +529,10 @@ function buildScenePrompt(activeSceneId?: string): string | null {
     `Scene title: ${scene.title}.`,
 
     `Scene setup: ${scene.setup}.`,
+
+    sceneIntent ? `Scene intent: ${sceneIntent}.` : "",
+
+    sceneMoment ? `Scene moment: ${sceneMoment}.` : "",
 
     "Use this as soft context, not a task flow.",
 
@@ -522,6 +546,12 @@ function buildScenePrompt(activeSceneId?: string): string | null {
 
     "If the user drifts away, follow the drift and do not force the scene back.",
 
+    sceneAvoidRules,
+
+    isFirstGuidedTurn
+      ? "In guided scenarios, be especially careful not to close the scene too quickly. The user's next sentence should feel easy to say."
+      : "",
+
     "Do not include stage directions, roleplay actions, or parenthetical action descriptions in the visible reply.",
 
     "Write only what the NPC would naturally say in chat.",
@@ -534,6 +564,38 @@ function buildScenePrompt(activeSceneId?: string): string | null {
 
   ].filter(Boolean).join("\n");
 
+}
+
+function getMessagePreviewText(
+  content: ChatCompletionMessageParam["content"]
+): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((part) => {
+      if (typeof part === "string") return part;
+      if ("text" in part && typeof part.text === "string") return part.text;
+      return "";
+    })
+    .join("\n")
+    .trim();
+}
+
+function buildMessagesPreview(messages: ChatCompletionMessageParam[]) {
+  return messages.map((message) => {
+    const fullText = getMessagePreviewText(message.content);
+    return {
+      role: message.role,
+      contentPreview: fullText.slice(0, 400),
+      contentLength: fullText.length,
+    };
+  });
 }
 
 
@@ -568,6 +630,8 @@ export async function POST(req: NextRequest) {
 
       activeSceneId,
 
+      debugPromptOnly,
+
     } = (await req.json()) as ChatRequestBody;
 
 
@@ -583,7 +647,12 @@ export async function POST(req: NextRequest) {
     const localDateContext = resolveLocalDateContext(rawLocalDateContext, getLocalDateContext());
     const promptMemories = getPromptMemories(memories ?? []);
 
-    const scenePrompt = buildScenePrompt(activeSceneId);
+    const historyLength = history?.length ?? 0;
+    const isFirstGuidedTurn = historyLength <= 1;
+    const scenePrompt = buildScenePrompt(activeSceneId, historyLength);
+
+    const conversationalBaselinePrompt =
+      "You are not a teacher, consultant, customer support agent, or advice machine. You are a resident in Kotomachi, having a natural short conversation with the user. Reply like a real person in the scene: first respond to what the user just said, then, when it feels natural, leave a small opening for the user to continue. Kotomachi is a low-pressure language practice town, so most of the time you should help keep the conversation easy to continue, but never in a way that feels robotic, interrogative, or like a language exercise. Do not rush to solve, explain, summarize, teach, or complete the situation.";
 
     const sharedSafetyPrompt =
 
@@ -614,23 +683,47 @@ export async function POST(req: NextRequest) {
           ].join("\n\n")
         : null;
 
+    const aoiSystemPrompt =
+      npcId === "aoi"
+        ? [
+            "You are Aoi / 葵, a warm and easygoing peer in Kotomachi.",
+            "You speak in natural casual Japanese like a friendly classmate or everyday friend.",
+            "Keep the tone platonic, everyday, and low-pressure.",
+            "Do not take over the conversation, do not drift into romantic intimacy, and do not turn the exchange into your own monologue.",
+            "Reply naturally to what the user just said, and when it feels natural, leave a small opening for them to continue.",
+            "Do not proactively correct the user's Japanese.",
+            "Keep replies short: usually 1-2 sentences, max 3.",
+            ...(promptMemories.length > 0 ? [`Memory context:\n${buildMemoryPromptBlock(promptMemories)}`] : []),
+            `Familiarity: about ${conversationCount ?? 0} chats.`,
+            `Current time context: ${describeLocalDateContext(localDateContext)}`,
+            `Recent life arc: ${lifeArc ? `${lifeArc} / state: ${lifeArcState}` : "none"}`,
+            `Neighbor hints: ${(crossMentions ?? []).join(" / ") || "none"}`,
+            `World mood: ${[worldDescription, worldReaction].filter(Boolean).join(" / ") || "none"}`,
+            "Visible reply must be standard Japanese only, with no emoji.",
+          ].join("\n\n")
+        : null;
+
     const sakuSystemPrompt =
       npcId === "saku"
         ? [
             "You are Saku / 朔, an ordinary resident of Kotomachi who keeps an owl named Moku.",
-            "You speak in soft casual Japanese with a slightly literary undertone.",
+            "You speak in soft casual Japanese that still sounds like a normal young resident.",
             "You are quiet, gentle, slightly mysterious, and never scary.",
-            'Small strange things gather around you: forgotten words, odd notes, tiny memory slips, clocks running a few minutes slow.',
-            'You seem to collect "forgotten words" - words people meant to say but could not.',
-            "You quietly look after a small unknown creature that collects shiny things such as coins, keys, buttons, hairpins, bottle caps, and small metal scraps.",
-            "Do not flatly deny knowing that creature. If asked, you may say you are keeping it for now, looking after it a little, or cleaning up after it.",
-            "Do not call it your pet too quickly, but do not say it is unrelated to you either.",
-            "The creature is harmless, curious, and easily embarrassed.",
-            "When the user asks too directly about what is behind these strange things, start with an ordinary explanation first, add a small pause or a soft contradiction, then return to the word, memory, note, receipt, book, or object in front of you.",
+            "You are an ordinary, school-trained wizard-like person from a hidden magical society, now living quietly in Kotomachi.",
+            "Around ordinary non-magical people, you avoid revealing what you are.",
+            "You may notice small strange things that others miss, but you usually downplay them instead of explaining them.",
+            "You are not a sage, prophet, poet, fantasy narrator, mysterious old master, or lore explainer.",
+            "When strange things happen, react like someone discreetly covering for a small magical accident: calm, ordinary, slightly evasive, and natural.",
+            "Change the angle, downplay it, or give one small practical response instead of hidden-world lore.",
+            'Forgotten words can appear as a quiet motif sometimes, but not as the default explanation for Moku, creatures, receipts, books, rumors, clocks, or other strange events.',
+            "Do not flatly deny being connected to the strange thing, but do not explain it fully either.",
             "Do not explain any formal hidden side, organization, or rules of the world.",
-            "Do not become a quest giver, fortune teller, diagnostician, or therapist.",
-            "Help the user express vague feelings, dreams, rumors, strange impressions, forgotten words, and the aftertaste of stories.",
+            "Do not become a lore narrator, quest giver, fortune teller, diagnostician, or therapist.",
+            "Do not speak in vague poetic riddles or use poetic metaphors as your default way of answering.",
+            "Do not use recognizable terms, names, creatures, spells, schools, objects, or organizations from any existing magic-school franchise.",
+            "Help the user express vague feelings, dreams, rumors, and strange impressions without turning them into lore.",
             "Respond naturally to the user's meaning first, and do not proactively correct the user's Japanese.",
+            "Usually behave like a normal young resident, and leave the user a natural opening to continue.",
             "Keep replies short: usually 1-2 sentences, max 3.",
             ...(promptMemories.length > 0 ? [`Memory context:\n${buildMemoryPromptBlock(promptMemories)}`] : []),
             `Familiarity: about ${conversationCount ?? 0} chats.`,
@@ -644,12 +737,13 @@ export async function POST(req: NextRequest) {
 
     const messages: ChatCompletionMessageParam[] = [
 
-      {
-        role: "system",
-        content:
-          rikuSystemPrompt ??
-          sakuSystemPrompt ??
-          buildSystemPrompt(
+        {
+          role: "system",
+          content:
+            aoiSystemPrompt ??
+            rikuSystemPrompt ??
+            sakuSystemPrompt ??
+            buildSystemPrompt(
             npcId ?? "misaki",
             promptMemories,
             conversationCount ?? 0,
@@ -662,7 +756,7 @@ export async function POST(req: NextRequest) {
           ),
       },
 
-      { role: "system", content: sharedSafetyPrompt },
+      { role: "system", content: [conversationalBaselinePrompt, sharedSafetyPrompt].join("\n\n") },
 
       ...(scenePrompt ? [{ role: "system" as const, content: scenePrompt }] : []),
 
@@ -671,6 +765,51 @@ export async function POST(req: NextRequest) {
       { role: "user", content: text },
 
     ];
+
+    if (debugPromptOnly) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json({ error: "debugPromptOnly is unavailable in production." }, { status: 404 });
+      }
+
+      // This branch exists only for local prompt audits. It assembles the real
+      // route-level messages and the provider payload preview, then returns
+      // them before any external LLM call happens.
+      return NextResponse.json({
+        debugPromptOnly: true,
+        activeSceneId: activeSceneId ?? null,
+        historyLength,
+        isFirstGuidedTurn,
+        scenePromptExists: Boolean(scenePrompt),
+        scenePrompt,
+        messagesPreview: buildMessagesPreview(messages),
+        systemMessageCount: messages.filter((message) => message.role === "system").length,
+        finalUserText: text,
+        providerPayloadPreview: buildChatCompletionPayloadPreview(messages, {
+          temperature: 0.8,
+        }).map((preview) => ({
+          provider: preview.provider,
+          model: preview.model,
+          messageCount: Array.isArray(preview.payload.messages)
+            ? preview.payload.messages.length
+            : 0,
+          systemMessageCount: Array.isArray(preview.payload.messages)
+            ? preview.payload.messages.filter(
+                (message): message is ChatCompletionMessageParam =>
+                  typeof message === "object" &&
+                  message !== null &&
+                  "role" in message &&
+                  message.role === "system"
+              ).length
+            : 0,
+          payloadPreview: {
+            ...preview.payload,
+            messages: Array.isArray(preview.payload.messages)
+              ? buildMessagesPreview(preview.payload.messages as ChatCompletionMessageParam[])
+              : [],
+          },
+        })),
+      });
+    }
 
 
 

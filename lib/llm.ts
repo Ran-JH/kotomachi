@@ -17,6 +17,12 @@ export type ChatCompletionOptions = {
   traceLabel?: string;
 };
 
+export type ChatProviderPayloadPreview = {
+  provider: ChatProvider;
+  model: string;
+  payload: Record<string, unknown>;
+};
+
 export class ChatCompletionError extends Error {
   code: "timeout" | "aborted" | "provider_failed" | "provider_unavailable";
   provider?: ChatProvider;
@@ -82,6 +88,50 @@ function getVolcArkModel() {
   );
 }
 
+function buildChatCompletionRequestPayload(
+  model: string,
+  messages: ChatCompletionMessageParam[],
+  options?: ChatCompletionOptions
+) {
+  return {
+    model,
+    messages,
+    temperature: options?.temperature ?? 0.8,
+    max_tokens: options?.maxTokens,
+    ...(options?.jsonMode
+      ? { response_format: { type: "json_object" as const } }
+      : {}),
+  };
+}
+
+export function buildChatCompletionPayloadPreview(
+  messages: ChatCompletionMessageParam[],
+  options?: ChatCompletionOptions
+): ChatProviderPayloadPreview[] {
+  // This is a local debug helper only. It mirrors the exact request body shape
+  // we pass to providers, but never touches network clients or secrets.
+  const previews: ChatProviderPayloadPreview[] = [];
+  const deepseekModel = getDeepSeekModel();
+  if (deepseekModel) {
+    previews.push({
+      provider: "deepseek",
+      model: deepseekModel,
+      payload: buildChatCompletionRequestPayload(deepseekModel, messages, options),
+    });
+  }
+
+  const arkModel = getVolcArkModel();
+  if (arkModel) {
+    previews.push({
+      provider: "volc_ark",
+      model: arkModel,
+      payload: buildChatCompletionRequestPayload(arkModel, messages, options),
+    });
+  }
+
+  return previews;
+}
+
 async function requestProviderCompletion(
   provider: ChatProvider,
   client: OpenAI,
@@ -112,15 +162,7 @@ async function requestProviderCompletion(
 
   try {
     const response = await client.chat.completions.create(
-      {
-        model,
-        messages,
-        temperature: options?.temperature ?? 0.8,
-        max_tokens: options?.maxTokens,
-        ...(options?.jsonMode
-          ? { response_format: { type: "json_object" as const } }
-          : {}),
-      },
+      buildChatCompletionRequestPayload(model, messages, options),
       { signal: controller.signal }
     );
 

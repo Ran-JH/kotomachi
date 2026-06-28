@@ -257,6 +257,144 @@ Notes:
 - 只读取当前 NPC 的 memories，不跨 NPC 注入。
 - memory block 只在有 memory 时注入。
 
+### Chat Prompt Assembly / NPC Runtime Context
+
+Primary files:
+
+- `app/api/chat/route.ts`
+- `lib/llm.ts`
+- `lib/conversation-scenes.ts`
+- `scripts/sample-guided-response-traces.local.mjs`
+
+这个章节记录 NPC chat prompt assembly / runtime context 的实际链路。以后如果要查 guided scenario 为什么没有生效、为什么 persona 抢权、或者想手动调整 prompt，应优先从这里开始。
+
+Call chain:
+
+```text
+Client chat UI / sampler
+→ POST /api/chat
+→ request body: text, npcId, history, memories, activeSceneId, conversationCount, lifeArc, localDateContext, etc.
+→ resolveLocalDateContext()
+→ getPromptMemories()
+→ buildScenePrompt(activeSceneId, history.length)
+→ buildSystemPrompt(npcId, memories, conversationCount, ...)
+→ shared safety / conversational baseline layer
+→ assemble messages
+→ createChatCompletion(messages)
+→ provider payload
+```
+
+Current final messages structure:
+
+```ts
+[
+  { role: "system", content: npcSystemPrompt },
+  { role: "system", content: sharedSafetyPrompt },
+  ...(scenePrompt ? [{ role: "system", content: scenePrompt }] : []),
+  ...(history ?? []),
+  { role: "user", content: text },
+]
+```
+
+各层含义：
+
+- `npcSystemPrompt`
+  - NPC persona、voice、memory / date / familiarity / world context。
+  - 某些 NPC 会走专用 block，例如 `aoiSystemPrompt`、`rikuSystemPrompt`、`sakuSystemPrompt`。
+- `sharedSafetyPrompt`
+  - 共享世界规则与安全边界。
+  - 当前实现里，global conversational baseline 是和这一层拼在一起发送的，而不是单独新增一个 system message。
+- `scenePrompt`
+  - guided scenario soft context。
+  - 包含 scene title / setup，以及 `starterIntent`、`microEpisode`、`avoid`、first-turn continuation rule。
+- `history`
+  - 已有聊天记录。
+  - 在 guided scenario 默认链路里，通常只包含一条 `assistant` role 的 `npcOpening`。
+- `text`
+  - 当前用户输入。
+  - guided scenario 默认链路里通常就是 `sampleUserLineJa`。
+
+Guided scenario prompt logic:
+
+- 只有 `activeSceneId` 存在时，route 才会尝试生成 `scenePrompt`。
+- `activeSceneId` 应对应 `lib/conversation-scenes.ts` 中的 scene id。
+- `buildScenePrompt(activeSceneId, history.length)` 会把 scene metadata 转成 soft context。
+- `history.length <= 1` 时，视为 first guided turn。
+- sampler / guided scenario 默认链路里：
+  - `history.length` 通常是 `1`
+  - `history[0]` 通常是 `assistant` role 的 `npcOpening`
+- first guided turn 时会注入更强的 high-level continuation rule：
+  - 不要太快关掉场景
+  - 用户下一句要容易接
+- `scene.avoid`、`starterIntent`、`microEpisode` 当前都会进入 `scenePrompt`。
+- `sampleUserLineJa` 不会单独注入 prompt，因为当前 `user` message 本身就是用户实际发送内容。
+
+运行时常见 request 字段：
+
+- `text`
+- `npcId`
+- `history`
+- `memories`
+- `activeSceneId`
+- `conversationCount`
+- 其他上下文字段：
+  - `lifeArc`
+  - `lifeArcState`
+  - `crossMentions`
+  - `localDateContext`
+  - `worldDescription`
+  - `worldReaction`
+
+Provider payload 结论：
+
+- runtime prompt snapshot 已确认：`scenePrompt` 确实到达 route runtime messages。
+- `lib/llm.ts` 当前不会吞掉最后一个 system message，也不会把多个 system messages 压扁成单条字符串。
+- DeepSeek / Volc Ark 的 payload preview 都保留了：
+  - message order
+  - 全部 system messages
+  - `scenePrompt` 这一层
+- 因此，如果 NPC response 仍违背 `scenePrompt`，优先怀疑 prompt competition / persona conflict，而不是 sampler / route / provider 丢参。
+
+Debug / eval tools:
+
+- `scripts/sample-guided-response-traces.local.mjs`
+  - 用于根据 input traces 或 scene source 调 `/api/chat` 采样 response。
+  - 关键是保证 `activeSceneId`、`history`、`text` 正确传入。
+  - filled output 应保留 input metadata。
+- `debugPromptOnly: true`
+  - `app/api/chat/route.ts` 中的 dev-only 调试入口。
+  - 返回 prompt snapshot，不调用外部 LLM。
+  - production 不应暴露。
+- `scripts/debug-guided-prompt-snapshot.local.mjs`
+  - 本地生成 runtime prompt snapshot。
+  - 用于检查 route-level messages 和 provider payload preview。
+- `.tmp/eval/guided-scenarios/prompt-audit/*`
+  - 这些是临时审计资料，不是长期主文档。
+  - 长期维护请回看本 system map，再按需翻对应 audit 文件。
+
+Manual editing notes:
+
+- 全局 NPC conversational baseline：
+  - `app/api/chat/route.ts`
+  - 优先看 base prompt / shared safety / conversational baseline 所在区域
+- NPC persona：
+  - 同一文件里的 `buildSystemPrompt()` 与 NPC-specific prompt block
+- guided scenario 数据：
+  - `lib/conversation-scenes.ts`
+- scenePrompt assembly：
+  - `buildScenePrompt()` in `app/api/chat/route.ts`
+- provider payload：
+  - `lib/llm.ts`
+- sampler / debug 工具：
+  - `scripts/*.local.mjs`
+
+维护原则：
+
+- 不要把所有 bad case 都写成新的 system prompt 分支。
+- case-specific guardrail 优先放在 scene `avoid`。
+- 跨场景的产品体验原则优先放在 NPC conversational baseline。
+- 如果 response 与 prompt 预期不一致，先查 runtime prompt snapshot，再改 prompt。
+
 ### Welcome and revisit logic
 
 Primary file:
