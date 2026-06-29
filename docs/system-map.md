@@ -266,6 +266,10 @@ Primary files:
 - `lib/conversation-scenes.ts`
 - `scripts/sample-guided-response-traces.local.mjs`
 
+Related long-form eval docs:
+
+- `docs/eval/guided-scenario-response-eval-v10-retrospective.md`
+
 这个章节记录 NPC chat prompt assembly / runtime context 的实际链路。以后如果要查 guided scenario 为什么没有生效、为什么 persona 抢权、或者想手动调整 prompt，应优先从这里开始。
 
 Call chain:
