@@ -60,6 +60,7 @@ interface ChatBubbleProps {
   userAudioBlob?: Blob | null;
   userAudioUrl?: string | null;
   npcAudioUrl?: string | null;
+  isNpcAudioPending?: boolean;
   onPlayNpcAudio?: () => void;
   isVoiceMessage?: boolean;
 }
@@ -953,7 +954,7 @@ function unwrapFeedbackApiResponse(
 }
 
 export function ChatBubble({
-  messageId, sender, text, npcId, uiLanguage = "zh", userAudioBlob, userAudioUrl, npcAudioUrl, onPlayNpcAudio, isVoiceMessage,
+  messageId, sender, text, npcId, uiLanguage = "zh", userAudioBlob, userAudioUrl, npcAudioUrl, isNpcAudioPending = false, onPlayNpcAudio, isVoiceMessage,
 }: ChatBubbleProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
@@ -1237,7 +1238,7 @@ export function ChatBubble({
       stopActiveManagedAudio();
       return;
     }
-    if (isNpcAudioLoading) return;
+    if (isNpcAudioLoading || isNpcAudioPending) return;
 
     setIsNpcAudioLoading(true);
 
@@ -1453,7 +1454,7 @@ export function ChatBubble({
                 <button
                   type="button"
                   onClick={playStandardAudio}
-                  disabled={isNpcAudioLoading}
+                  disabled={isNpcAudioLoading || isNpcAudioPending}
                   aria-label={isNpcAudioPlaying ? pauseLabel : copy.audio.playNpc}
                   title={isNpcAudioPlaying ? pauseLabel : copy.audio.play}
                   className={actionButtonClass}

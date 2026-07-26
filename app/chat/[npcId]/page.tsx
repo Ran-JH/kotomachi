@@ -316,9 +316,13 @@ export default function ChatPage() {
 
   const [inputText, setInputText] = useState("");
   const [inputMode, setInputMode] = useState<"text" | "voice">("text");
-  const [isTyping, setIsTyping] = useState(false);
+  // 主聊天只在等待 NPC 文字回复时锁定输入；TTS 使用独立的后台状态。
+  const [isReplyPending, setIsReplyPending] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [pendingTtsMessageIds, setPendingTtsMessageIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [memories, setMemories] = useState<string[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
@@ -388,12 +392,14 @@ export default function ChatPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
+  const npcAudioRequestCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
   const userAudioUrlsRef = useRef<string[]>([]);
   // 语音录音只在当前页内短暂保存：下一次发送时挂到 user message，
   // 不写入 localStorage，避免刷新后留下失效的 blob: URL。
   const pendingVoiceMessageRef = useRef<PendingVoiceMessage | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
   const activeNpcRef = useRef<NpcId>(npcId);
+  const isChatPageMountedRef = useRef(true);
   const generatedInitialWelcomeForNpcRef = useRef<Set<NpcId>>(new Set());
   const generatedRevisitWelcomeSourcesRef = useRef<Set<string>>(new Set());
   const voiceHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -449,7 +455,7 @@ export default function ChatPage() {
   });
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
-  useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
+  useEffect(() => { scrollToBottom(); }, [messages, isReplyPending]);
   useEffect(() => {
     if (!isPreSendPanelOpen || !preSendPanelRef.current) {
       setPreSendPanelHeight(0);
@@ -495,7 +501,9 @@ export default function ChatPage() {
   }, [revokeTrackedUserAudioUrl]);
 
   useEffect(() => {
+    isChatPageMountedRef.current = true;
     return () => {
+      isChatPageMountedRef.current = false;
       clearPendingVoiceMessage({ keepTrackedUrl: true });
       revokeAllTrackedUserAudioUrls();
     };
@@ -548,6 +556,7 @@ export default function ChatPage() {
     setPreSendSuggestions([]);
     setPreSendError(null);
     setIsPreSendLoading(false);
+    setPendingTtsMessageIds(new Set());
   }, [npcId]);
   useEffect(() => {
     if (!sceneQueryEntry) return;
@@ -733,7 +742,7 @@ export default function ChatPage() {
     if (generatedInitialWelcomeForNpcRef.current.has(targetNpcId)) return;
     if (loadChatHistory(targetNpcId).length > 0) return;
 
-    if (activeNpcRef.current === targetNpcId) setIsTyping(true);
+    if (activeNpcRef.current === targetNpcId) setIsReplyPending(true);
     try {
       const data = await getWelcomeRequest(
         `initial:${targetNpcId}`,
@@ -770,7 +779,7 @@ export default function ChatPage() {
         setMessages((prev) => (prev.length === 0 ? [welcomeMsg] : prev));
       }
     } finally {
-      if (activeNpcRef.current === targetNpcId) setIsTyping(false);
+      if (activeNpcRef.current === targetNpcId) setIsReplyPending(false);
     }
   }, [getWelcomeRequest]);
 
@@ -811,7 +820,7 @@ export default function ChatPage() {
 
     generatedRevisitWelcomeSourcesRef.current.add(sourceFingerprint);
 
-    if (activeNpcRef.current === targetNpcId) setIsTyping(true);
+    if (activeNpcRef.current === targetNpcId) setIsReplyPending(true);
     try {
       const data = await getWelcomeRequest(
         `revisit:${sourceFingerprint}`,
@@ -856,7 +865,7 @@ export default function ChatPage() {
         setMessages((prev) => [...prev, welcomeMsg]);
       }
     } finally {
-      if (activeNpcRef.current === targetNpcId) setIsTyping(false);
+      if (activeNpcRef.current === targetNpcId) setIsReplyPending(false);
     }
   }, [getWelcomeRequest]);
 
@@ -892,19 +901,101 @@ export default function ChatPage() {
     void triggerInitialWelcome(npcId, storedMemories);
   }, [clearPendingVoiceMessage, npcId, revokeAllTrackedUserAudioUrls, triggerInitialWelcome, triggerRevisitWelcome]);
 
-  const fetchTtsUrl = useCallback(async (text: string): Promise<string | null> => {
-    const cacheKey = `${npcId}:${text}`;
+  const fetchTtsUrl = useCallback((
+    text: string,
+    targetNpcId: NpcId = npcId,
+  ): Promise<string | null> => {
+    const cacheKey = `${targetNpcId}:${text}`;
     const cached = npcAudioCacheRef.current.get(cacheKey);
-    if (cached) return cached;
-    try {
-      const res = await fetch(buildClientApiUrl("/api/tts"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, npcId }) });
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      npcAudioCacheRef.current.set(cacheKey, url);
-      return url;
-    } catch { return null; }
+    if (cached) return Promise.resolve(cached);
+
+    // 相同 NPC + 文本复用同一个进行中的 Promise，避免后台任务和播放点击重复请求。
+    const inFlight = npcAudioRequestCacheRef.current.get(cacheKey);
+    if (inFlight) return inFlight;
+
+    const request = (async (): Promise<string | null> => {
+      try {
+        const res = await fetch(buildClientApiUrl("/api/tts"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, npcId: targetNpcId }),
+        });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        npcAudioCacheRef.current.set(cacheKey, url);
+        return url;
+      } catch {
+        return null;
+      }
+    })();
+
+    npcAudioRequestCacheRef.current.set(cacheKey, request);
+    void request.finally(() => {
+      if (npcAudioRequestCacheRef.current.get(cacheKey) === request) {
+        npcAudioRequestCacheRef.current.delete(cacheKey);
+      }
+    });
+    return request;
   }, [npcId]);
+
+  const startBackgroundTts = useCallback(({
+    targetNpcId,
+    messageId,
+    text,
+  }: {
+    targetNpcId: NpcId;
+    messageId: string;
+    text: string;
+  }) => {
+    const startedAt = Date.now();
+    setPendingTtsMessageIds((prev) => {
+      const next = new Set(prev);
+      next.add(messageId);
+      return next;
+    });
+
+    void fetchTtsUrl(text, targetNpcId)
+      .then((url) => {
+        if (!url) {
+          // 只记录安全元数据，不写入用户或 NPC 的完整对话文本。
+          console.warn("[TTS] Background generation failed.", {
+            npcId: targetNpcId,
+            messageId,
+            providerCategory: "tts-route",
+            errorCategory: "request-failed",
+            elapsedMs: Date.now() - startedAt,
+          });
+          return;
+        }
+        if (!isChatPageMountedRef.current || activeNpcRef.current !== targetNpcId) return;
+
+        // TTS 可能乱序返回，因此必须按稳定 message id 精确回填。
+        setMessages((prev) => prev.map((message) => (
+          message.id === messageId
+            ? { ...message, npcAudioUrl: url }
+            : message
+        )));
+      })
+      .catch(() => {
+        console.warn("[TTS] Background generation failed.", {
+          npcId: targetNpcId,
+          messageId,
+          providerCategory: "tts-route",
+          errorCategory: "unexpected-error",
+          elapsedMs: Date.now() - startedAt,
+        });
+      })
+      .finally(() => {
+        if (!isChatPageMountedRef.current) return;
+        setPendingTtsMessageIds((prev) => {
+          if (!prev.has(messageId)) return prev;
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+      });
+  }, [fetchTtsUrl]);
 
   const runMemoryCurator = async (
     recentMessages: StoredMessage[],
@@ -994,7 +1085,7 @@ export default function ChatPage() {
     ];
     setMessages((prev) => [...prev, userMsg]);
     clearPendingVoiceMessage({ keepTrackedUrl: true });
-    setInputText(""); setIsTyping(true);
+    setInputText(""); setIsReplyPending(true);
     incrementConversationCount(npcId);
     userMessagesSinceMemoryCheckRef.current += 1;
     const existingMemoriesSnapshot = getLocalNPCMemories(npcId);
@@ -1041,9 +1132,14 @@ export default function ChatPage() {
       // 既避免 UI 里像剧本，也避免 TTS 把动作朗读出来。
       const assistantText = sanitizeAssistantSceneText(typeof data.text === "string" ? data.text : "");
       const useVoice = true;
-      let npcAudioUrl: string | null = null;
-      if (useVoice) npcAudioUrl = await fetchTtsUrl(assistantText);
-      const assistantMsg: ChatMessage = { id: `assistant-${Date.now()}`, sender: "assistant", text: assistantText, type: useVoice ? "voice" : "text", createdAt: new Date().toISOString(), npcAudioUrl };
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${npcId}-${Date.now()}`,
+        sender: "assistant",
+        text: assistantText,
+        type: useVoice ? "voice" : "text",
+        createdAt: new Date().toISOString(),
+        npcAudioUrl: null,
+      };
       setMessages((prev) => {
         const next = [...prev, assistantMsg];
         saveChatHistory(npcId, next.map((m) => ({
@@ -1057,6 +1153,15 @@ export default function ChatPage() {
       saveLastChatTime(npcId);
       resetPreSendHelper();
       setIsPreSendPanelOpen(false);
+      // 文本已经显示并保存；先解除聊天输入锁定，再启动后台 TTS。
+      setIsReplyPending(false);
+      if (useVoice) {
+        startBackgroundTts({
+          targetNpcId: npcId,
+          messageId: assistantMsg.id,
+          text: assistantText,
+        });
+      }
     } catch (err) {
       const errorText = err instanceof Error ? err.message : "";
       const isNetworkError = /failed to fetch|networkerror|load failed|err_connection_refused/i.test(errorText);
@@ -1070,7 +1175,7 @@ export default function ChatPage() {
         setApiError(err instanceof Error ? err.message : copy.common.genericError);
       }
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "assistant", text: "ごめん、ちょっと通信が不安定みたい…もう一度送ってくれる？😅", type: "text" }]);
-    } finally { setIsTyping(false); }
+    } finally { setIsReplyPending(false); }
   };
 
   const handleSend = () => {
@@ -2084,7 +2189,7 @@ export default function ChatPage() {
                 </div>
               </section>
             )}
-            {messages.length === 0 && isTyping && (
+            {messages.length === 0 && isReplyPending && (
               <div className="flex justify-center pt-8">
                 <p className="text-[11px] text-[#7A7060]/70">
                   {uiLanguage === "zh" ? "正在准备对话…" : "Getting ready…"}
@@ -2105,6 +2210,7 @@ export default function ChatPage() {
                   userAudioBlob={msg.userAudioBlob}
                   userAudioUrl={msg.userAudioUrl}
                   npcAudioUrl={msg.npcAudioUrl}
+                  isNpcAudioPending={pendingTtsMessageIds.has(msg.id)}
                   isVoiceMessage={msg.sender === "assistant" || msg.type === "voice"}
                   onPlayNpcAudio={msg.sender === "assistant" ? () => { void fetchTtsUrl(msg.text).then((url) => { if (url) new Audio(url).play(); }); } : undefined}
                 />
@@ -2130,7 +2236,7 @@ export default function ChatPage() {
                   ))}
               </div>
             ))}
-            {isTyping && (
+            {isReplyPending && (
               <div className="flex justify-start items-center gap-2 text-xs text-[#7A7060] animate-pulse">
                 <img src={NPC_AVATARS[npcId]} alt="" className="w-6 h-6 rounded-full object-cover" />
                 <span className="bg-[#FAF6EE] border border-[rgba(40,35,26,0.06)] rounded-full px-3 py-1 text-[10px]">{copy.chat.typing}</span>
@@ -2220,7 +2326,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
-              disabled={isTyping || isTranscribing}
+              disabled={isReplyPending || isTranscribing}
               className="w-9 h-9 shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] hover:bg-[#E0D6C5] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:scale-[0.95] flex items-center justify-center text-sm text-[#28231A] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
               aria-label={inputMode === "text" ? copy.chat.switchToVoice : copy.chat.switchToText}
               title={inputMode === "text" ? copy.chat.voiceInput : copy.chat.textInput}
@@ -2456,15 +2562,15 @@ export default function ChatPage() {
                   placeholder={copy.chat.placeholder}
                   rows={1}
                   className="min-w-0 flex-1 resize-none bg-[#EEE6D8] text-[#28231A] border border-[rgba(40,35,26,0.1)] rounded-xl px-4 py-2.5 md:px-5 text-sm leading-relaxed outline-none focus:bg-[#F6F0E3] focus:border-[#C9A84C]/55 focus:ring-2 focus:ring-[#C9A84C]/15 placeholder:text-[#7A7060]/55 disabled:cursor-not-allowed disabled:opacity-60 transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
-                  disabled={isTyping}
+                  disabled={isReplyPending}
                 />
                 <button
                   type="button"
                   onClick={handleSend}
-                  disabled={isTyping || !inputText.trim()}
+                  disabled={isReplyPending || !inputText.trim()}
                   className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 hover:shadow-[0_4px_12px_rgba(45,74,31,0.3)] active:translate-y-0.5 active:shadow-[0_2px_6px_rgba(45,74,31,0.2)] transition-all duration-150 disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
                 >
-                  {isTyping ? copy.chat.sending : copy.chat.send}
+                  {isReplyPending ? copy.chat.sending : copy.chat.send}
                 </button>
               </>
             ) : (
@@ -2475,7 +2581,7 @@ export default function ChatPage() {
                 onMouseLeave={isRecording ? stopRecording : undefined}
                 onTouchStart={(e) => { e.preventDefault(); void startRecording(); }}
                 onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
-                disabled={isTyping || isTranscribing}
+                disabled={isReplyPending || isTranscribing}
                 aria-label={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 title={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
