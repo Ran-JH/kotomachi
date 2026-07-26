@@ -207,6 +207,7 @@ function getVolcArkModel() {
 }
 
 function buildChatCompletionRequestPayload(
+  provider: ChatProvider,
   model: string,
   messages: ChatCompletionMessageParam[],
   options?: ChatCompletionOptions
@@ -214,6 +215,13 @@ function buildChatCompletionRequestPayload(
   return {
     model,
     messages,
+    // DeepSeek V4 enables thinking by default. Kotomachi's LLM routes are
+    // latency-sensitive conversational tasks, so explicitly preserve the
+    // previous non-thinking behavior. Keep this provider-specific: Volc Ark
+    // may not accept DeepSeek's extension field.
+    ...(provider === "deepseek"
+      ? { thinking: { type: "disabled" as const } }
+      : {}),
     temperature: options?.temperature ?? 0.8,
     max_tokens: options?.maxTokens,
     ...(options?.jsonMode
@@ -234,7 +242,12 @@ export function buildChatCompletionPayloadPreview(
     previews.push({
       provider: "deepseek",
       model: deepseekModel,
-      payload: buildChatCompletionRequestPayload(deepseekModel, messages, options),
+      payload: buildChatCompletionRequestPayload(
+        "deepseek",
+        deepseekModel,
+        messages,
+        options
+      ),
     });
   }
 
@@ -243,7 +256,12 @@ export function buildChatCompletionPayloadPreview(
     previews.push({
       provider: "volc_ark",
       model: arkModel,
-      payload: buildChatCompletionRequestPayload(arkModel, messages, options),
+      payload: buildChatCompletionRequestPayload(
+        "volc_ark",
+        arkModel,
+        messages,
+        options
+      ),
     });
   }
 
@@ -271,7 +289,7 @@ async function requestProviderCompletion(
 
   try {
     const response = await client.chat.completions.create(
-      buildChatCompletionRequestPayload(model, messages, options),
+      buildChatCompletionRequestPayload(provider, model, messages, options),
       { signal: controller.signal }
     );
 

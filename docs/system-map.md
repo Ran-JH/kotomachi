@@ -367,6 +367,7 @@ Provider payload 结论：
 
 Shared LLM provider recovery / observability:
 
+- DeepSeek V4 payload 显式发送 `thinking: { type: "disabled" }`，保持低延迟、非推理型对话行为；该 DeepSeek 专用字段不会发送给 Volc Ark。
 - `lib/llm.ts` 仍是 DeepSeek primary + Volc Ark fallback 的唯一共享入口。
 - provider 顺序和默认 timeout 保持不变：DeepSeek 8 秒，Ark 10 秒；Expression Hint 仍显式使用 15 秒 / 15 秒。
 - DeepSeek / Ark model resolver 会 trim 环境变量，并把空字符串视为未配置。
