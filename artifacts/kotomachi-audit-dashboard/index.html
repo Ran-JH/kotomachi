@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Kotomachi 全面审计报告的离线交互工作台">
+  <title>Kotomachi Audit Workbench</title>
+  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=">
+  <link rel="stylesheet" href="styles.css">
+  <script src="data.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+
+  <header class="mobile-header" aria-label="移动端工具栏">
+    <button class="button button-quiet mobile-menu-button" type="button" aria-controls="sidebar" aria-expanded="false">导航</button>
+    <div class="mobile-title">
+      <span>Kotomachi Audit</span>
+      <small id="mobile-page-label">Overview</small>
+    </div>
+    <button class="button button-quiet theme-toggle" type="button" aria-label="切换深色或浅色主题">主题</button>
+  </header>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="审计工作台导航">
+      <div class="brand-block">
+        <p class="eyebrow">Independent audit</p>
+        <a class="brand" href="#overview" data-page-link="overview">Kotomachi<br>Audit</a>
+        <p class="brand-subtitle">AI 产品、质量与工程审计工作台</p>
+      </div>
+
+      <div class="global-search">
+        <label for="global-search-input">全局搜索</label>
+        <input id="global-search-input" type="search" placeholder="搜索结论、路径、原文…" autocomplete="off">
+        <div class="search-results" id="global-search-results" hidden aria-live="polite"></div>
+      </div>
+
+      <nav class="primary-nav" aria-label="主要页面">
+        <button type="button" data-page="overview" class="nav-item is-active"><span>01</span>Overview</button>
+        <button type="button" data-page="findings" class="nav-item"><span>02</span>Findings</button>
+        <button type="button" data-page="system-map" class="nav-item"><span>03</span>System Map</button>
+        <button type="button" data-page="journeys" class="nav-item"><span>04</span>User Journeys</button>
+        <button type="button" data-page="eval-data" class="nav-item"><span>05</span>Eval &amp; Data</button>
+        <button type="button" data-page="engineering" class="nav-item"><span>06</span>Engineering</button>
+        <button type="button" data-page="roadmap" class="nav-item"><span>07</span>Roadmap</button>
+        <button type="button" data-page="flagship" class="nav-item"><span>08</span>Flagship Case</button>
+        <button type="button" data-page="full-report" class="nav-item"><span>09</span>Full Report</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="button button-secondary theme-toggle" type="button" aria-label="切换深色或浅色主题">切换主题</button>
+        <p>唯一内容来源<br><code>kotomachi-audit-report.md</code></p>
+      </div>
+    </aside>
+
+    <button class="sidebar-scrim" type="button" aria-label="关闭导航" tabindex="-1"></button>
+
+    <main id="main-content" class="main-content" tabindex="-1">
+      <section class="page is-active" id="page-overview" data-page-panel="overview" aria-labelledby="overview-title"></section>
+      <section class="page" id="page-findings" data-page-panel="findings" aria-labelledby="findings-title" hidden></section>
+      <section class="page" id="page-system-map" data-page-panel="system-map" aria-labelledby="system-map-title" hidden></section>
+      <section class="page" id="page-journeys" data-page-panel="journeys" aria-labelledby="journeys-title" hidden></section>
+      <section class="page" id="page-eval-data" data-page-panel="eval-data" aria-labelledby="eval-data-title" hidden></section>
+      <section class="page" id="page-engineering" data-page-panel="engineering" aria-labelledby="engineering-title" hidden></section>
+      <section class="page" id="page-roadmap" data-page-panel="roadmap" aria-labelledby="roadmap-title" hidden></section>
+      <section class="page" id="page-flagship" data-page-panel="flagship" aria-labelledby="flagship-title" hidden></section>
+      <section class="page" id="page-full-report" data-page-panel="full-report" aria-labelledby="full-report-title" hidden></section>
+    </main>
+  </div>
+
+  <button class="back-to-top button button-primary" type="button" aria-label="回到页面顶部" hidden>回到顶部</button>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <noscript>
+    <section class="noscript">
+      <h1>Kotomachi Audit Workbench</h1>
+      <p>此离线工作台需要浏览器启用 JavaScript。完整原始报告仍可直接打开相邻文件 <code>../kotomachi-audit-report.md</code>。</p>
+    </section>
+  </noscript>
+</body>
+</html>
