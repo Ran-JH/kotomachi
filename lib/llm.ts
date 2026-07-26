@@ -4,7 +4,18 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 const DEEPSEEK_TIMEOUT_MS = 8000;
 const ARK_TIMEOUT_MS = 10000;
 
-type ChatProvider = "deepseek" | "volc_ark";
+export type ChatProvider = "deepseek" | "volc_ark";
+
+export type LlmProviderAttempt = {
+  provider: ChatProvider;
+  model: string;
+  outcome: "success" | "failure" | "timeout" | "skipped";
+  elapsedMs: number;
+  timeoutMs: number;
+  status?: number;
+  requestId?: string;
+  reason?: string;
+};
 
 export type ChatCompletionOptions = {
   temperature?: number;
@@ -26,6 +37,7 @@ export type ChatProviderPayloadPreview = {
 export class ChatCompletionError extends Error {
   code: "timeout" | "aborted" | "provider_failed" | "provider_unavailable";
   provider?: ChatProvider;
+  attempts: LlmProviderAttempt[];
 
   constructor(
     message: string,
@@ -33,29 +45,135 @@ export class ChatCompletionError extends Error {
       code: "timeout" | "aborted" | "provider_failed" | "provider_unavailable";
       provider?: ChatProvider;
       cause?: unknown;
+      attempts?: LlmProviderAttempt[];
     }
   ) {
     super(message);
     this.name = "ChatCompletionError";
     this.code = options.code;
     this.provider = options.provider;
+    this.attempts = options.attempts ? [...options.attempts] : [];
     if (options.cause !== undefined) {
       (this as Error & { cause?: unknown }).cause = options.cause;
     }
   }
 }
 
-function debugLlmTrace(
+function shouldLogLlmTrace(traceLabel?: string): boolean {
+  return Boolean(traceLabel) || process.env.NODE_ENV !== "production";
+}
+
+function readErrorMetadata(error: unknown): {
+  status?: number;
+  requestId?: string;
+} {
+  const sources: unknown[] = [error];
+  if (error && typeof error === "object" && "cause" in error) {
+    sources.push((error as { cause?: unknown }).cause);
+  }
+
+  let status: number | undefined;
+  let requestId: string | undefined;
+
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    const candidate = source as Record<string, unknown>;
+
+    if (status === undefined && typeof candidate.status === "number") {
+      status = candidate.status;
+    }
+
+    if (!requestId) {
+      const directRequestId =
+        candidate.request_id ?? candidate.requestId ?? candidate._request_id;
+      if (typeof directRequestId === "string" && directRequestId.trim()) {
+        requestId = directRequestId.trim();
+      }
+    }
+
+    if (!requestId && candidate.headers && typeof candidate.headers === "object") {
+      const headers = candidate.headers as {
+        get?: (name: string) => string | null;
+      };
+      if (typeof headers.get === "function") {
+        try {
+          const headerRequestId =
+            headers.get("x-request-id") ?? headers.get("request-id");
+          if (headerRequestId?.trim()) {
+            requestId = headerRequestId.trim();
+          }
+        } catch {
+          // Header implementations differ between providers; metadata is optional.
+        }
+      }
+    }
+  }
+
+  return { status, requestId };
+}
+
+function getSafeAttemptReason(
+  error: unknown,
+  code: ChatCompletionError["code"],
+  status?: number
+): string {
+  if (code === "timeout") return "request_timed_out";
+  if (code === "aborted") return "request_aborted";
+  if (code === "provider_unavailable") return "provider_unavailable";
+
+  if (
+    error instanceof ChatCompletionError &&
+    error.message.includes("empty response")
+  ) {
+    return "empty_response";
+  }
+
+  if (status === 400) return "invalid_request";
+  if (status === 401 || status === 403) return "authentication_or_permission";
+  if (status === 404) return "resource_not_found";
+  if (status === 408) return "request_timed_out";
+  if (status === 429) return "rate_limited";
+  if (status !== undefined && status >= 500) return "provider_server_error";
+  return "provider_failed";
+}
+
+function logLlmAttempt(
   traceLabel: string | undefined,
-  message: string,
-  details?: Record<string, unknown>
+  attempt: LlmProviderAttempt,
+  fallbackUsed: boolean
 ): void {
-  if (process.env.NODE_ENV === "production" || !traceLabel) return;
-  if (details) {
-    console.debug(`[${traceLabel}] ${message}`, details);
+  if (!shouldLogLlmTrace(traceLabel)) return;
+
+  const details = {
+    traceLabel: traceLabel ?? "unlabeled",
+    ...attempt,
+    fallbackUsed,
+  };
+
+  if (attempt.outcome === "success") {
+    console.info("[LLM] provider success", details);
     return;
   }
-  console.debug(`[${traceLabel}] ${message}`);
+
+  console.warn(`[LLM] provider ${attempt.outcome}`, details);
+}
+
+function logLlmFinalError(
+  traceLabel: string | undefined,
+  error: ChatCompletionError
+): void {
+  if (!shouldLogLlmTrace(traceLabel)) return;
+
+  console.error("[LLM] completion failed", {
+    traceLabel: traceLabel ?? "unlabeled",
+    code: error.code,
+    provider: error.provider ?? "unavailable",
+    fallbackUsed: error.attempts.some(
+      (attempt) =>
+        attempt.provider === "volc_ark" && attempt.outcome !== "skipped"
+    ),
+    attempts: error.attempts,
+  });
 }
 
 function getDeepSeekClient() {
@@ -77,15 +195,15 @@ function getVolcArkClient() {
 }
 
 function getDeepSeekModel() {
-  return process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+  const model = process.env.DEEPSEEK_MODEL?.trim();
+  return model || "deepseek-v4-flash";
 }
 
 function getVolcArkModel() {
-  return (
-    process.env.VOLCENGINE_ARK_ENDPOINT_ID ??
-    process.env.VOLCENGINE_ARK_MODEL ??
-    ""
-  );
+  const endpointId = process.env.VOLCENGINE_ARK_ENDPOINT_ID?.trim();
+  if (endpointId) return endpointId;
+
+  return process.env.VOLCENGINE_ARK_MODEL?.trim() || "";
 }
 
 function buildChatCompletionRequestPayload(
@@ -138,25 +256,16 @@ async function requestProviderCompletion(
   model: string,
   messages: ChatCompletionMessageParam[],
   options: ChatCompletionOptions | undefined,
-  timeoutMs: number
+  timeoutMs: number,
+  attempts: LlmProviderAttempt[],
+  fallbackUsed: boolean
 ): Promise<string> {
   const controller = new AbortController();
   let timedOut = false;
-
-  debugLlmTrace(
-    options?.traceLabel,
-    provider === "deepseek"
-      ? "primary provider started"
-      : "fallback provider started",
-    { provider, timeoutMs }
-  );
+  const startedAt = Date.now();
 
   const timeoutId = setTimeout(() => {
     timedOut = true;
-    debugLlmTrace(options?.traceLabel, "provider timeout", {
-      provider,
-      timeoutMs,
-    });
     controller.abort();
   }, timeoutMs);
 
@@ -168,6 +277,17 @@ async function requestProviderCompletion(
 
     const text = response.choices[0]?.message?.content?.trim();
     if (text) {
+      const responseMetadata = readErrorMetadata(response);
+      const attempt: LlmProviderAttempt = {
+        provider,
+        model,
+        outcome: "success",
+        elapsedMs: Date.now() - startedAt,
+        timeoutMs,
+        ...responseMetadata,
+      };
+      attempts.push(attempt);
+      logLlmAttempt(options?.traceLabel, attempt, fallbackUsed);
       return text;
     }
 
@@ -176,31 +296,43 @@ async function requestProviderCompletion(
       provider,
     });
   } catch (error) {
-    if (error instanceof ChatCompletionError) {
-      throw error;
-    }
-
-    const normalizedError = new ChatCompletionError(
-      timedOut ? `${provider} request timed out.` : `${provider} request failed.`,
-      {
-        code: timedOut
+    const normalizedError =
+      error instanceof ChatCompletionError
+        ? error
+        : new ChatCompletionError(
+            timedOut
+              ? `${provider} request timed out.`
+              : `${provider} request failed.`,
+            {
+              code: timedOut
+                ? "timeout"
+                : controller.signal.aborted
+                  ? "aborted"
+                  : "provider_failed",
+              provider,
+              cause: error,
+            }
+          );
+    const errorMetadata = readErrorMetadata(error);
+    const attempt: LlmProviderAttempt = {
+      provider,
+      model,
+      outcome:
+        normalizedError.code === "timeout" || errorMetadata.status === 408
           ? "timeout"
-          : controller.signal.aborted
-            ? "aborted"
-            : "provider_failed",
-        provider,
-        cause: error,
-      }
-    );
-
-    debugLlmTrace(
-      options?.traceLabel,
-      provider === "deepseek" ? "primary failed" : "fallback provider failed",
-      {
-        provider,
-        reason: normalizedError.message,
-      }
-    );
+          : "failure",
+      elapsedMs: Date.now() - startedAt,
+      timeoutMs,
+      ...errorMetadata,
+      reason: getSafeAttemptReason(
+        error,
+        normalizedError.code,
+        errorMetadata.status
+      ),
+    };
+    attempts.push(attempt);
+    normalizedError.attempts = [attempt];
+    logLlmAttempt(options?.traceLabel, attempt, fallbackUsed);
 
     throw normalizedError;
   } finally {
@@ -216,6 +348,8 @@ export async function createChatCompletion(
     options?.providerTimeouts?.deepseekMs ?? DEEPSEEK_TIMEOUT_MS;
   const arkTimeoutMs = options?.providerTimeouts?.arkMs ?? ARK_TIMEOUT_MS;
   let lastError: ChatCompletionError | null = null;
+  const attempts: LlmProviderAttempt[] = [];
+  const deepseekModel = getDeepSeekModel();
 
   const deepseek = getDeepSeekClient();
   if (deepseek) {
@@ -223,10 +357,12 @@ export async function createChatCompletion(
       return await requestProviderCompletion(
         "deepseek",
         deepseek,
-        getDeepSeekModel(),
+        deepseekModel,
         messages,
         options,
-        deepseekTimeoutMs
+        deepseekTimeoutMs,
+        attempts,
+        false
       );
     } catch (error) {
       lastError =
@@ -238,6 +374,17 @@ export async function createChatCompletion(
               cause: error,
             });
     }
+  } else {
+    const attempt: LlmProviderAttempt = {
+      provider: "deepseek",
+      model: deepseekModel,
+      outcome: "skipped",
+      elapsedMs: 0,
+      timeoutMs: deepseekTimeoutMs,
+      reason: "provider_not_configured",
+    };
+    attempts.push(attempt);
+    logLlmAttempt(options?.traceLabel, attempt, false);
   }
 
   const ark = getVolcArkClient();
@@ -250,7 +397,9 @@ export async function createChatCompletion(
         arkModel,
         messages,
         options,
-        arkTimeoutMs
+        arkTimeoutMs,
+        attempts,
+        true
       );
     } catch (error) {
       lastError =
@@ -262,14 +411,29 @@ export async function createChatCompletion(
               cause: error,
             });
     }
+  } else {
+    const attempt: LlmProviderAttempt = {
+      provider: "volc_ark",
+      model: arkModel,
+      outcome: "skipped",
+      elapsedMs: 0,
+      timeoutMs: arkTimeoutMs,
+      reason: !ark ? "provider_not_configured" : "model_not_configured",
+    };
+    attempts.push(attempt);
+    logLlmAttempt(options?.traceLabel, attempt, true);
   }
 
   if (lastError) {
+    lastError.attempts = [...attempts];
+    logLlmFinalError(options?.traceLabel, lastError);
     throw lastError;
   }
 
-  throw new ChatCompletionError(
+  const unavailableError = new ChatCompletionError(
     "No configured chat completion provider is available.",
-    { code: "provider_unavailable" }
+    { code: "provider_unavailable", attempts }
   );
+  logLlmFinalError(options?.traceLabel, unavailableError);
+  throw unavailableError;
 }

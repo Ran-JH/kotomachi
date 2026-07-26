@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { createChatCompletion } from "@/lib/llm";
+import { ChatCompletionError, createChatCompletion } from "@/lib/llm";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { mergeMemoryCandidates } from "@/lib/memory";
 import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
@@ -329,12 +329,33 @@ export async function POST(req: NextRequest) {
     );
     const isInitialVisit = timeDiffText === "初回";
 
-    // 调用大模型，启用 JSON 模式确保结构化输出
-    const raw = await createChatCompletion(messages, {
-      temperature: 0.82,
-      maxTokens: 420,
-      jsonMode: true,
-    });
+    // 调用大模型，启用 JSON 模式确保结构化输出。
+    // Provider 全部不可用时只回退欢迎语，并原样保留已有 facts，
+    // 避免把本地兜底文案误当成模型提取出的新记忆。
+    let raw: string;
+    try {
+      raw = await createChatCompletion(messages, {
+        temperature: 0.82,
+        maxTokens: 420,
+        jsonMode: true,
+        traceLabel: "Welcome",
+      });
+    } catch (error) {
+      console.warn("[api/welcome] using deterministic provider fallback", {
+        code: error instanceof ChatCompletionError ? error.code : "unknown",
+        provider:
+          error instanceof ChatCompletionError
+            ? error.provider ?? "unavailable"
+            : "unknown",
+        attemptCount:
+          error instanceof ChatCompletionError ? error.attempts.length : 0,
+      });
+      return NextResponse.json({
+        extractedFacts: existingFacts ?? [],
+        welcomeMessage: getFallbackWelcomeMessage(npcId, isInitialVisit),
+        fallbackUsed: true,
+      });
+    }
 
     // 解析大模型返回的 JSON
     let parsed: { extractedFacts?: string[]; welcomeMessage?: string };
