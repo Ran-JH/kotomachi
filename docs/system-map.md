@@ -300,6 +300,12 @@ Current final messages structure:
 ]
 ```
 
+生产消息契约（浏览器与 sampler 一致）：
+
+- 客户端传给 `/api/chat` 的 `history` 只包含本轮发送前已经存在的消息，不包含本轮当前 user。
+- 本轮当前 user 只通过 `text` 字段传输。
+- `/api/chat` 负责把 `text` 作为最后一条 user message 追加一次，因此 provider messages 中本轮 user 只出现一次。
+
 各层含义：
 
 - `npcSystemPrompt`
