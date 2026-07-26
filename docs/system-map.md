@@ -359,6 +359,16 @@ Provider payload 结论：
   - `scenePrompt` 这一层
 - 因此，如果 NPC response 仍违背 `scenePrompt`，优先怀疑 prompt competition / persona conflict，而不是 sampler / route / provider 丢参。
 
+Shared LLM provider recovery / observability:
+
+- `lib/llm.ts` 仍是 DeepSeek primary + Volc Ark fallback 的唯一共享入口。
+- provider 顺序和默认 timeout 保持不变：DeepSeek 8 秒，Ark 10 秒；Expression Hint 仍显式使用 15 秒 / 15 秒。
+- DeepSeek / Ark model resolver 会 trim 环境变量，并把空字符串视为未配置。
+- 每次 provider attempt 只记录安全元数据：provider、model、outcome、elapsed、timeout、status / request id（若 SDK 提供）和脱敏 reason；不记录 prompts、messages、memory、用户文本或 secrets。
+- 双 provider 失败时，`ChatCompletionError.attempts` 会同时保留 DeepSeek 与 Ark attempt，不再只剩最后一个 Ark error。
+- `/api/welcome` 的 provider 调用失败时返回已有 deterministic welcome，并原样保留 `existingFacts`；不生成新 memory，HTTP 保持 200。
+- `/api/feedback` 的 provider 双失败仍保留 retryable 502，不使用 generic fallback 冒充有效表达建议。
+
 Debug / eval tools:
 
 - `scripts/sample-guided-response-traces.local.mjs`
