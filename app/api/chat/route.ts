@@ -648,8 +648,9 @@ export async function POST(req: NextRequest) {
     const promptMemories = getPromptMemories(memories ?? []);
 
     const historyLength = history?.length ?? 0;
-    const isFirstGuidedTurn = historyLength <= 1;
     const scenePrompt = buildScenePrompt(activeSceneId, historyLength);
+    // debug snapshot 里的标记只描述 Guided 状态；自由聊天即使 history 为空也不是 Guided 首轮。
+    const isFirstGuidedTurn = Boolean(scenePrompt) && historyLength <= 1;
 
     const conversationalBaselinePrompt =
       "You are not a teacher, consultant, customer support agent, or advice machine. You are a resident in Kotomachi, having a natural short conversation with the user. Reply like a real person in the scene: first respond to what the user just said, then, when it feels natural, leave a small opening for the user to continue. Kotomachi is a low-pressure language practice town, so most of the time you should help keep the conversation easy to continue, but never in a way that feels robotic, interrogative, or like a language exercise. Do not rush to solve, explain, summarize, teach, or complete the situation.";
