@@ -306,6 +306,11 @@ function getNpcMeta(npcId: NpcId) {
   return NPC_META[npcId];
 }
 
+// MediaStream 可能来自已经失效的权限请求。集中关闭 tracks，避免麦克风继续占用。
+function stopMediaStreamTracks(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";
 
 export default function ChatPage() {
@@ -389,16 +394,26 @@ export default function ChatPage() {
   const transcribingLabel = uiLanguage === "zh" ? "识别中..." : "Transcribing...";
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  // attemptId 用来淘汰较早返回的 getUserMedia；意图 ref 同步记录用户是否仍在按住。
+  // 竞态判断不能只依赖 React state，因为 state 更新不是同步可读的。
+  const recordingAttemptRef = useRef(0);
+  const wantsRecordingRef = useRef(false);
+  const recordingSessionRef = useRef<{
+    attemptId: number;
+    npcId: NpcId;
+    recorder: MediaRecorder;
+    stream: MediaStream;
+    shouldTranscribe: boolean;
+  } | null>(null);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
   const npcAudioRequestCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
   const userAudioUrlsRef = useRef<string[]>([]);
   // 语音录音只在当前页内短暂保存：下一次发送时挂到 user message，
   // 不写入 localStorage，避免刷新后留下失效的 blob: URL。
   const pendingVoiceMessageRef = useRef<PendingVoiceMessage | null>(null);
-  const recordingStartedAtRef = useRef<number | null>(null);
   const activeNpcRef = useRef<NpcId>(npcId);
+  // 路由参数一重渲染就同步更新，避免等待 useEffect 时留下旧 NPC 的权限竞态窗口。
+  activeNpcRef.current = npcId;
   const isChatPageMountedRef = useRef(true);
   const generatedInitialWelcomeForNpcRef = useRef<Set<NpcId>>(new Set());
   const generatedRevisitWelcomeSourcesRef = useRef<Set<string>>(new Set());
@@ -500,14 +515,37 @@ export default function ChatPage() {
     pendingVoiceMessageRef.current = null;
   }, [revokeTrackedUserAudioUrl]);
 
+  const discardActiveRecording = useCallback(() => {
+    const session = recordingSessionRef.current;
+    if (!session) return;
+
+    // 先解除共享 ref 和事件回调，再停止 recorder/stream。
+    // 即使 stop 事件稍后才到，也不会提交已经过期的音频。
+    recordingSessionRef.current = null;
+    session.shouldTranscribe = false;
+    session.recorder.ondataavailable = null;
+    session.recorder.onstop = null;
+    if (session.recorder.state === "recording") {
+      try {
+        session.recorder.stop();
+      } catch {
+        // 某些浏览器可能已在同步切换状态；tracks 仍会在下方可靠关闭。
+      }
+    }
+    stopMediaStreamTracks(session.stream);
+  }, []);
+
   useEffect(() => {
     isChatPageMountedRef.current = true;
     return () => {
       isChatPageMountedRef.current = false;
+      wantsRecordingRef.current = false;
+      recordingAttemptRef.current += 1;
+      discardActiveRecording();
       clearPendingVoiceMessage({ keepTrackedUrl: true });
       revokeAllTrackedUserAudioUrls();
     };
-  }, [clearPendingVoiceMessage, revokeAllTrackedUserAudioUrls]);
+  }, [clearPendingVoiceMessage, discardActiveRecording, revokeAllTrackedUserAudioUrls]);
   useEffect(() => {
     return () => {
       if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
@@ -544,6 +582,11 @@ export default function ChatPage() {
   }, [isResetConfirmOpen]);
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
+    // 同一个页面组件可能直接切换 npcId；旧权限结果和旧 recorder 都必须失效。
+    wantsRecordingRef.current = false;
+    recordingAttemptRef.current += 1;
+    discardActiveRecording();
+    setIsRecording(false);
     starterAppliedRef.current = false;
     sceneQueryAppliedRef.current = false;
     suppressWelcomeForSceneRef.current = false;
@@ -557,7 +600,7 @@ export default function ChatPage() {
     setPreSendError(null);
     setIsPreSendLoading(false);
     setPendingTtsMessageIds(new Set());
-  }, [npcId]);
+  }, [discardActiveRecording, npcId]);
   useEffect(() => {
     if (!sceneQueryEntry) return;
     // 只要这次入口带着合法 scene query，就整次进入都抑制 welcome，
@@ -870,7 +913,6 @@ export default function ChatPage() {
   }, [getWelcomeRequest]);
 
   useEffect(() => {
-    activeNpcRef.current = npcId;
     userMessagesSinceMemoryCheckRef.current = 0;
     const wasSeenThisSession = hasSeenNpcThisSession(npcId);
     markNpcSeenThisSession(npcId);
@@ -1325,23 +1367,64 @@ export default function ChatPage() {
   };
 
   const startRecording = async () => {
+    // 新操作先淘汰旧操作。旧 getUserMedia 没有可取消 API，但返回后会被 attemptId 拦截。
+    recordingAttemptRef.current += 1;
+    const attemptId = recordingAttemptRef.current;
+    const targetNpcId = npcId;
+    const recordingIntentStartedAt = Date.now();
+    wantsRecordingRef.current = true;
+    discardActiveRecording();
+
+    // isRecording 在这里表示“用户仍要求录音”，包含等待权限和 recorder 已启动两段。
+    setIsRecording(true);
+    setApiError(null);
+    setVoiceHint(null);
+    clearPendingVoiceMessage();
+
+    let stream: MediaStream | null = null;
     try {
-      setApiError(null);
-      setVoiceHint(null);
-      clearPendingVoiceMessage();
-      recordingStartedAtRef.current = Date.now();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const permissionResultIsCurrent =
+        isChatPageMountedRef.current
+        && activeNpcRef.current === targetNpcId
+        && wantsRecordingRef.current
+        && recordingAttemptRef.current === attemptId;
+
+      if (!permissionResultIsCurrent) {
+        // 用户已松手、切换 NPC/页面或开始更新操作：只关闭这次刚取得的 stream。
+        stopMediaStreamTracks(stream);
+        return;
+      }
+
       const mimeType = pickRecorderMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder; audioChunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      const audioChunks: Blob[] = [];
+      const session = {
+        attemptId,
+        npcId: targetNpcId,
+        recorder,
+        stream,
+        shouldTranscribe: false,
+      };
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
       recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: mimeType || recorder.mimeType || "audio/webm" });
-        const durationMs = recordingStartedAtRef.current
-          ? Math.max(0, Date.now() - recordingStartedAtRef.current)
-          : null;
-        recordingStartedAtRef.current = null;
+        stopMediaStreamTracks(stream);
+        if (recordingSessionRef.current === session) recordingSessionRef.current = null;
+
+        // 只有用户在 recorder 真正启动后结束本次录音，才进入原有 STT 流程。
+        if (!session.shouldTranscribe) return;
+        if (!isChatPageMountedRef.current || activeNpcRef.current !== targetNpcId) return;
+
+        const completionGeneration = recordingAttemptRef.current;
+        const completionIsCurrent = () => (
+          isChatPageMountedRef.current
+          && activeNpcRef.current === targetNpcId
+          && recordingAttemptRef.current === completionGeneration
+        );
+        const blob = new Blob(audioChunks, { type: mimeType || recorder.mimeType || "audio/webm" });
+        const durationMs = Math.max(0, Date.now() - recordingIntentStartedAt);
         const objectUrl = URL.createObjectURL(blob);
         userAudioUrlsRef.current.push(objectUrl);
         setIsTranscribing(true);
@@ -1349,6 +1432,10 @@ export default function ChatPage() {
           const formData = new FormData(); formData.append("audio", blob);
           const sttRes = await fetch(buildClientApiUrl("/api/stt"), { method: "POST", body: formData });
           const sttData = await sttRes.json();
+          if (!completionIsCurrent()) {
+            revokeTrackedUserAudioUrl(objectUrl);
+            return;
+          }
           if (!sttRes.ok) {
             revokeTrackedUserAudioUrl(objectUrl);
             if (sttData.code === "NO_SPEECH") {
@@ -1371,18 +1458,48 @@ export default function ChatPage() {
           setIsTranscribing(false);
         } catch {
           revokeTrackedUserAudioUrl(objectUrl);
+          if (!completionIsCurrent()) return;
           setApiError(copy.chat.sttError);
           setIsTranscribing(false);
         }
       };
-      recorder.start(); setIsRecording(true);
+
+      recorder.start();
+      recordingSessionRef.current = session;
     } catch {
-      recordingStartedAtRef.current = null;
+      stopMediaStreamTracks(stream);
+      const failedAttemptIsCurrent =
+        isChatPageMountedRef.current
+        && activeNpcRef.current === targetNpcId
+        && wantsRecordingRef.current
+        && recordingAttemptRef.current === attemptId;
+      if (!failedAttemptIsCurrent) return;
+
+      wantsRecordingRef.current = false;
+      recordingAttemptRef.current += 1;
+      setIsRecording(false);
       setApiError(copy.chat.micError);
     }
   };
 
-  const stopRecording = () => { if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop(); setIsRecording(false); };
+  const stopRecording = () => {
+    wantsRecordingRef.current = false;
+    recordingAttemptRef.current += 1;
+
+    const session = recordingSessionRef.current;
+    if (session?.recorder.state === "recording") {
+      // recorder 已启动：保留原有“松手后转写”语义。
+      session.shouldTranscribe = true;
+      try {
+        session.recorder.stop();
+      } catch {
+        session.shouldTranscribe = false;
+        discardActiveRecording();
+      }
+    }
+    // recorder 尚未创建时，这只是一次安静取消；权限结果返回后会自行关闭 stream。
+    setIsRecording(false);
+  };
 
   const placeBackLabel =
     uiLanguage === "zh"
@@ -2581,6 +2698,7 @@ export default function ChatPage() {
                 onMouseLeave={isRecording ? stopRecording : undefined}
                 onTouchStart={(e) => { e.preventDefault(); void startRecording(); }}
                 onTouchEnd={(e) => { e.preventDefault(); stopRecording(); }}
+                onTouchCancel={(e) => { e.preventDefault(); stopRecording(); }}
                 disabled={isReplyPending || isTranscribing}
                 aria-label={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 title={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
