@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import type { NpcId } from "@/lib/npc";
+import type { SupportedSttProviderFormat } from "@/lib/stt-audio-format";
 import { getNpcVoiceProfile } from "@/lib/tts-voice-profiles";
 
 const TTS_URL = "https://openspeech.bytedance.com/api/v1/tts";
@@ -246,21 +247,6 @@ function getSttLanguagePriority(): (typeof STT_ALLOWED_LANGUAGES)[number][] {
   return parsed.length > 0 ? parsed : [...STT_ALLOWED_LANGUAGES];
 }
 
-function getAsrAudioFormat(mimeType?: string): {
-  format: string;
-  codec?: string;
-} {
-  if (!mimeType) return { format: "ogg", codec: "opus" };
-  if (mimeType.includes("ogg")) return { format: "ogg", codec: "opus" };
-  if (mimeType.includes("wav")) return { format: "wav" };
-  if (mimeType.includes("mpeg") || mimeType.includes("mp3"))
-    return { format: "mp3" };
-  if (mimeType.includes("mp4") || mimeType.includes("m4a"))
-    return { format: "mp3" };
-  // webm 浏览器录音：按 ogg_opus 提交（与前端优先 ogg 录制一致）
-  if (mimeType.includes("webm")) return { format: "ogg", codec: "opus" };
-  return { format: "ogg", codec: "opus" };
-}
 
 /**
  * STT 后处理边界：保留 provider 返回的文字内容和拉丁字符大小写。
@@ -272,14 +258,13 @@ function postProcessSttText(text: string): string {
 
 async function transcribeVolcFlashOnce(
   audioBytes: Buffer,
-  mimeType: string | undefined,
+  audioFormat: SupportedSttProviderFormat,
   langShort: (typeof STT_ALLOWED_LANGUAGES)[number]
 ): Promise<{ text: string; volcLanguage: string } | null> {
   const { appId } = getSpeechCredentials();
   const requestId = randomUUID();
   const base64 = audioBytes.toString("base64");
   const volcLanguage = STT_VOLC_LANGUAGE_MAP[langShort];
-  const audioFormat = getAsrAudioFormat(mimeType);
 
   const body = {
     user: { uid: appId },
@@ -345,6 +330,7 @@ async function transcribeVolcFlashOnce(
  */
 export async function transcribeVolcFlash(
   audioBytes: Buffer,
+  audioFormat: SupportedSttProviderFormat,
   mimeType?: string
 ): Promise<string> {
   const priority = getSttLanguagePriority();
@@ -360,7 +346,7 @@ export async function transcribeVolcFlash(
     try {
       const result = await transcribeVolcFlashOnce(
         audioBytes,
-        mimeType,
+        audioFormat,
         langShort
       );
       if (result?.text) {

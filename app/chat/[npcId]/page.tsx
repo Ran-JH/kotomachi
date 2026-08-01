@@ -14,6 +14,7 @@ import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
 import { buildClientApiUrl } from "@/lib/client-api-url";
+import { getAudioFileExtensionForMimeType } from "@/lib/stt-audio-format";
 import {
   getConversationScene,
   getConversationScenesForNpc,
@@ -403,6 +404,7 @@ export default function ChatPage() {
     npcId: NpcId;
     recorder: MediaRecorder;
     stream: MediaStream;
+    recorderMimeType: string;
     shouldTranscribe: boolean;
   } | null>(null);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
@@ -1405,6 +1407,8 @@ export default function ChatPage() {
         npcId: targetNpcId,
         recorder,
         stream,
+        // recorder.mimeType 是浏览器创建录音器后确认的实际 MIME，优先级高于候选值。
+        recorderMimeType: recorder.mimeType.trim(),
         shouldTranscribe: false,
       };
 
@@ -1423,13 +1427,18 @@ export default function ChatPage() {
           && activeNpcRef.current === targetNpcId
           && recordingAttemptRef.current === completionGeneration
         );
-        const blob = new Blob(audioChunks, { type: mimeType || recorder.mimeType || "audio/webm" });
+        const chunkMimeType = audioChunks.find((chunk) => chunk.type.trim())?.type.trim() ?? "";
+        const blobMimeType = session.recorderMimeType || chunkMimeType || mimeType;
+        const blob = new Blob(audioChunks, { type: blobMimeType });
+        const audioExtension = getAudioFileExtensionForMimeType(blob.type);
+        // MIME 无法确认时不伪造扩展名；服务端会在调用 provider 前明确拒绝。
+        const audioFileName = audioExtension ? "recording." + audioExtension : "recording";
         const durationMs = Math.max(0, Date.now() - recordingIntentStartedAt);
         const objectUrl = URL.createObjectURL(blob);
         userAudioUrlsRef.current.push(objectUrl);
         setIsTranscribing(true);
         try {
-          const formData = new FormData(); formData.append("audio", blob);
+          const formData = new FormData(); formData.append("audio", blob, audioFileName);
           const sttRes = await fetch(buildClientApiUrl("/api/stt"), { method: "POST", body: formData });
           const sttData = await sttRes.json();
           if (!completionIsCurrent()) {

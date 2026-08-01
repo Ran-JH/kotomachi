@@ -4,6 +4,11 @@ import {
   STT_ALLOWED_LANGUAGES,
   transcribeVolcFlash,
 } from "@/lib/volcengine";
+import {
+  resolveSttAudioFormat,
+  SttAudioFormatError,
+  type ResolvedSttAudioFormat,
+} from "@/lib/stt-audio-format";
 
 export const runtime = "nodejs";
 
@@ -14,15 +19,6 @@ const AUDIO_TOO_LARGE_MESSAGE = "録音が少し長すぎるみたいです。�
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isVolcSpeechConfigured()) {
-      return NextResponse.json(
-        {
-          error:
-            "语音转文字需要火山引擎语音服务。请在 .env.local 配置 VOLCENGINE_SPEECH_APP_ID 与 VOLCENGINE_SPEECH_ACCESS_TOKEN",
-        },
-        { status: 503 }
-      );
-    }
 
     const formData = await req.formData();
     const audio = formData.get("audio");
@@ -42,17 +38,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const mimeType = audio.type || "audio/webm";
+    let audioFormat: ResolvedSttAudioFormat;
+    try {
+      audioFormat = resolveSttAudioFormat(
+        audio as Blob & { name?: string },
+      );
+    } catch (error) {
+      if (!(error instanceof SttAudioFormatError)) throw error;
+
+      console.warn("[api/stt] 音频格式拒绝", {
+        normalizedMimeType: error.normalizedMimeType || "(empty)",
+        providerFormat: null,
+        fileSize: audio.size,
+        formatResolutionOutcome: error.code,
+      });
+      return NextResponse.json(
+        { error: error.message, code: error.code, message: error.message },
+        { status: 415 },
+      );
+    }
+
+    if (!isVolcSpeechConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "语音转文字需要火山引擎语音服务。请在 .env.local 配置 VOLCENGINE_SPEECH_APP_ID 与 VOLCENGINE_SPEECH_ACCESS_TOKEN",
+        },
+        { status: 503 }
+      );
+    }
+
     const buffer = Buffer.from(await audio.arrayBuffer());
 
     console.log("[api/stt] 收到语音", {
-      mimeType,
-      bytes: buffer.length,
+      normalizedMimeType: audioFormat.mimeType,
+      providerFormat: audioFormat.providerFormat,
+      fileSize: buffer.length,
+      formatResolutionOutcome: audioFormat.resolutionSource,
       allowedLanguages: STT_ALLOWED_LANGUAGES,
       priority: process.env.VOLCENGINE_STT_LANGUAGES ?? "ja,en,zh (default)",
     });
 
-    const text = await transcribeVolcFlash(buffer, mimeType);
+    const text = await transcribeVolcFlash(
+      buffer,
+      audioFormat.providerFormat,
+      audioFormat.mimeType,
+    );
     if (!text.trim()) {
       return NextResponse.json({
         text: "",
