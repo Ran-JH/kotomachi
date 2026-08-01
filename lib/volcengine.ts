@@ -272,7 +272,7 @@ async function transcribeVolcFlashOnce(
       data: base64,
       language: volcLanguage,
       format: audioFormat.format,
-      ...(audioFormat.codec ? { codec: audioFormat.codec } : {}),
+      ...("codec" in audioFormat ? { codec: audioFormat.codec } : {}),
       rate: 16000,
       bits: 16,
       channel: 1,
