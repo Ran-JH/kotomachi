@@ -263,14 +263,11 @@ function getAsrAudioFormat(mimeType?: string): {
 }
 
 /**
- * STT 后处理：修复大小写混用问题
- * 日语对话中的英语单词统一为小写，但句首单词保留大写
+ * STT 后处理边界：保留 provider 返回的文字内容和拉丁字符大小写。
+ * 首尾空白已在解析 provider response 时清理；这里不猜测或修复专有名词大小写。
  */
 function postProcessSttText(text: string): string {
-  // 先全部转小写
-  const lower = text.replace(/[a-zA-Z]+/g, (match) => match.toLowerCase());
-  // 句首单词首字母大写（匹配段落开头或句号/问号/叹号后的位置）
-  return lower.replace(/(^|[。！？\.\!\?]\s*)([a-z])/g, (match, prefix, letter) => prefix + letter.toUpperCase());
+  return text;
 }
 
 async function transcribeVolcFlashOnce(
