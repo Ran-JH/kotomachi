@@ -264,6 +264,8 @@ Primary files:
 - `app/api/chat/route.ts`
 - `lib/llm.ts`
 - `lib/conversation-scenes.ts`
+- `lib/chat-message-contract.ts`
+- `lib/guided-response-eval-payload.mjs`
 - `scripts/sample-guided-response-traces.local.mjs`
 
 Related long-form eval docs:
@@ -280,7 +282,7 @@ Client chat UI / sampler
 → request body: text, npcId, history, memories, activeSceneId, conversationCount, lifeArc, localDateContext, etc.
 → resolveLocalDateContext()
 → getPromptMemories()
-→ buildScenePrompt(activeSceneId, history.length)
+→ verify current scene opening and determine scene-scoped first user turn
 → buildSystemPrompt(npcId, memories, conversationCount, ...)
 → shared safety / conversational baseline layer
 → assemble messages
@@ -318,7 +320,8 @@ Current final messages structure:
   - guided scenario soft context。
   - 包含 scene title / setup，以及 `starterIntent`、`microEpisode`、`avoid`、first-turn continuation rule。
 - `history`
-  - 已有聊天记录。
+  - 本轮之前已经完成的聊天记录；可携带 UI / LocalStorage 使用的 `source` metadata。
+  - route 交给 provider 前只保留 `role` / `content`，不会把 metadata 发送给模型。
   - 在 guided scenario 默认链路里，通常只包含一条 `assistant` role 的 `npcOpening`。
 - `text`
   - 当前用户输入。
@@ -328,11 +331,12 @@ Guided scenario prompt logic:
 
 - 只有 `activeSceneId` 存在时，route 才会尝试生成 `scenePrompt`。
 - `activeSceneId` 应对应 `lib/conversation-scenes.ts` 中的 scene id。
-- `buildScenePrompt(activeSceneId, history.length)` 会把 scene metadata 转成 soft context。
-- `history.length <= 1` 时，视为 first guided turn。
+- route 从 `history` 中寻找最近一条 `source: "scene"` 的 assistant opening，并核对其内容与 active scene 的 `npcOpening` 一致。
+- opening 之后还没有 user message 时，才视为 first guided turn；因此在旧聊天末尾启动 Guided 仍能正确识别。
+- `buildScenePrompt(activeSceneId, isFirstGuidedTurn)` 会把 scene metadata 和已验证的首轮状态转成 soft context。
 - sampler / guided scenario 默认链路里：
   - `history.length` 通常是 `1`
-  - `history[0]` 通常是 `assistant` role 的 `npcOpening`
+  - `history[0]` 是带 `source: "scene"` 的 `assistant` role `npcOpening`
 - first guided turn 时会注入更强的 high-level continuation rule：
   - 不要太快关掉场景
   - 用户下一句要容易接
@@ -380,8 +384,10 @@ Debug / eval tools:
 
 - `scripts/sample-guided-response-traces.local.mjs`
   - 用于根据 input traces 或 scene source 调 `/api/chat` 采样 response。
-  - 关键是保证 `activeSceneId`、`history`、`text` 正确传入。
+  - 通过 `lib/guided-response-eval-payload.mjs` 复用 production 的 `completed history + current text` 契约。
   - filled output 应保留 input metadata。
+- `scripts/check-chat-message-contract.mjs`
+  - 不调用真实 LLM，确定性覆盖 Free Chat、连续聊天、重复文本、Guided、Revisit、optimistic UI 与失败路径。
 - `debugPromptOnly: true`
   - `app/api/chat/route.ts` 中的 dev-only 调试入口。
   - 返回 prompt snapshot，不调用外部 LLM。

@@ -28,6 +28,10 @@ import {
   isConversationSceneId,
   type ConversationSceneId,
 } from "@/lib/conversation-scenes";
+import {
+  buildChatTurnContract,
+  toCompletedChatHistory,
+} from "@/lib/chat-message-contract";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
@@ -1215,14 +1219,7 @@ export default function ChatPage() {
     // /api/chat 的契约是：history 只包含本轮发送前已经存在的消息，
     // 当前 user 只通过 text 传输，并由服务端在 provider messages 尾部追加一次。
     // 这里先保存发送前快照，避免把 optimistic UI state 和 API history 混在一起。
-    const historyBeforeCurrentUser: StoredMessage[] = messages
-      .filter((message) => message.sender === "user" || message.sender === "assistant")
-      .map((message) => ({
-        role: message.sender === "user" ? "user" : "assistant",
-        content: message.text,
-        createdAt: message.createdAt,
-        source: message.source,
-      }));
+    const historyBeforeCurrentUser: StoredMessage[] = toCompletedChatHistory(messages);
     // Memory curator 仍需要看到本轮 user；它使用独立数组，不改变 /api/chat 契约。
     const historyIncludingCurrentUser: StoredMessage[] = [
       ...historyBeforeCurrentUser,
@@ -1271,7 +1268,8 @@ export default function ChatPage() {
     const localDateContext = getLocalDateContext();
     const worldContext = getWorldContext(localDateContext);
     try {
-      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyBeforeCurrentUser.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId], activeSceneId }) });
+      const chatTurn = buildChatTurnContract(historyBeforeCurrentUser.slice(-10), userText);
+      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...chatTurn, npcId, memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId], activeSceneId }) });
       const data = await res.json();
       if (conversationResetVersionRef.current !== requestVersion) return;
       if (!res.ok) throw new Error(data.error ?? copy.common.genericError);

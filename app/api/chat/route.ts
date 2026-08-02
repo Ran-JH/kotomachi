@@ -9,6 +9,12 @@ import {
 
 import { getConversationScene } from "@/lib/conversation-scenes";
 
+import {
+  appendCurrentUserOnce,
+  isFirstGuidedUserTurn,
+  type CompletedChatMessage,
+} from "@/lib/chat-message-contract";
+
 import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
 
 // This route depends on runtime-only inputs such as env-backed LLM access
@@ -24,7 +30,7 @@ type ChatRequestBody = {
 
   npcId?: string;
 
-  history?: ChatCompletionMessageParam[];
+  history?: CompletedChatMessage[];
 
   memories?: string[];
 
@@ -503,7 +509,7 @@ Visible reply must be standard Japanese only, with no emoji.`;
 
 function buildScenePrompt(
   activeSceneId?: string,
-  historyLength = 0
+  isFirstGuidedTurn = false,
 ): string | null {
 
   const scene = getConversationScene(activeSceneId);
@@ -512,7 +518,6 @@ function buildScenePrompt(
 
   // Keep guided-scenario constraints scoped to the opening exchange so free
   // chat and later turns stay loose and natural.
-  const isFirstGuidedTurn = historyLength <= 1;
   const sceneIntent = scene.starterIntentZh ?? scene.starterIntentEn ?? "";
   const sceneMoment = scene.microEpisodeZh ?? scene.microEpisodeEn ?? "";
   const sceneAvoidRules =
@@ -647,10 +652,14 @@ export async function POST(req: NextRequest) {
     const localDateContext = resolveLocalDateContext(rawLocalDateContext, getLocalDateContext());
     const promptMemories = getPromptMemories(memories ?? []);
 
-    const historyLength = history?.length ?? 0;
-    const scenePrompt = buildScenePrompt(activeSceneId, historyLength);
+    const completedHistory = history ?? [];
+    const historyLength = completedHistory.length;
+    const activeScene = getConversationScene(activeSceneId);
+    const isFirstGuidedTurn = activeScene
+      ? isFirstGuidedUserTurn(completedHistory, activeScene.npcOpening)
+      : false;
+    const scenePrompt = buildScenePrompt(activeSceneId, isFirstGuidedTurn);
     // debug snapshot 里的标记只描述 Guided 状态；自由聊天即使 history 为空也不是 Guided 首轮。
-    const isFirstGuidedTurn = Boolean(scenePrompt) && historyLength <= 1;
 
     const conversationalBaselinePrompt =
       "You are not a teacher, consultant, customer support agent, or advice machine. You are a resident in Kotomachi, having a natural short conversation with the user. Reply like a real person in the scene: first respond to what the user just said, then, when it feels natural, leave a small opening for the user to continue. Kotomachi is a low-pressure language practice town, so most of the time you should help keep the conversation easy to continue, but never in a way that feels robotic, interrogative, or like a language exercise. Do not rush to solve, explain, summarize, teach, or complete the situation.";
@@ -738,6 +747,7 @@ export async function POST(req: NextRequest) {
           ].join("\n\n")
         : null;
 
+    const conversationMessages = appendCurrentUserOnce(completedHistory, text);
     const messages: ChatCompletionMessageParam[] = [
 
         {
@@ -763,9 +773,7 @@ export async function POST(req: NextRequest) {
 
       ...(scenePrompt ? [{ role: "system" as const, content: scenePrompt }] : []),
 
-      ...(history ?? []),
-
-      { role: "user", content: text },
+      ...conversationMessages,
 
     ];
 
