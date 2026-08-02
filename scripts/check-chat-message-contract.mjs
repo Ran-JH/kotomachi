@@ -107,22 +107,26 @@ runCase("Case H - optimistic UI 与 API history 分离", () => {
   assert.equal(countExactUser(appendCurrentUserOnce(request.history, request.text), sceneUser1), 1);
 });
 
-runCase("Case I - 失败路径不产生第二条 user", () => {
+runCase("Case I - 失败路径不创建 assistant fallback", () => {
   const optimisticUi = [
     { id: "current", sender: "user", text: "失敗テスト" },
   ];
-  const afterFailure = [
-    ...optimisticUi,
-    { id: "error", sender: "assistant", text: "通信エラー" },
-  ];
-  assert.equal(afterFailure.filter((message) => message.sender === "user").length, 1);
+  const failedTurn = {
+    userMessageId: "current",
+    userText: "失敗テスト",
+    errorCategory: "network",
+  };
+  assert.equal(optimisticUi.filter((message) => message.sender === "user").length, 1);
+  assert.equal(optimisticUi.filter((message) => message.sender === "assistant").length, 0);
+  assert.equal(failedTurn.userMessageId, optimisticUi[0].id);
 
   const pageSource = readFileSync(
     resolve("app", "chat", "[npcId]", "page.tsx"),
     "utf8",
   );
   assert.equal((pageSource.match(/\.\.\.prev, userMsg/g) ?? []).length, 1);
-  assert.match(pageSource, /sender: "assistant", text: "ごめん、ちょっと通信が不安定みたい/);
+  assert.match(pageSource, /type FailedChatTurn = PendingChatTurn/);
+  assert.doesNotMatch(pageSource, /sender: "assistant", text: "ごめん、ちょっと通信が不安定みたい/);
 });
 
 runCase("Production / Eval payload parity", () => {

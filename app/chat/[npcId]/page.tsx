@@ -32,6 +32,13 @@ import {
   buildChatTurnContract,
   toCompletedChatHistory,
 } from "@/lib/chat-message-contract";
+import {
+  CHAT_CLIENT_TIMEOUT_MS,
+  classifyChatRequestError,
+  isCurrentChatRequest,
+  readChatAssistantText,
+  type ChatRequestErrorCategory,
+} from "@/lib/chat-retryable-error";
 import { sanitizeAssistantSceneText } from "@/lib/assistant-scene-text";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
@@ -101,6 +108,31 @@ interface ChatMessage {
   userAudioDurationMs?: number | null;
   npcAudioUrl?: string | null;
 }
+
+type MemoryCuratorRequest = {
+  recentMessages: StoredMessage[];
+  existingMemories: string[];
+};
+
+/**
+ * 一次已经创建 user bubble、但还在等待真实 NPC 回复的稳定快照。
+ * retry 只复用这份快照，不会再次创建 user message 或增加 conversation count。
+ */
+type PendingChatTurn = {
+  userMessageId: string;
+  userText: string;
+  completedHistory: StoredMessage[];
+  activeSceneId: ConversationSceneId | null;
+  targetNpcId: NpcId;
+  requestVersion: number;
+  requestBody: Record<string, unknown>;
+  memoryCuratorRequest: MemoryCuratorRequest | null;
+};
+
+/** 临时 UI 状态：不属于 messages，也不会进入 LocalStorage、TTS 或 memory。 */
+type FailedChatTurn = PendingChatTurn & {
+  errorCategory: ChatRequestErrorCategory;
+};
 
 type PendingVoiceMessage = {
   blob: Blob;
@@ -346,6 +378,7 @@ export default function ChatPage() {
   const [isReplyPending, setIsReplyPending] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [failedChatTurn, setFailedChatTurn] = useState<FailedChatTurn | null>(null);
   const [pendingTtsMessageIds, setPendingTtsMessageIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -424,6 +457,8 @@ export default function ChatPage() {
   const npcAudioRequestCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
   const ttsRequestControllersRef = useRef<Set<AbortController>>(new Set());
   const sttRequestControllerRef = useRef<AbortController | null>(null);
+  const chatRequestControllerRef = useRef<AbortController | null>(null);
+  const chatRequestGenerationRef = useRef(0);
   const userAudioUrlsRef = useRef<string[]>([]);
   // 语音录音只在当前页内短暂保存：下一次发送时挂到 user message，
   // 不写入 localStorage，避免刷新后留下失效的 blob: URL。
@@ -489,7 +524,7 @@ export default function ChatPage() {
   });
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
-  useEffect(() => { scrollToBottom(); }, [messages, isReplyPending]);
+  useEffect(() => { scrollToBottom(); }, [messages, failedChatTurn, isReplyPending]);
   useEffect(() => {
     if (!isPreSendPanelOpen || !preSendPanelRef.current) {
       setPreSendPanelHeight(0);
@@ -574,6 +609,9 @@ export default function ChatPage() {
     isChatPageMountedRef.current = true;
     return () => {
       isChatPageMountedRef.current = false;
+      chatRequestGenerationRef.current += 1;
+      chatRequestControllerRef.current?.abort();
+      chatRequestControllerRef.current = null;
       wantsRecordingRef.current = false;
       recordingAttemptRef.current += 1;
       abortPendingAudioRequests();
@@ -619,6 +657,11 @@ export default function ChatPage() {
   useEffect(() => { setIsSidebarOpen(false); }, [npcId]);
   useEffect(() => {
     // 同一个页面组件可能直接切换 npcId；旧权限结果和旧 recorder 都必须失效。
+    chatRequestGenerationRef.current += 1;
+    chatRequestControllerRef.current?.abort();
+    chatRequestControllerRef.current = null;
+    setFailedChatTurn(null);
+    setIsReplyPending(false);
     wantsRecordingRef.current = false;
     recordingAttemptRef.current += 1;
     abortPendingAudioRequests();
@@ -1180,13 +1223,131 @@ export default function ChatPage() {
     }
   };
 
+  const requestAssistantReply = async (turn: PendingChatTurn) => {
+    // 每次请求（包括 retry）都有独立 generation；任何旧请求迟到都无法写回。
+    chatRequestControllerRef.current?.abort();
+    const controller = new AbortController();
+    chatRequestControllerRef.current = controller;
+    const requestGeneration = ++chatRequestGenerationRef.current;
+    let didTimeout = false;
+    const timeoutId = window.setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, CHAT_CLIENT_TIMEOUT_MS);
+
+    const requestIsCurrent = () => isCurrentChatRequest({
+      isMounted: isChatPageMountedRef.current,
+      activeNpcId: activeNpcRef.current,
+      targetNpcId: turn.targetNpcId,
+      currentRequestVersion: conversationResetVersionRef.current,
+      requestVersion: turn.requestVersion,
+      currentGeneration: chatRequestGenerationRef.current,
+      requestGeneration,
+    });
+
+    setIsReplyPending(true);
+
+    try {
+      const res = await fetch(buildClientApiUrl("/api/chat"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(turn.requestBody),
+        signal: controller.signal,
+      });
+
+      // fetch implementation 即使忽略 abort，也不能让生命周期已失效的结果继续执行。
+      if (!requestIsCurrent() || (controller.signal.aborted && !didTimeout)) return;
+      if (didTimeout) throw new Error("chat request timed out");
+
+      const responseText = await readChatAssistantText(res);
+      if (!requestIsCurrent() || (controller.signal.aborted && !didTimeout)) return;
+      if (didTimeout) throw new Error("chat request timed out");
+
+      // 括号也是正常语言字符；这里只保留安全、确定的首尾空白清理。
+      // 无法确认是舞台动作的内容宁可保留，避免误删解释、语气或价格信息。
+      const assistantText = sanitizeAssistantSceneText(responseText);
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${turn.targetNpcId}-${Date.now()}`,
+        sender: "assistant",
+        text: assistantText,
+        type: "voice",
+        createdAt: new Date().toISOString(),
+        npcAudioUrl: null,
+      };
+
+      setMessages((prev) => {
+        const next = [...prev, assistantMsg];
+        saveChatHistory(turn.targetNpcId, next.map((message) => ({
+          role: message.sender === "user" ? "user" : "assistant",
+          content: message.text,
+          createdAt: message.createdAt,
+          source: message.source,
+        })));
+        return next;
+      });
+
+      saveLastChatTime(turn.targetNpcId);
+      resetPreSendHelper();
+      setIsPreSendPanelOpen(false);
+      setFailedChatTurn((current) => (
+        current?.userMessageId === turn.userMessageId ? null : current
+      ));
+
+      // 只有取得真实 assistant reply 后，才让本轮进入既有 memory curator 流程。
+      if (turn.memoryCuratorRequest) {
+        userMessagesSinceMemoryCheckRef.current = MEMORY_CURATOR_OVERLAP_AFTER_TRIGGER;
+        void runMemoryCurator(
+          turn.memoryCuratorRequest.recentMessages,
+          turn.memoryCuratorRequest.existingMemories,
+          turn.requestVersion,
+        );
+        debugMemoryCuratorTrace("check triggered after assistant success", {
+          npcId: turn.targetNpcId,
+          recentMessagesCount: turn.memoryCuratorRequest.recentMessages.length,
+          existingMemoriesCount: turn.memoryCuratorRequest.existingMemories.length,
+        });
+      }
+
+      // 文本已经显示并保存；先解除聊天输入锁定，再启动后台 TTS。
+      setIsReplyPending(false);
+      startBackgroundTts({
+        targetNpcId: turn.targetNpcId,
+        messageId: assistantMsg.id,
+        text: assistantText,
+      });
+    } catch (error) {
+      if (!requestIsCurrent()) return;
+
+      // restart、切换 NPC、卸载或更新请求触发的 abort 是生命周期事件，不显示错误卡。
+      if (controller.signal.aborted && !didTimeout) return;
+
+      const errorCategory = classifyChatRequestError(error, didTimeout);
+      setFailedChatTurn((current) => (
+        current?.userMessageId === turn.userMessageId
+          ? { ...current, errorCategory }
+          : { ...turn, errorCategory }
+      ));
+    } finally {
+      window.clearTimeout(timeoutId);
+      if (chatRequestControllerRef.current === controller) {
+        chatRequestControllerRef.current = null;
+      }
+      if (requestIsCurrent()) setIsReplyPending(false);
+    }
+  };
+
   const sendToNpc = async (
     userText: string,
     voicePayload?: { blob?: Blob | null; objectUrl?: string | null; durationMs?: number | null },
   ) => {
     if (!userText.trim()) return;
-    const requestVersion = conversationResetVersionRef.current;
+
+    // 新发送明确覆盖旧失败上下文；旧 user bubble 仍按现有 React state 语义保留。
+    setFailedChatTurn(null);
     setApiError(null);
+
+    const requestVersion = conversationResetVersionRef.current;
+    const targetNpcId = npcId;
     const userCreatedAt = new Date().toISOString();
     const userAudioBlob = voicePayload?.blob ?? null;
     const userAudioUrl = voicePayload?.objectUrl?.trim() || null;
@@ -1201,114 +1362,93 @@ export default function ChatPage() {
       userAudioUrl,
       userAudioDurationMs,
     };
+
     // /api/chat 的契约是：history 只包含本轮发送前已经存在的消息，
     // 当前 user 只通过 text 传输，并由服务端在 provider messages 尾部追加一次。
-    // 这里先保存发送前快照，避免把 optimistic UI state 和 API history 混在一起。
     const historyBeforeCurrentUser: StoredMessage[] = toCompletedChatHistory(messages);
-    // Memory curator 仍需要看到本轮 user；它使用独立数组，不改变 /api/chat 契约。
+    const completedHistory = historyBeforeCurrentUser.slice(-10);
     const historyIncludingCurrentUser: StoredMessage[] = [
       ...historyBeforeCurrentUser,
       { role: "user", content: userText, createdAt: userCreatedAt },
     ];
+
     setMessages((prev) => [...prev, userMsg]);
     clearPendingVoiceMessage({ keepTrackedUrl: true });
-    setInputText(""); setIsReplyPending(true);
-    incrementConversationCount(npcId);
+    setInputText("");
+    incrementConversationCount(targetNpcId);
     userMessagesSinceMemoryCheckRef.current += 1;
-    const existingMemoriesSnapshot = getLocalNPCMemories(npcId);
-    if (userMessagesSinceMemoryCheckRef.current >= MEMORY_CURATOR_TRIGGER_THRESHOLD) {
-      // Keep a small overlap after each check so the curator can re-evaluate
-      // nearby follow-up messages instead of waiting for a full fresh block of 4.
-      // This helps when the durable signal appears on message 5 or 6, not exactly 4.
-      const userMessagesSinceLastCheck = userMessagesSinceMemoryCheckRef.current;
-      userMessagesSinceMemoryCheckRef.current = MEMORY_CURATOR_OVERLAP_AFTER_TRIGGER;
-      void runMemoryCurator(
-        historyIncludingCurrentUser.slice(-12),
-        existingMemoriesSnapshot,
-        requestVersion,
-      );
-      debugMemoryCuratorTrace("check triggered", {
-        npcId,
-        userMessagesSinceLastCheck,
-        recentMessagesCount: historyIncludingCurrentUser.slice(-12).length,
-        existingMemoriesCount: existingMemoriesSnapshot.length,
-        payloadPreview: {
-          recentMessages: historyIncludingCurrentUser.slice(-4).map((message) => ({
-            role: message.role,
-            content: message.content.slice(0, 80),
-          })),
-          existingMemories: existingMemoriesSnapshot.slice(0, 5),
-        },
+
+    const existingMemoriesSnapshot = getLocalNPCMemories(targetNpcId);
+    const memoryCuratorRequest = userMessagesSinceMemoryCheckRef.current >= MEMORY_CURATOR_TRIGGER_THRESHOLD
+      ? {
+          recentMessages: historyIncludingCurrentUser.slice(-12),
+          existingMemories: existingMemoriesSnapshot,
+        }
+      : null;
+
+    if (memoryCuratorRequest) {
+      debugMemoryCuratorTrace("check queued until assistant success", {
+        npcId: targetNpcId,
+        userMessagesSinceLastCheck: userMessagesSinceMemoryCheckRef.current,
+        recentMessagesCount: memoryCuratorRequest.recentMessages.length,
+        existingMemoriesCount: memoryCuratorRequest.existingMemories.length,
       });
     } else {
       debugMemoryCuratorTrace("skipped: waiting for more user messages", {
-        npcId,
+        npcId: targetNpcId,
         userMessagesSinceLastCheck: userMessagesSinceMemoryCheckRef.current,
         threshold: MEMORY_CURATOR_TRIGGER_THRESHOLD,
         recentMessagesCount: historyIncludingCurrentUser.slice(-12).length,
         existingMemoriesCount: existingMemoriesSnapshot.length,
       });
     }
-    const npcState = getNpcState(npcId);
+
+    const npcState = getNpcState(targetNpcId);
     const localDateContext = getLocalDateContext();
     const worldContext = getWorldContext(localDateContext);
-    try {
-      const chatTurn = buildChatTurnContract(historyBeforeCurrentUser.slice(-10), userText);
-      const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...chatTurn, npcId, memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId], activeSceneId }) });
-      const data = await res.json();
-      if (conversationResetVersionRef.current !== requestVersion) return;
-      if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
-      // 括号也是正常语言字符；这里只保留安全、确定的首尾空白清理。
-      // 无法确认是舞台动作的内容宁可保留，避免误删解释、语气或价格信息。
-      const assistantText = sanitizeAssistantSceneText(typeof data.text === "string" ? data.text : "");
-      const useVoice = true;
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${npcId}-${Date.now()}`,
-        sender: "assistant",
-        text: assistantText,
-        type: useVoice ? "voice" : "text",
-        createdAt: new Date().toISOString(),
-        npcAudioUrl: null,
-      };
-      setMessages((prev) => {
-        const next = [...prev, assistantMsg];
-        saveChatHistory(npcId, next.map((m) => ({
-          role: m.sender === "user" ? "user" : "assistant",
-          content: m.text,
-          createdAt: m.createdAt,
-          source: m.source,
-        })));
-        return next;
-      });
-      saveLastChatTime(npcId);
-      resetPreSendHelper();
-      setIsPreSendPanelOpen(false);
-      // 文本已经显示并保存；先解除聊天输入锁定，再启动后台 TTS。
-      setIsReplyPending(false);
-      if (useVoice) {
-        startBackgroundTts({
-          targetNpcId: npcId,
-          messageId: assistantMsg.id,
-          text: assistantText,
-        });
-      }
-    } catch (err) {
-      if (conversationResetVersionRef.current !== requestVersion) return;
-      const errorText = err instanceof Error ? err.message : "";
-      const isNetworkError = /failed to fetch|networkerror|load failed|err_connection_refused/i.test(errorText);
-      if (isNetworkError) {
-        setApiError(
-          uiLanguage === "zh"
-            ? "连接失败。请检查网络，或稍后再试。如果你在国内网络环境，可能需要稳定的网络代理。"
-            : "Connection failed. Please check your network and try again.",
-        );
-      } else {
-        setApiError(err instanceof Error ? err.message : copy.common.genericError);
-      }
-      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "assistant", text: "ごめん、ちょっと通信が不安定みたい…もう一度送ってくれる？😅", type: "text" }]);
-    } finally {
-      if (conversationResetVersionRef.current === requestVersion) setIsReplyPending(false);
+    const chatTurn = buildChatTurnContract(completedHistory, userText);
+    const requestBody = {
+      ...chatTurn,
+      npcId: targetNpcId,
+      memories: [...memories],
+      conversationCount: getConversationCount(targetNpcId),
+      lifeArc: npcState.arcDescription,
+      lifeArcState: npcState.label,
+      crossMentions: npcState.crossMentions,
+      localDateContext,
+      worldDescription: worldContext.description,
+      worldReaction: worldContext.reactions[targetNpcId],
+      activeSceneId,
+    };
+
+    void requestAssistantReply({
+      userMessageId: userMsg.id,
+      userText,
+      completedHistory,
+      activeSceneId,
+      targetNpcId,
+      requestVersion,
+      requestBody,
+      memoryCuratorRequest,
+    });
+  };
+
+  const handleRetryFailedTurn = () => {
+    const failedTurn = failedChatTurn;
+    if (!failedTurn || isReplyPending) return;
+
+    if (
+      failedTurn.requestVersion !== conversationResetVersionRef.current
+      || failedTurn.targetNpcId !== activeNpcRef.current
+    ) {
+      setFailedChatTurn(null);
+      return;
     }
+
+    setVoiceHint(null);
+    setApiError(null);
+    setFailedChatTurn(null);
+    void requestAssistantReply(failedTurn);
   };
 
   const handleSend = () => {
@@ -2569,6 +2709,21 @@ export default function ChatPage() {
                   isVoiceMessage={msg.sender === "assistant" || msg.type === "voice"}
                   onPlayNpcAudio={msg.sender === "assistant" ? () => { void fetchTtsUrl(msg.text).then((url) => { if (url) new Audio(url).play(); }); } : undefined}
                 />
+                {failedChatTurn?.userMessageId === msg.id && (
+                  <div role="alert" className="ml-auto max-w-md rounded-xl border border-[#C86B5A]/35 bg-[#FFF7F3] px-3.5 py-3 text-[#6B3A32] shadow-[0_4px_14px_rgba(88,45,36,0.06)]">
+                    <p className="text-[11px] leading-relaxed">{copy.chat.chatRequestError}</p>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleRetryFailedTurn}
+                        disabled={isReplyPending}
+                        className="rounded-lg border border-[#C86B5A]/35 bg-white px-3 py-1.5 text-[11px] font-medium text-[#7A3F35] transition-colors hover:bg-[#FBE9E2] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {copy.chat.retry}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {localChatMarkers
                   .filter((marker) => marker.type === "scene-exit" && marker.afterMessageId === msg.id)
                   .map((marker) => (
@@ -3060,6 +3215,11 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => {
                   conversationResetVersionRef.current += 1;
+                  chatRequestGenerationRef.current += 1;
+                  chatRequestControllerRef.current?.abort();
+                  chatRequestControllerRef.current = null;
+                  setFailedChatTurn(null);
+                  setIsReplyPending(false);
                   clearNpcChatData(npcId);
                   clearPendingVoiceMessage();
                   revokeAllTrackedUserAudioUrls();

@@ -96,12 +96,14 @@ Supporting files:
 - `lib/ui-language.ts`
 - `lib/conversation-scenes.ts`
 - `lib/assistant-scene-text.ts` — 主聊天 assistant 文本进入 UI/history/TTS 前的保守清理
+- `lib/chat-retryable-error.ts` — `/api/chat` 响应契约校验、可重试错误分类与 stale request guard
 
 Notes:
 
 - 这是主集成点，串起 welcome、chat、memory、topic ideas、TTS、STT、review。
 - 当前 NPC memory panel 是 memory v0 的主入口。
 - 当前 session 内的 memory curator 触发逻辑也在这里。
+- chat 请求失败使用独立的临时 failed-turn UI；不写入 messages/history/TTS/memory，retry 复用首次 completed history/text/scene 快照。
 
 ### Expression Hint
 
@@ -389,6 +391,8 @@ Debug / eval tools:
   - filled output 应保留 input metadata。
 - `scripts/check-chat-message-contract.mjs`
   - 不调用真实 LLM，确定性覆盖 Free Chat、连续聊天、重复文本、Guided、Revisit、optimistic UI 与失败路径。
+- `scripts/check-chat-retryable-error-state.mjs`
+  - 只用 mocked fetch / deferred Promise 确定性覆盖 retry、Guided 首轮、restart、NPC 切换、新发送与刷新边界。
 - `debugPromptOnly: true`
   - `app/api/chat/route.ts` 中的 dev-only 调试入口。
   - 返回 prompt snapshot，不调用外部 LLM。
