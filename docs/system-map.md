@@ -95,6 +95,7 @@ Supporting files:
 - `lib/ui-copy.ts`
 - `lib/ui-language.ts`
 - `lib/conversation-scenes.ts`
+- `lib/assistant-scene-text.ts` — 主聊天 assistant 文本进入 UI/history/TTS 前的保守清理
 
 Notes:
 

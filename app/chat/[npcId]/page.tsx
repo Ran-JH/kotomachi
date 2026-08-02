@@ -32,6 +32,7 @@ import {
   buildChatTurnContract,
   toCompletedChatHistory,
 } from "@/lib/chat-message-contract";
+import { sanitizeAssistantSceneText } from "@/lib/assistant-scene-text";
 import { getUiCopy } from "@/lib/ui-copy";
 import { loadUiLanguage, saveUiLanguage, type UiLanguage } from "@/lib/ui-language";
 import {
@@ -164,22 +165,6 @@ function hashText(value: string): string {
     hash = (hash * 31 + value.charCodeAt(i)) | 0;
   }
   return Math.abs(hash).toString(36);
-}
-
-function sanitizeAssistantSceneText(text: string): string {
-  let result = text;
-  
-  const stageDirectionPatterns = [
-    /[（(［\[][^）)\]］]*[）)\]］]\s*/g,
-    /\*[^*]+\*\s*/g,
-    /\[[^\]]+\]\s*/g,
-  ];
-
-  for (const pattern of stageDirectionPatterns) {
-    result = result.replace(pattern, "");
-  }
-
-  return result.trim();
 }
 
 const REVIEW_FILLER_PATTERNS = [
@@ -1273,8 +1258,8 @@ export default function ChatPage() {
       const data = await res.json();
       if (conversationResetVersionRef.current !== requestVersion) return;
       if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
-      // 场景对话偶尔会冒出括号动作描写，这里做一层保守清理，
-      // 既避免 UI 里像剧本，也避免 TTS 把动作朗读出来。
+      // 括号也是正常语言字符；这里只保留安全、确定的首尾空白清理。
+      // 无法确认是舞台动作的内容宁可保留，避免误删解释、语气或价格信息。
       const assistantText = sanitizeAssistantSceneText(typeof data.text === "string" ? data.text : "");
       const useVoice = true;
       const assistantMsg: ChatMessage = {
