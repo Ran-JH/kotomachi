@@ -471,11 +471,16 @@ export function saveChatHistory(npcId: string, history: StoredMessage[]): void {
   localStorage.setItem(getChatHistoryKey(npcId), JSON.stringify(trimmed));
 }
 
+/** Build the per-NPC key used by the lightweight user-message counter. */
+function getConversationCountKey(npcId: string): string {
+  return `kotomachi_count_${npcId}`;
+}
+
 /** Read the lightweight conversation count for this NPC. */
 export function getConversationCount(npcId: string): number {
   if (typeof window === "undefined") return 0;
 
-  const raw = localStorage.getItem(`kotomachi_count_${npcId}`);
+  const raw = localStorage.getItem(getConversationCountKey(npcId));
   if (!raw) return 0;
 
   const num = Number(raw);
@@ -487,18 +492,19 @@ export function incrementConversationCount(npcId: string): void {
   if (typeof window === "undefined") return;
 
   const current = getConversationCount(npcId);
-  localStorage.setItem(`kotomachi_count_${npcId}`, String(current + 1));
+  localStorage.setItem(getConversationCountKey(npcId), String(current + 1));
 }
 
 /**
- * Clear the full chat state for one NPC.
- * This keeps the previous reset behavior intact.
+ * Start this NPC relationship over without touching any other NPC or saved item.
+ * A missing count is intentionally read as zero by getConversationCount().
  */
 export function clearNpcChatData(npcId: string): void {
   if (typeof window === "undefined") return;
 
-  localStorage.removeItem(`kotomachi_history_${npcId}`);
+  localStorage.removeItem(getChatHistoryKey(npcId));
   clearLocalNPCMemories(npcId as NpcId);
+  localStorage.removeItem(getConversationCountKey(npcId));
   localStorage.removeItem(`kotomachi_last_time_${npcId}`);
   localStorage.removeItem(`kotomachi_revisit_welcome_marker_${npcId}`);
 

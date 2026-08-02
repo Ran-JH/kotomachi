@@ -459,6 +459,8 @@ export default function ChatPage() {
   const preSendRequestVersionRef = useRef(0);
   const shouldStickToBottomOnPreSendOpenRef = useRef(false);
   const userMessagesSinceMemoryCheckRef = useRef(0);
+  // Restart 会递增此版本；旧会话的异步回调必须先核对版本，避免把旧状态写回。
+  const conversationResetVersionRef = useRef(0);
   const searchParams = useSearchParams();
   const sceneQueryId = searchParams.get("scene")?.trim() ?? "";
   const sceneQueryEntry = useMemo(() => {
@@ -829,19 +831,21 @@ export default function ChatPage() {
     targetNpcId: NpcId,
     existingFacts: string[],
   ) => {
+    const requestVersion = conversationResetVersionRef.current;
     if (generatedInitialWelcomeForNpcRef.current.has(targetNpcId)) return;
     if (loadChatHistory(targetNpcId).length > 0) return;
 
     if (activeNpcRef.current === targetNpcId) setIsReplyPending(true);
     try {
       const data = await getWelcomeRequest(
-        `initial:${targetNpcId}`,
+        `initial:${targetNpcId}:${requestVersion}`,
         targetNpcId,
         existingFacts,
         [],
         "初回",
         [],
       );
+      if (conversationResetVersionRef.current !== requestVersion) return;
       const welcomeText = data?.welcomeMessage?.trim();
       if (!welcomeText) return;
       if (loadChatHistory(targetNpcId).length > 0) return;
@@ -869,7 +873,10 @@ export default function ChatPage() {
         setMessages((prev) => (prev.length === 0 ? [welcomeMsg] : prev));
       }
     } finally {
-      if (activeNpcRef.current === targetNpcId) setIsReplyPending(false);
+      if (
+        conversationResetVersionRef.current === requestVersion
+        && activeNpcRef.current === targetNpcId
+      ) setIsReplyPending(false);
     }
   }, [getWelcomeRequest]);
 
@@ -879,6 +886,7 @@ export default function ChatPage() {
     restoredHistory: StoredMessage[],
     wasSeenThisSession: boolean,
   ) => {
+    const requestVersion = conversationResetVersionRef.current;
     if (wasSeenThisSession) return;
 
     const lastMessage = restoredHistory[restoredHistory.length - 1];
@@ -913,13 +921,14 @@ export default function ChatPage() {
     if (activeNpcRef.current === targetNpcId) setIsReplyPending(true);
     try {
       const data = await getWelcomeRequest(
-        `revisit:${sourceFingerprint}`,
+        `revisit:${sourceFingerprint}:${requestVersion}`,
         targetNpcId,
         existingFacts,
         restoredHistory.slice(-10),
         "再訪",
         getRecentAssistantMessages(restoredHistory),
       );
+      if (conversationResetVersionRef.current !== requestVersion) return;
       const welcomeText = data?.welcomeMessage?.trim();
       if (!welcomeText) return;
 
@@ -955,7 +964,10 @@ export default function ChatPage() {
         setMessages((prev) => [...prev, welcomeMsg]);
       }
     } finally {
-      if (activeNpcRef.current === targetNpcId) setIsReplyPending(false);
+      if (
+        conversationResetVersionRef.current === requestVersion
+        && activeNpcRef.current === targetNpcId
+      ) setIsReplyPending(false);
     }
   }, [getWelcomeRequest]);
 
@@ -1130,6 +1142,7 @@ export default function ChatPage() {
   const runMemoryCurator = async (
     recentMessages: StoredMessage[],
     existingMemories: string[],
+    requestVersion: number,
   ) => {
     try {
       debugMemoryCuratorTrace("triggered", {
@@ -1155,6 +1168,7 @@ export default function ChatPage() {
         }),
       });
       const data = await res.json();
+      if (conversationResetVersionRef.current !== requestVersion) return;
       debugMemoryCuratorTrace("result", {
         npcId,
         action: data?.action ?? null,
@@ -1182,6 +1196,7 @@ export default function ChatPage() {
     voicePayload?: { blob?: Blob | null; objectUrl?: string | null; durationMs?: number | null },
   ) => {
     if (!userText.trim()) return;
+    const requestVersion = conversationResetVersionRef.current;
     setApiError(null);
     const userCreatedAt = new Date().toISOString();
     const userAudioBlob = voicePayload?.blob ?? null;
@@ -1228,6 +1243,7 @@ export default function ChatPage() {
       void runMemoryCurator(
         historyIncludingCurrentUser.slice(-12),
         existingMemoriesSnapshot,
+        requestVersion,
       );
       debugMemoryCuratorTrace("check triggered", {
         npcId,
@@ -1257,6 +1273,7 @@ export default function ChatPage() {
     try {
       const res = await fetch(buildClientApiUrl("/api/chat"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: userText, npcId, history: historyBeforeCurrentUser.slice(-10), memories, conversationCount: getConversationCount(npcId), lifeArc: npcState.arcDescription, lifeArcState: npcState.label, crossMentions: npcState.crossMentions, localDateContext, worldDescription: worldContext.description, worldReaction: worldContext.reactions[npcId], activeSceneId }) });
       const data = await res.json();
+      if (conversationResetVersionRef.current !== requestVersion) return;
       if (!res.ok) throw new Error(data.error ?? copy.common.genericError);
       // 场景对话偶尔会冒出括号动作描写，这里做一层保守清理，
       // 既避免 UI 里像剧本，也避免 TTS 把动作朗读出来。
@@ -1293,6 +1310,7 @@ export default function ChatPage() {
         });
       }
     } catch (err) {
+      if (conversationResetVersionRef.current !== requestVersion) return;
       const errorText = err instanceof Error ? err.message : "";
       const isNetworkError = /failed to fetch|networkerror|load failed|err_connection_refused/i.test(errorText);
       if (isNetworkError) {
@@ -1305,7 +1323,9 @@ export default function ChatPage() {
         setApiError(err instanceof Error ? err.message : copy.common.genericError);
       }
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "assistant", text: "ごめん、ちょっと通信が不安定みたい…もう一度送ってくれる？😅", type: "text" }]);
-    } finally { setIsReplyPending(false); }
+    } finally {
+      if (conversationResetVersionRef.current === requestVersion) setIsReplyPending(false);
+    }
   };
 
   const handleSend = () => {
@@ -3056,6 +3076,7 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => {
+                  conversationResetVersionRef.current += 1;
                   clearNpcChatData(npcId);
                   clearPendingVoiceMessage();
                   revokeAllTrackedUserAudioUrls();
