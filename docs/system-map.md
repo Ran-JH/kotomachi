@@ -254,10 +254,13 @@ Supporting files:
 - `lib/llm.ts`
 - `lib/npc.ts`
 - `lib/conversation-scenes.ts`
+- `lib/chat-request-parser.ts` — Chat request runtime schema 与核心容量上限
 
 Notes:
 
 - 核心职责是让 NPC 用自然日语继续对话。
+- request body 会在 Prompt、scene 指令、provider messages 和 provider 调用前完成运行时解析；非法或超限请求不会进入模型上下文。
+- `text`、history 条数、单条 history content 与 history content 总量的命名上限统一维护在 `lib/chat-request-parser.ts`。
 - 只读取当前 NPC 的 memories，不跨 NPC 注入。
 - memory block 只在有 memory 时注入。
 

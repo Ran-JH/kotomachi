@@ -12,10 +12,19 @@ import { getConversationScene } from "@/lib/conversation-scenes";
 import {
   appendCurrentUserOnce,
   isFirstGuidedUserTurn,
-  type CompletedChatMessage,
 } from "@/lib/chat-message-contract";
 
-import { getLocalDateContext, resolveLocalDateContext, type LocalDateContext } from "@/lib/npc";
+import {
+  parseChatRequestJson,
+  type ChatRequestValidationError,
+} from "@/lib/chat-request-parser";
+
+import {
+  getLocalDateContext,
+  isNpcId,
+  resolveLocalDateContext,
+  type LocalDateContext,
+} from "@/lib/npc";
 
 // This route depends on runtime-only inputs such as env-backed LLM access
 // and per-request context. Mark it explicitly so Next does not try to
@@ -24,37 +33,27 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 
-type ChatRequestBody = {
-
-  text?: string;
-
-  npcId?: string;
-
-  history?: CompletedChatMessage[];
-
-  memories?: string[];
-
-  conversationCount?: number;
-
-  lifeArc?: string;
-
-  lifeArcState?: string;
-
-  crossMentions?: string[];
-
-  worldDescription?: string;
-
-  worldReaction?: string;
-
-  localDateContext?: Partial<LocalDateContext>;
-
-  activeSceneId?: string;
-
-  debugPromptOnly?: boolean;
-
-};
 
 const MAX_PROMPT_MEMORIES = 5;
+
+const CHAT_REQUEST_PARSER_RUNTIME = {
+  isNpcId,
+  getSceneNpcId(sceneId: string): string | null {
+    return getConversationScene(sceneId)?.npcId ?? null;
+  },
+};
+
+function invalidChatRequestResponse(error: ChatRequestValidationError) {
+  const isTooLarge = error.code === "request_too_large";
+  return NextResponse.json(
+    {
+      error: isTooLarge ? "Chat request is too large" : "Invalid chat request",
+      code: error.code,
+      retryable: false,
+    },
+    { status: isTooLarge ? 413 : 400 },
+  );
+}
 
 
 
@@ -609,6 +608,13 @@ export async function POST(req: NextRequest) {
 
   try {
 
+    // Parse and normalize client fields before prompt/scene/message assembly
+    // or any provider and external-call work begins.
+    const parsedRequest = await parseChatRequestJson(req, CHAT_REQUEST_PARSER_RUNTIME);
+    if (!parsedRequest.ok) {
+      return invalidChatRequestResponse(parsedRequest.error);
+    }
+
     const {
 
       text,
@@ -637,15 +643,7 @@ export async function POST(req: NextRequest) {
 
       debugPromptOnly,
 
-    } = (await req.json()) as ChatRequestBody;
-
-
-
-    if (!text) {
-
-      return NextResponse.json({ error: "消息不能为空" }, { status: 400 });
-
-    }
+    } = parsedRequest.data;
 
 
 
@@ -832,7 +830,11 @@ export async function POST(req: NextRequest) {
 
     const message = error instanceof Error ? error.message : "服务异常";
 
-    console.error("会话接口错误:", error);
+    // Provider attempts already log safe metadata in lib/llm. Do not log chat
+    // text, the raw body, prompts, or the complete error object here.
+    console.error("会话接口错误", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json({ error: message }, { status: 500 });
 
