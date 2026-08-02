@@ -319,6 +319,30 @@ function stopMediaStreamTracks(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
+const MAX_RECORDING_DURATION_MS = 60_000;
+
+type RecordingStopReason = "manual" | "max_duration" | "cancel" | "lifecycle";
+
+type RecordingSession = {
+  attemptId: number;
+  npcId: NpcId;
+  recorder: MediaRecorder;
+  stream: MediaStream;
+  recorderMimeType: string;
+  shouldTranscribe: boolean;
+  stopping: boolean;
+  finalized: boolean;
+  stopReason: RecordingStopReason | null;
+  startedAt: number | null;
+  maxDurationTimer: ReturnType<typeof setTimeout> | null;
+};
+
+function clearRecordingMaxDurationTimer(session: RecordingSession) {
+  if (session.maxDurationTimer === null) return;
+  clearTimeout(session.maxDurationTimer);
+  session.maxDurationTimer = null;
+}
+
 import { getStatusAwareTopicIdea, pickStarterPrompts } from "@/lib/starter-prompts";
 
 export default function ChatPage() {
@@ -406,14 +430,7 @@ export default function ChatPage() {
   // 竞态判断不能只依赖 React state，因为 state 更新不是同步可读的。
   const recordingAttemptRef = useRef(0);
   const wantsRecordingRef = useRef(false);
-  const recordingSessionRef = useRef<{
-    attemptId: number;
-    npcId: NpcId;
-    recorder: MediaRecorder;
-    stream: MediaStream;
-    recorderMimeType: string;
-    shouldTranscribe: boolean;
-  } | null>(null);
+  const recordingSessionRef = useRef<RecordingSession | null>(null);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
   const npcAudioRequestCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
   const ttsRequestControllersRef = useRef<Set<AbortController>>(new Set());
@@ -535,16 +552,23 @@ export default function ChatPage() {
     sttRequestControllerRef.current = null;
   }, []);
 
-  const discardActiveRecording = useCallback(() => {
+  const discardActiveRecording = useCallback((
+    stopReason: Extract<RecordingStopReason, "cancel" | "lifecycle"> = "cancel",
+  ) => {
     const session = recordingSessionRef.current;
     if (!session) return;
 
     // 先解除共享 ref 和事件回调，再停止 recorder/stream。
     // 即使 stop 事件稍后才到，也不会提交已经过期的音频。
     recordingSessionRef.current = null;
+    clearRecordingMaxDurationTimer(session);
     session.shouldTranscribe = false;
+    session.stopping = true;
+    session.finalized = true;
+    session.stopReason ??= stopReason;
     session.recorder.ondataavailable = null;
     session.recorder.onstop = null;
+    session.recorder.onerror = null;
     if (session.recorder.state === "recording") {
       try {
         session.recorder.stop();
@@ -562,7 +586,7 @@ export default function ChatPage() {
       wantsRecordingRef.current = false;
       recordingAttemptRef.current += 1;
       abortPendingAudioRequests();
-      discardActiveRecording();
+      discardActiveRecording("lifecycle");
       clearPendingVoiceMessage({ keepTrackedUrl: true });
       revokeAllTrackedUserAudioUrls();
     };
@@ -607,7 +631,7 @@ export default function ChatPage() {
     wantsRecordingRef.current = false;
     recordingAttemptRef.current += 1;
     abortPendingAudioRequests();
-    discardActiveRecording();
+    discardActiveRecording("lifecycle");
     setIsRecording(false);
     setIsTranscribing(false);
     starterAppliedRef.current = false;
@@ -1430,12 +1454,50 @@ export default function ChatPage() {
     return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
   };
 
+  const requestRecordingStop = (
+    session: RecordingSession,
+    stopReason: Extract<RecordingStopReason, "manual" | "max_duration">,
+  ) => {
+    // session 级 guard 是 stop/STT 一次性的主保证；recorder.state 只作为第二层校验。
+    if (
+      recordingSessionRef.current !== session
+      || session.stopping
+      || session.finalized
+    ) {
+      return;
+    }
+
+    clearRecordingMaxDurationTimer(session);
+    session.stopping = true;
+    session.stopReason = stopReason;
+    session.shouldTranscribe = true;
+    wantsRecordingRef.current = false;
+    recordingAttemptRef.current += 1;
+    setIsRecording(false);
+    setIsTranscribing(true);
+
+    if (session.recorder.state !== "recording") {
+      session.shouldTranscribe = false;
+      discardActiveRecording();
+      setIsTranscribing(false);
+      return;
+    }
+
+    try {
+      // manual 与 max_duration 都只走这里；Blob/STT 仍统一由 recorder.onstop 触发。
+      session.recorder.stop();
+    } catch {
+      session.shouldTranscribe = false;
+      discardActiveRecording();
+      setIsTranscribing(false);
+    }
+  };
+
   const startRecording = async () => {
     // 新操作先淘汰旧操作。旧 getUserMedia 没有可取消 API，但返回后会被 attemptId 拦截。
     recordingAttemptRef.current += 1;
     const attemptId = recordingAttemptRef.current;
     const targetNpcId = npcId;
-    const recordingIntentStartedAt = Date.now();
     wantsRecordingRef.current = true;
     discardActiveRecording();
 
@@ -1464,7 +1526,7 @@ export default function ChatPage() {
       const mimeType = pickRecorderMimeType();
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       const audioChunks: Blob[] = [];
-      const session = {
+      const session: RecordingSession = {
         attemptId,
         npcId: targetNpcId,
         recorder,
@@ -1472,12 +1534,53 @@ export default function ChatPage() {
         // recorder.mimeType 是浏览器创建录音器后确认的实际 MIME，优先级高于候选值。
         recorderMimeType: recorder.mimeType.trim(),
         shouldTranscribe: false,
+        stopping: false,
+        finalized: false,
+        stopReason: null,
+        startedAt: null,
+        maxDurationTimer: null,
       };
 
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+      recorder.onerror = () => {
+        clearRecordingMaxDurationTimer(session);
+        if (session.finalized) return;
+
+        const errorSessionWasCurrent = recordingSessionRef.current === session;
+        session.finalized = true;
+        session.stopping = true;
+        session.shouldTranscribe = false;
+        session.stopReason ??= "cancel";
+        if (errorSessionWasCurrent) recordingSessionRef.current = null;
+        session.recorder.ondataavailable = null;
+        session.recorder.onstop = null;
+        session.recorder.onerror = null;
+        stopMediaStreamTracks(session.stream);
+
+        if (
+          errorSessionWasCurrent
+          && isChatPageMountedRef.current
+          && activeNpcRef.current === targetNpcId
+        ) {
+          wantsRecordingRef.current = false;
+          recordingAttemptRef.current += 1;
+          setIsRecording(false);
+          setIsTranscribing(false);
+          setApiError(copy.chat.micError);
+        }
+      };
       recorder.onstop = async () => {
+        clearRecordingMaxDurationTimer(session);
+        if (session.finalized) return;
+
+        // finalized 在任何 await 之前设置，重复 stop 事件无法创建第二个 Blob/STT。
+        session.finalized = true;
+        session.stopping = true;
         stopMediaStreamTracks(stream);
         if (recordingSessionRef.current === session) recordingSessionRef.current = null;
+        session.recorder.ondataavailable = null;
+        session.recorder.onstop = null;
+        session.recorder.onerror = null;
 
         // 只有用户在 recorder 真正启动后结束本次录音，才进入原有 STT 流程。
         if (!session.shouldTranscribe) return;
@@ -1495,7 +1598,9 @@ export default function ChatPage() {
         const audioExtension = getAudioFileExtensionForMimeType(blob.type);
         // MIME 无法确认时不伪造扩展名；服务端会在调用 provider 前明确拒绝。
         const audioFileName = audioExtension ? "recording." + audioExtension : "recording";
-        const durationMs = Math.max(0, Date.now() - recordingIntentStartedAt);
+        const durationMs = session.startedAt === null
+          ? 0
+          : Math.max(0, Date.now() - session.startedAt);
         const objectUrl = URL.createObjectURL(blob);
         userAudioUrlsRef.current.push(objectUrl);
         const sttStartedAt = Date.now();
@@ -1584,7 +1689,22 @@ export default function ChatPage() {
       };
 
       recorder.start();
+      // 权限等待不计入上限：只有 start() 成功返回后才保存起点并创建唯一 timer。
+      session.startedAt = Date.now();
       recordingSessionRef.current = session;
+      session.maxDurationTimer = setTimeout(() => {
+        // timer 只拥有创建它的 session；旧 attempt 永远不能停止更新的 session。
+        session.maxDurationTimer = null;
+        const timerSessionIsCurrent =
+          isChatPageMountedRef.current
+          && activeNpcRef.current === session.npcId
+          && wantsRecordingRef.current
+          && recordingAttemptRef.current === session.attemptId
+          && recordingSessionRef.current === session;
+
+        if (!timerSessionIsCurrent) return;
+        requestRecordingStop(session, "max_duration");
+      }, MAX_RECORDING_DURATION_MS);
     } catch {
       stopMediaStreamTracks(stream);
       const failedAttemptIsCurrent =
@@ -1602,21 +1722,17 @@ export default function ChatPage() {
   };
 
   const stopRecording = () => {
+    const session = recordingSessionRef.current;
+    if (session) {
+      requestRecordingStop(session, "manual");
+      return;
+    }
+
+    // recorder 尚未创建时，只有仍有效的权限等待意图需要失效一次。
+    // 自动停止后的 mouseup/touchend 会在这里成为真正 no-op，不会破坏正在进行的 STT。
+    if (!wantsRecordingRef.current) return;
     wantsRecordingRef.current = false;
     recordingAttemptRef.current += 1;
-
-    const session = recordingSessionRef.current;
-    if (session?.recorder.state === "recording") {
-      // recorder 已启动：保留原有“松手后转写”语义。
-      session.shouldTranscribe = true;
-      try {
-        session.recorder.stop();
-      } catch {
-        session.shouldTranscribe = false;
-        discardActiveRecording();
-      }
-    }
-    // recorder 尚未创建时，这只是一次安静取消；权限结果返回后会自行关闭 stream。
     setIsRecording(false);
   };
 
