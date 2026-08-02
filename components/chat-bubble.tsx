@@ -23,6 +23,12 @@ import { getCachedFeedback, setCachedFeedback, removeCachedFeedback, toCachedFee
 import { getUiCopy } from "@/lib/ui-copy";
 import type { UiLanguage } from "@/lib/ui-language";
 import { buildClientApiUrl } from "@/lib/client-api-url";
+import {
+  AudioRequestTimeoutError,
+  isAbortError,
+  runWithTimeout,
+  TTS_CLIENT_TIMEOUT_MS,
+} from "@/lib/audio-request-timeout";
 import { TTS_TEXT_NORMALIZATION_VERSION } from "@/lib/tts-text";
 import { TTS_VOICE_PROFILE_VERSION } from "@/lib/tts-voice-profiles";
 import { SelectableLookupText } from "@/components/selectable-lookup-text";
@@ -206,20 +212,28 @@ async function fetchAndPlayTts(
     }
 
     if (!audioUrl) {
-      const req = await fetch(buildClientApiUrl("/api/tts"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, npcId }),
-        signal: controller.signal,
-      });
-      if (!req.ok) {
-        const err = await req.json().catch(() => ({}));
-        throw new Error(
-          (err as { error?: string }).error ?? `TTS request failed (${req.status})`
-        );
-      }
-
-      const blob = await req.blob();
+      // 响应体读取也放进 25 秒预算；stopActiveManagedAudio 的 controller 会合并进同一 signal。
+      const blob = await runWithTimeout(async (signal) => {
+        const req = await fetch(buildClientApiUrl("/api/tts"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, npcId }),
+          signal,
+        });
+        if (!req.ok) {
+          const err = await req.json().catch(() => ({}));
+          if (
+            req.status === 504
+            || (err as { code?: string }).code === "timeout"
+          ) {
+            throw new AudioRequestTimeoutError(TTS_CLIENT_TIMEOUT_MS);
+          }
+          throw new Error(
+            (err as { error?: string }).error ?? `TTS request failed (${req.status})`
+          );
+        }
+        return req.blob();
+      }, TTS_CLIENT_TIMEOUT_MS, controller.signal);
       audioUrl = URL.createObjectURL(blob);
 
       if (cacheKey) {
@@ -1285,9 +1299,28 @@ export function ChatBubble({
         npcAudioRef.current = null;
       }
       // Browser autoplay/promise rejection should not lock the UI state.
-      console.warn("NPC audio play() rejected or TTS fetch failed.", error);
-      if (onPlayNpcAudio && !npcAudioUrl) {
-        // Non-blocking fallback: keep compatibility with parent playback hook.
+      const outcome = error instanceof AudioRequestTimeoutError
+        ? "timeout"
+        : isAbortError(error)
+          ? "aborted"
+          : "failure";
+      console.warn("[TTS] managed playback did not complete", {
+        feature: "tts",
+        provider: "tts-route",
+        stage: "client-playback",
+        outcome,
+        timeoutMs: TTS_CLIENT_TIMEOUT_MS,
+        npcId,
+        messageId,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+      if (
+        onPlayNpcAudio
+        && !npcAudioUrl
+        && outcome !== "timeout"
+        && outcome !== "aborted"
+      ) {
+        // 普通错误保留既有兼容 fallback；timeout 不自动发起第二次请求。
         onPlayNpcAudio();
       }
     }

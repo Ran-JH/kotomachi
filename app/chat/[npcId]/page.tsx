@@ -1,4 +1,4 @@
-﻿﻿"use client";
+﻿"use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -14,6 +14,13 @@ import { SavedItemsPanel } from "@/components/saved-items-panel";
 import { KeyboardIcon, MenuIcon, MicIcon } from "@/components/ui-icons";
 import { detectNonJapaneseSpans } from "@/lib/non-japanese-spans";
 import { buildClientApiUrl } from "@/lib/client-api-url";
+import {
+  AudioRequestTimeoutError,
+  isAbortError,
+  runWithTimeout,
+  STT_CLIENT_TIMEOUT_MS,
+  TTS_CLIENT_TIMEOUT_MS,
+} from "@/lib/audio-request-timeout";
 import { getAudioFileExtensionForMimeType } from "@/lib/stt-audio-format";
 import {
   getConversationScene,
@@ -409,6 +416,8 @@ export default function ChatPage() {
   } | null>(null);
   const npcAudioCacheRef = useRef<Map<string, string>>(new Map());
   const npcAudioRequestCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
+  const ttsRequestControllersRef = useRef<Set<AbortController>>(new Set());
+  const sttRequestControllerRef = useRef<AbortController | null>(null);
   const userAudioUrlsRef = useRef<string[]>([]);
   // 语音录音只在当前页内短暂保存：下一次发送时挂到 user message，
   // 不写入 localStorage，避免刷新后留下失效的 blob: URL。
@@ -517,6 +526,15 @@ export default function ChatPage() {
     pendingVoiceMessageRef.current = null;
   }, [revokeTrackedUserAudioUrl]);
 
+  const abortPendingAudioRequests = useCallback(() => {
+    // 页面离开或切换 NPC 时，主动取消旧请求；这和 provider timeout 是两种不同结果。
+    ttsRequestControllersRef.current.forEach((controller) => controller.abort());
+    ttsRequestControllersRef.current.clear();
+    npcAudioRequestCacheRef.current.clear();
+    sttRequestControllerRef.current?.abort();
+    sttRequestControllerRef.current = null;
+  }, []);
+
   const discardActiveRecording = useCallback(() => {
     const session = recordingSessionRef.current;
     if (!session) return;
@@ -543,11 +561,12 @@ export default function ChatPage() {
       isChatPageMountedRef.current = false;
       wantsRecordingRef.current = false;
       recordingAttemptRef.current += 1;
+      abortPendingAudioRequests();
       discardActiveRecording();
       clearPendingVoiceMessage({ keepTrackedUrl: true });
       revokeAllTrackedUserAudioUrls();
     };
-  }, [clearPendingVoiceMessage, discardActiveRecording, revokeAllTrackedUserAudioUrls]);
+  }, [abortPendingAudioRequests, clearPendingVoiceMessage, discardActiveRecording, revokeAllTrackedUserAudioUrls]);
   useEffect(() => {
     return () => {
       if (voiceHintTimerRef.current) clearTimeout(voiceHintTimerRef.current);
@@ -587,8 +606,10 @@ export default function ChatPage() {
     // 同一个页面组件可能直接切换 npcId；旧权限结果和旧 recorder 都必须失效。
     wantsRecordingRef.current = false;
     recordingAttemptRef.current += 1;
+    abortPendingAudioRequests();
     discardActiveRecording();
     setIsRecording(false);
+    setIsTranscribing(false);
     starterAppliedRef.current = false;
     sceneQueryAppliedRef.current = false;
     suppressWelcomeForSceneRef.current = false;
@@ -602,7 +623,7 @@ export default function ChatPage() {
     setPreSendError(null);
     setIsPreSendLoading(false);
     setPendingTtsMessageIds(new Set());
-  }, [discardActiveRecording, npcId]);
+  }, [abortPendingAudioRequests, discardActiveRecording, npcId]);
   useEffect(() => {
     if (!sceneQueryEntry) return;
     // 只要这次入口带着合法 scene query，就整次进入都抑制 welcome，
@@ -958,19 +979,66 @@ export default function ChatPage() {
     if (inFlight) return inFlight;
 
     const request = (async (): Promise<string | null> => {
+      const startedAt = Date.now();
+      const controller = new AbortController();
+      ttsRequestControllersRef.current.add(controller);
+
       try {
-        const res = await fetch(buildClientApiUrl("/api/tts"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, npcId: targetNpcId }),
-        });
-        if (!res.ok) return null;
-        const blob = await res.blob();
+        // blob 读取也包含在 25 秒预算内，不能只限制“收到响应头”的时间。
+        const { res, blob } = await runWithTimeout(async (signal) => {
+          const res = await fetch(buildClientApiUrl("/api/tts"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, npcId: targetNpcId }),
+            signal,
+          });
+          const blob = res.ok ? await res.blob() : null;
+          return { res, blob };
+        }, TTS_CLIENT_TIMEOUT_MS, controller.signal);
+
+        if (!res.ok || !blob) {
+          console.warn("[TTS] route request failed", {
+            feature: "tts",
+            provider: "tts-route",
+            stage: "client-response",
+            outcome: res.status === 504 ? "timeout" : "failure",
+            timeoutMs: TTS_CLIENT_TIMEOUT_MS,
+            elapsedMs: Date.now() - startedAt,
+            npcId: targetNpcId,
+            httpStatus: res.status,
+          });
+          return null;
+        }
+        if (
+          controller.signal.aborted
+          || !isChatPageMountedRef.current
+          || activeNpcRef.current !== targetNpcId
+        ) {
+          return null;
+        }
+
         const url = URL.createObjectURL(blob);
         npcAudioCacheRef.current.set(cacheKey, url);
         return url;
-      } catch {
+      } catch (error) {
+        const outcome = error instanceof AudioRequestTimeoutError
+          ? "timeout"
+          : controller.signal.aborted || isAbortError(error)
+            ? "aborted"
+            : "failure";
+        console.warn("[TTS] route request did not complete", {
+          feature: "tts",
+          provider: "tts-route",
+          stage: "client-request",
+          outcome,
+          timeoutMs: TTS_CLIENT_TIMEOUT_MS,
+          elapsedMs: Date.now() - startedAt,
+          npcId: targetNpcId,
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        });
         return null;
+      } finally {
+        ttsRequestControllersRef.current.delete(controller);
       }
     })();
 
@@ -1001,17 +1069,8 @@ export default function ChatPage() {
 
     void fetchTtsUrl(text, targetNpcId)
       .then((url) => {
-        if (!url) {
-          // 只记录安全元数据，不写入用户或 NPC 的完整对话文本。
-          console.warn("[TTS] Background generation failed.", {
-            npcId: targetNpcId,
-            messageId,
-            providerCategory: "tts-route",
-            errorCategory: "request-failed",
-            elapsedMs: Date.now() - startedAt,
-          });
-          return;
-        }
+        // fetchTtsUrl 已按 timeout / aborted / failure 记录安全元数据。
+        if (!url) return;
         if (!isChatPageMountedRef.current || activeNpcRef.current !== targetNpcId) return;
 
         // TTS 可能乱序返回，因此必须按稳定 message id 精确回填。
@@ -1021,13 +1080,16 @@ export default function ChatPage() {
             : message
         )));
       })
-      .catch(() => {
+      .catch((error) => {
         console.warn("[TTS] Background generation failed.", {
+          feature: "tts",
+          provider: "tts-route",
+          stage: "client-callback",
+          outcome: "failure",
+          elapsedMs: Date.now() - startedAt,
           npcId: targetNpcId,
           messageId,
-          providerCategory: "tts-route",
-          errorCategory: "unexpected-error",
-          elapsedMs: Date.now() - startedAt,
+          errorName: error instanceof Error ? error.name : "UnknownError",
         });
       })
       .finally(() => {
@@ -1436,40 +1498,88 @@ export default function ChatPage() {
         const durationMs = Math.max(0, Date.now() - recordingIntentStartedAt);
         const objectUrl = URL.createObjectURL(blob);
         userAudioUrlsRef.current.push(objectUrl);
+        const sttStartedAt = Date.now();
+        const sttController = new AbortController();
+        // 理论上 UI 不会并行提交；若旧请求仍存在，先取消它，防止旧 transcript 回填。
+        sttRequestControllerRef.current?.abort();
+        sttRequestControllerRef.current = sttController;
         setIsTranscribing(true);
+
         try {
-          const formData = new FormData(); formData.append("audio", blob, audioFileName);
-          const sttRes = await fetch(buildClientApiUrl("/api/stt"), { method: "POST", body: formData });
-          const sttData = await sttRes.json();
+          const formData = new FormData();
+          formData.append("audio", blob, audioFileName);
+          // JSON 解析也纳入 35 秒预算，确保整个浏览器请求生命周期有上限。
+          const { sttRes, sttData } = await runWithTimeout(async (signal) => {
+            const sttRes = await fetch(buildClientApiUrl("/api/stt"), {
+              method: "POST",
+              body: formData,
+              signal,
+            });
+            const sttData = await sttRes.json();
+            return { sttRes, sttData };
+          }, STT_CLIENT_TIMEOUT_MS, sttController.signal);
+
           if (!completionIsCurrent()) {
             revokeTrackedUserAudioUrl(objectUrl);
             return;
           }
           if (!sttRes.ok) {
             revokeTrackedUserAudioUrl(objectUrl);
+            console.warn("[STT] route returned an error", {
+              feature: "stt",
+              provider: "stt-route",
+              stage: "client-response",
+              outcome: sttData.code === "timeout" ? "timeout" : "failure",
+              timeoutMs: STT_CLIENT_TIMEOUT_MS,
+              elapsedMs: Date.now() - sttStartedAt,
+              npcId: targetNpcId,
+              httpStatus: sttRes.status,
+            });
             if (sttData.code === "NO_SPEECH") {
               showVoiceHint(copy.chat.noSpeech);
             } else {
               setApiError(copy.chat.sttError);
             }
-            setIsTranscribing(false);
             return;
           }
           if (sttData.code === "NO_SPEECH" || !sttData.text?.trim()) {
             revokeTrackedUserAudioUrl(objectUrl);
             showVoiceHint(copy.chat.noSpeech);
-            setIsTranscribing(false);
             return;
           }
           clearPendingVoiceMessage();
           pendingVoiceMessageRef.current = { blob, objectUrl, durationMs };
           stageVoiceTranscript(sttData.text);
-          setIsTranscribing(false);
-        } catch {
+        } catch (error) {
           revokeTrackedUserAudioUrl(objectUrl);
           if (!completionIsCurrent()) return;
-          setApiError(copy.chat.sttError);
-          setIsTranscribing(false);
+
+          const outcome = error instanceof AudioRequestTimeoutError
+            ? "timeout"
+            : sttController.signal.aborted || isAbortError(error)
+              ? "aborted"
+              : "failure";
+          console.warn("[STT] route request did not complete", {
+            feature: "stt",
+            provider: "stt-route",
+            stage: "client-request",
+            outcome,
+            timeoutMs: STT_CLIENT_TIMEOUT_MS,
+            elapsedMs: Date.now() - sttStartedAt,
+            npcId: targetNpcId,
+            errorName: error instanceof Error ? error.name : "UnknownError",
+          });
+          // 页面/NPC 切换的主动 abort 不显示成 provider timeout；当前页失败仍走既有友好提示。
+          if (outcome !== "aborted") {
+            setApiError(copy.chat.sttError);
+          }
+        } finally {
+          if (sttRequestControllerRef.current === sttController) {
+            sttRequestControllerRef.current = null;
+          }
+          if (completionIsCurrent()) {
+            setIsTranscribing(false);
+          }
         }
       };
 

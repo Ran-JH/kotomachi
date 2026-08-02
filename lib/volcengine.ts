@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { AudioRequestTimeoutError } from "@/lib/audio-request-timeout";
 import type { NpcId } from "@/lib/npc";
 import type { SupportedSttProviderFormat } from "@/lib/stt-audio-format";
 import { getNpcVoiceProfile } from "@/lib/tts-voice-profiles";
@@ -75,11 +76,12 @@ export class VolcTtsError extends Error {
 
 export async function synthesizeVolcTts(
   text: string,
-  npcId: NpcId
+  npcId: NpcId,
+  signal?: AbortSignal,
 ): Promise<Buffer> {
+  const startedAt = Date.now();
   const { appId, token } = getSpeechCredentials();
   const {
-    profileName,
     voiceType,
     speedRatio,
     pitchRatio,
@@ -113,15 +115,10 @@ export async function synthesizeVolcTts(
   };
 
   console.log("[Volc TTS] 发起请求", {
-    url: TTS_URL,
-    reqid,
+    feature: "tts",
+    provider: "volc",
+    stage: "provider-fetch",
     npcId,
-    profileName,
-    voiceType,
-    cluster,
-    appId,
-    textLength: text.length,
-    tokenPrefix: token.slice(0, 6) + "***",
   });
 
   let res: Response;
@@ -135,14 +132,23 @@ export async function synthesizeVolcTts(
         Authorization: `Bearer;${token}`,
       },
       body: JSON.stringify(body),
+      signal,
     });
     rawText = await res.text();
   } catch (networkErr) {
-    console.error("[Volc TTS] fetch 网络异常（无法连接火山）:", networkErr);
-    if (networkErr instanceof Error) {
-      console.error("[Volc TTS] 网络错误 message:", networkErr.message);
-      console.error("[Volc TTS] 网络错误 stack:", networkErr.stack);
-    }
+    const outcome = signal?.reason instanceof AudioRequestTimeoutError
+      ? "timeout"
+      : signal?.aborted
+        ? "aborted"
+        : "failure";
+    console.error("[Volc TTS] 请求未完成", {
+      feature: "tts",
+      provider: "volc",
+      stage: "provider-fetch",
+      outcome,
+      elapsedMs: Date.now() - startedAt,
+      errorName: networkErr instanceof Error ? networkErr.name : "UnknownError",
+    });
     throw networkErr;
   }
 
@@ -158,11 +164,14 @@ export async function synthesizeVolcTts(
   try {
     data = JSON.parse(rawText) as typeof data;
   } catch (parseErr) {
-    console.error("[Volc TTS] 响应不是合法 JSON", {
+    console.error("[Volc TTS] 响应解析失败", {
+      feature: "tts",
+      provider: "volc",
+      stage: "parse-response",
+      outcome: "failure",
       httpStatus: res.status,
-      httpStatusText: res.statusText,
-      rawTextPreview: rawText.slice(0, 500),
-      parseErr,
+      elapsedMs: Date.now() - startedAt,
+      errorName: parseErr instanceof Error ? parseErr.name : "UnknownError",
     });
     throw new VolcTtsError(`火山 TTS 返回非 JSON (HTTP ${res.status})`, {
       httpStatus: res.status,
@@ -179,29 +188,14 @@ export async function synthesizeVolcTts(
       data.message ??
       `火山 TTS 业务失败 code=${data.code ?? "未知"} HTTP=${res.status}`;
 
-    console.error("[Volc TTS] 火山拒绝请求 — 详细信息:", {
+    console.error("[Volc TTS] provider 拒绝请求", {
+      feature: "tts",
+      provider: "volc",
+      stage: "provider-response",
+      outcome: "failure",
       httpStatus: res.status,
-      httpStatusText: res.statusText,
-      volcCode: data.code,
-      volcMessage: data.message,
-      volcReqid: data.reqid ?? reqid,
-      volcOperation: data.operation,
-      voiceType,
-      cluster,
-      appId,
-      hint:
-        data.message?.includes("grant not found") ||
-        data.message?.includes("authenticate") ||
-        res.status === 401
-          ? "鉴权失败：请到「豆包语音」控制台复制 AppID+AccessToken（不是火山方舟 Ark Key）"
-          : data.code === 3001
-            ? "参数无效：检查 appid/token/voice_type/cluster 是否与控制台一致"
-            : data.message?.includes("access denied") ||
-                data.message?.includes("resource")
-              ? "未开通音色：控制台对 BV702/BV524 等音色下单（0元）"
-              : "见上方 volcMessage",
+      elapsedMs: Date.now() - startedAt,
     });
-    console.error("[Volc TTS] 完整响应 body:", JSON.stringify(data, null, 2));
 
     throw new VolcTtsError(errMsg, {
       httpStatus: res.status,
@@ -214,8 +208,12 @@ export async function synthesizeVolcTts(
   }
 
   console.log("[Volc TTS] 合成成功", {
-    reqid: data.reqid ?? reqid,
-    audioBase64Length: data.data?.length ?? 0,
+    feature: "tts",
+    provider: "volc",
+    stage: "provider-response",
+    outcome: "success",
+    httpStatus: res.status,
+    elapsedMs: Date.now() - startedAt,
   });
 
   return Buffer.from(data.data!, "base64");
@@ -259,7 +257,8 @@ function postProcessSttText(text: string): string {
 async function transcribeVolcFlashOnce(
   audioBytes: Buffer,
   audioFormat: SupportedSttProviderFormat,
-  langShort: (typeof STT_ALLOWED_LANGUAGES)[number]
+  langShort: (typeof STT_ALLOWED_LANGUAGES)[number],
+  signal?: AbortSignal,
 ): Promise<{ text: string; volcLanguage: string } | null> {
   const { appId } = getSpeechCredentials();
   const requestId = randomUUID();
@@ -285,40 +284,46 @@ async function transcribeVolcFlashOnce(
   };
 
   console.log("[Volc STT] 单次识别", {
-    langShort,
-    volcLanguage,
-    format: audioFormat,
-    bytes: audioBytes.length,
-    requestId,
+    feature: "stt",
+    provider: "volc",
+    stage: "provider-fetch",
   });
 
   const res = await fetch(ASR_FLASH_URL, {
     method: "POST",
     headers: getAsrHeaders(requestId),
     body: JSON.stringify(body),
+    signal,
   });
 
   const statusCode = res.headers.get("X-Api-Status-Code");
-  const statusMessage = res.headers.get("X-Api-Message");
   const payload = (await res.json()) as {
     result?: { text?: string };
     message?: string;
   };
 
   if (statusCode !== "20000000") {
-    console.warn("[Volc STT] 语种未命中", {
-      langShort,
-      volcLanguage,
-      statusCode,
-      statusMessage,
-      payloadMessage: payload.message,
+    console.warn("[Volc STT] provider 未返回有效结果", {
+      feature: "stt",
+      provider: "volc",
+      stage: "provider-response",
+      outcome: "failure",
+      httpStatus: res.status,
+      errorCategory: "provider-status",
     });
     return null;
   }
 
   const text = payload.result?.text?.trim();
   if (!text) {
-    console.warn("[Volc STT] 语种返回空文本", { langShort, volcLanguage });
+    console.warn("[Volc STT] provider 返回空结果", {
+      feature: "stt",
+      provider: "volc",
+      stage: "provider-response",
+      outcome: "failure",
+      httpStatus: res.status,
+      errorCategory: "empty-result",
+    });
     return null;
   }
 
@@ -331,37 +336,43 @@ async function transcribeVolcFlashOnce(
 export async function transcribeVolcFlash(
   audioBytes: Buffer,
   audioFormat: SupportedSttProviderFormat,
-  mimeType?: string
+  mimeType?: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const priority = getSttLanguagePriority();
   const errors: string[] = [];
 
-  console.log("[Volc STT] 开始多语种识别", {
-    allowed: STT_ALLOWED_LANGUAGES,
-    priority,
-    mimeType,
-  });
 
   for (const langShort of priority) {
     try {
       const result = await transcribeVolcFlashOnce(
         audioBytes,
         audioFormat,
-        langShort
+        langShort,
+        signal,
       );
       if (result?.text) {
         console.log("[Volc STT] 识别成功", {
-          langShort,
-          volcLanguage: result.volcLanguage,
-          textPreview: result.text.slice(0, 50),
+          feature: "stt",
+          provider: "volc",
+          stage: "provider-response",
+          outcome: "success",
         });
         return postProcessSttText(result.text);
       }
       errors.push(`${langShort}: 无有效文本`);
     } catch (err) {
+      // timeout / 页面取消必须立即终止整条 STT，不可被当成“换一种语言再试”。
+      if (signal?.aborted) throw err;
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${langShort}: ${msg}`);
-      console.warn("[Volc STT] 单次识别异常", { langShort, msg });
+      console.warn("[Volc STT] 单次识别异常", {
+        feature: "stt",
+        provider: "volc",
+        stage: "provider-response",
+        outcome: "failure",
+        errorName: err instanceof Error ? err.name : "UnknownError",
+      });
     }
   }
 

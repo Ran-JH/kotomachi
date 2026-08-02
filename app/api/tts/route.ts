@@ -4,34 +4,61 @@ export const runtime = "nodejs";
 import { synthesizeEdgeTts } from "@/lib/edge-tts";
 import { isNpcId } from "@/lib/npc";
 import {
+  AudioRequestTimeoutError,
+  isAbortError,
+  runWithTimeout,
+  TTS_PROVIDER_TIMEOUT_MS,
+} from "@/lib/audio-request-timeout";
+import {
   isVolcSpeechConfigured,
   synthesizeVolcTts,
-  VolcTtsError,
 } from "@/lib/volcengine";
 import { normalizeTextForTts } from "@/lib/tts-text";
 
-function logVolcError(label: string, err: unknown) {
-  if (err instanceof VolcTtsError) {
-    console.error(`[api/tts] ${label} — VolcTtsError:`, {
-      message: err.message,
-      httpStatus: err.details.httpStatus,
-      volcCode: err.details.code,
-      volcMessage: err.details.volcMessage,
-      reqid: err.details.reqid,
-      voiceType: err.details.voiceType,
-    });
-    return;
+type RequestOutcome = "success" | "timeout" | "failure" | "aborted";
+
+function getRequestOutcome(
+  error: unknown,
+  requestSignal: AbortSignal,
+): Exclude<RequestOutcome, "success"> {
+  if (
+    error instanceof AudioRequestTimeoutError
+    || (error instanceof Error && /timeout|timed out/i.test(error.message))
+  ) {
+    return "timeout";
   }
-  if (err instanceof Error) {
-    console.error(`[api/tts] ${label} — Error:`, {
-      name: err.name,
-      message: err.message,
-    });
-    return;
+  if (requestSignal.aborted || isAbortError(error)) return "aborted";
+  return "failure";
+}
+
+function logProviderOutcome({
+  provider,
+  outcome,
+  startedAt,
+  npcId,
+  error,
+}: {
+  provider: "volc" | "edge";
+  outcome: RequestOutcome;
+  startedAt: number;
+  npcId: string;
+  error?: unknown;
+}) {
+  const metadata = {
+    feature: "tts",
+    provider,
+    stage: "provider-attempt",
+    outcome,
+    timeoutMs: TTS_PROVIDER_TIMEOUT_MS,
+    elapsedMs: Date.now() - startedAt,
+    npcId,
+    errorName: error instanceof Error ? error.name : undefined,
+  };
+  if (outcome === "success") {
+    console.log("[api/tts] provider 完成", metadata);
+  } else {
+    console.warn("[api/tts] provider 未完成", metadata);
   }
-  console.error(`[api/tts] ${label} — unknown:`, {
-    message: String(err),
-  });
 }
 
 export async function POST(req: NextRequest) {
@@ -49,21 +76,12 @@ export async function POST(req: NextRequest) {
     if (!ttsText) {
       return NextResponse.json(
         { error: "没有可朗读的文本" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const provider = (process.env.TTS_PROVIDER ?? "auto").toLowerCase();
     const volcConfigured = isVolcSpeechConfigured();
-
-    console.log("[api/tts] 收到请求", {
-      npcId: safeNpcId,
-      provider,
-      volcConfigured,
-      textLength: text.length,
-      normalizedTextLength: ttsText.length,
-    });
-
     let audio: Buffer | null = null;
     let source = "edge";
 
@@ -71,48 +89,78 @@ export async function POST(req: NextRequest) {
       provider === "volcano" || (provider === "auto" && volcConfigured);
 
     if (tryVolc && volcConfigured) {
+      const attemptStartedAt = Date.now();
       try {
-        console.log("[api/tts] 尝试火山 TTS...");
-        audio = await synthesizeVolcTts(ttsText, safeNpcId);
+        audio = await runWithTimeout(
+          (signal) => synthesizeVolcTts(ttsText, safeNpcId, signal),
+          TTS_PROVIDER_TIMEOUT_MS,
+          req.signal,
+        );
         source = "volcano";
-        console.log("[api/tts] 火山 TTS 成功", {
-          bytes: audio.length,
-          elapsedMs: Date.now() - startedAt,
+        logProviderOutcome({
+          provider: "volc",
+          outcome: "success",
+          startedAt: attemptStartedAt,
+          npcId: safeNpcId,
         });
       } catch (volcError) {
-        logVolcError("火山 TTS 失败", volcError);
+        const outcome = getRequestOutcome(volcError, req.signal);
+        logProviderOutcome({
+          provider: "volc",
+          outcome,
+          startedAt: attemptStartedAt,
+          npcId: safeNpcId,
+          error: volcError,
+        });
 
-        if (provider === "volcano") {
+        // 页面主动取消时不再启动 fallback；provider timeout 则保留原有 auto fallback。
+        if (outcome === "aborted" || provider === "volcano") {
           throw volcError;
         }
-        console.warn(
-          "[api/tts] TTS_PROVIDER=auto，火山失败后回退 Edge-TTS..."
-        );
       }
     } else if (tryVolc && !volcConfigured) {
-      console.warn(
-        "[api/tts] 想走火山但未配置 VOLCENGINE_SPEECH_APP_ID + ACCESS_TOKEN"
-      );
+      console.warn("[api/tts] 火山 TTS 未配置", {
+        feature: "tts",
+        provider: "volc",
+        stage: "configuration",
+        outcome: "failure",
+        npcId: safeNpcId,
+      });
     }
 
     if (!audio) {
+      const attemptStartedAt = Date.now();
       try {
-        console.log("[api/tts] 尝试 Edge-TTS...");
-        audio = await synthesizeEdgeTts(ttsText, safeNpcId);
+        audio = await runWithTimeout(
+          (signal) => synthesizeEdgeTts(ttsText, safeNpcId, {
+            signal,
+            connectionTimeoutMs: TTS_PROVIDER_TIMEOUT_MS,
+          }),
+          TTS_PROVIDER_TIMEOUT_MS,
+          req.signal,
+        );
         source = "edge";
-        console.log("[api/tts] Edge-TTS 成功", {
-          bytes: audio.length,
-          elapsedMs: Date.now() - startedAt,
+        logProviderOutcome({
+          provider: "edge",
+          outcome: "success",
+          startedAt: attemptStartedAt,
+          npcId: safeNpcId,
         });
       } catch (edgeError) {
-        logVolcError("Edge-TTS 也失败", edgeError);
+        logProviderOutcome({
+          provider: "edge",
+          outcome: getRequestOutcome(edgeError, req.signal),
+          startedAt: attemptStartedAt,
+          npcId: safeNpcId,
+          error: edgeError,
+        });
         throw edgeError;
       }
     }
 
     const responseBody = audio.buffer.slice(
       audio.byteOffset,
-      audio.byteOffset + audio.byteLength
+      audio.byteOffset + audio.byteLength,
     ) as ArrayBuffer;
 
     return new NextResponse(responseBody, {
@@ -123,15 +171,41 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "语音合成失败";
+    const outcome = getRequestOutcome(error, req.signal);
+    const status = outcome === "timeout" ? 504 : outcome === "aborted" ? 499 : 500;
 
-    console.error("[api/tts] 最终 500 错误", {
-      message,
+    console.error("[api/tts] route 未完成", {
+      feature: "tts",
+      provider: "route",
+      stage: "route-response",
+      outcome,
       elapsedMs: Date.now() - startedAt,
+      httpStatus: status,
+      errorName: error instanceof Error ? error.name : "UnknownError",
     });
-    logVolcError("最终 catch", error);
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (outcome === "timeout") {
+      return NextResponse.json(
+        {
+          error: "语音生成超时，请稍后重试",
+          code: "timeout",
+          retryable: true,
+        },
+        { status },
+      );
+    }
+    if (outcome === "aborted") {
+      return NextResponse.json(
+        {
+          error: "语音请求已取消",
+          code: "aborted",
+          retryable: true,
+        },
+        { status },
+      );
+    }
+
+    const message = error instanceof Error ? error.message : "语音合成失败";
+    return NextResponse.json({ error: message }, { status });
   }
 }
