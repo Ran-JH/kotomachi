@@ -33,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja">
+    <html lang="zh-CN">
       <body className="bg-[#F3EDE0] text-[#2D4A1F] min-h-screen antialiased">
         <AlphaAccessGate>{children}</AlphaAccessGate>
         <Analytics />
