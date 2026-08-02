@@ -204,6 +204,7 @@ Memory utility layer:
 - `deleteLocalNPCMemory(npcId, index)`
 - `clearLocalNPCMemories(npcId)`
 - `applyLocalNPCMemoryCuratorResult(npcId, result)`
+- `lib/chat-history-runtime-parser.ts`：stored history is runtime-parsed before use；`loadChatHistory(npcId)` 使用前逐条隔离损坏消息，读取时不自动改写 LocalStorage
 
 Memory curator:
 

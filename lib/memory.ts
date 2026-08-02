@@ -1,5 +1,7 @@
 import { ALL_NPC_IDS, type NpcId } from "@/lib/npc";
 
+import { loadStoredChatHistory } from "@/lib/chat-history-runtime-parser";
+
 const MAX_MEMORIES = 10;
 const MIN_MEMORY_TEXT_LENGTH = 6;
 export const NPC_MEMORIES_UPDATED_EVENT = "kotomachi-npc-memories-updated";
@@ -452,16 +454,7 @@ export interface StoredMessage {
 
 export function loadChatHistory(npcId: string): StoredMessage[] {
   if (typeof window === "undefined") return [];
-
-  const raw = localStorage.getItem(getChatHistoryKey(npcId));
-  if (!raw) return [];
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return loadStoredChatHistory(localStorage, getChatHistoryKey(npcId));
 }
 
 export function saveChatHistory(npcId: string, history: StoredMessage[]): void {
