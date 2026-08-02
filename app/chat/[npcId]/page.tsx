@@ -2573,9 +2573,12 @@ export default function ChatPage() {
               type="button"
               aria-label={copy.sidebar.openMenu}
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E8E0CE] text-sm text-[#28231A] transition-colors hover:bg-[#D8CFBC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:hidden"
+              data-mobile-hit-target="chat-mobile-menu"
+              className="group -m-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sm text-[#28231A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:hidden"
             >
-              <MenuIcon size={17} />
+              <span className="pointer-events-none flex h-9 w-9 items-center justify-center rounded-lg bg-[#E8E0CE] transition-colors group-hover:bg-[#D8CFBC]">
+                <MenuIcon size={17} />
+              </span>
             </button>
             <div className="flex-1 md:block" />
             <button
@@ -2837,11 +2840,14 @@ export default function ChatPage() {
               type="button"
               onClick={() => { setVoiceHint(null); setInputMode((prev) => (prev === "text" ? "voice" : "text")); }}
               disabled={isReplyPending || isTranscribing}
-              className="w-9 h-9 shrink-0 rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] hover:bg-[#E0D6C5] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:scale-[0.95] flex items-center justify-center text-sm text-[#28231A] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
+              data-mobile-hit-target="chat-input-mode"
+              className="group -m-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm text-[#28231A] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:m-0 md:h-9 md:w-9"
               aria-label={inputMode === "text" ? copy.chat.switchToVoice : copy.chat.switchToText}
               title={inputMode === "text" ? copy.chat.voiceInput : copy.chat.textInput}
             >
-              {inputMode === "text" ? <MicIcon size={17} /> : <KeyboardIcon size={17} />}
+              <span className="pointer-events-none flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(40,35,26,0.08)] bg-[#EEE6D8] transition-all duration-150 group-hover:bg-[#E0D6C5] group-hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] group-active:scale-[0.95]">
+                {inputMode === "text" ? <MicIcon size={17} /> : <KeyboardIcon size={17} />}
+              </span>
             </button>
             <div className="relative shrink-0" ref={inputActionsRef}>
               <button
@@ -2849,11 +2855,14 @@ export default function ChatPage() {
                 aria-label={copy.sidebar.moreActions}
                 title={copy.sidebar.moreActions}
                 onClick={() => setIsInputActionsOpen((prev) => !prev)}
-                className={`w-9 h-9 rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EEE6D8] text-[#2D4A1F] flex items-center justify-center text-lg leading-none transition-all duration-150 ${
-                  isInputActionsOpen ? "bg-[#E3D9C7] shadow-[0_2px_8px_rgba(40,35,26,0.06)]" : "hover:bg-[#E3D9C7] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:scale-[0.95]"
-                }`}
+                data-mobile-hit-target="chat-more-actions"
+                className="group -m-1 flex h-11 w-11 items-center justify-center rounded-full text-[#2D4A1F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:m-0 md:h-9 md:w-9"
               >
-                +
+                <span className={`pointer-events-none flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(40,35,26,0.1)] bg-[#EEE6D8] text-lg leading-none transition-all duration-150 ${
+                  isInputActionsOpen ? "bg-[#E3D9C7] shadow-[0_2px_8px_rgba(40,35,26,0.06)]" : "group-hover:bg-[#E3D9C7] group-hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] group-active:scale-[0.95]"
+                }`}>
+                  +
+                </span>
               </button>
               {isInputActionsOpen && (
                 <>
@@ -3078,9 +3087,12 @@ export default function ChatPage() {
                   type="button"
                   onClick={handleSend}
                   disabled={isReplyPending || !inputText.trim()}
-                  className="shrink-0 text-sm font-medium text-[#F3EDE0] px-4 py-2.5 md:px-5 rounded-xl bg-[#2D4A1F] hover:bg-[#2D4A1F]/85 hover:shadow-[0_4px_12px_rgba(45,74,31,0.3)] active:translate-y-0.5 active:shadow-[0_2px_6px_rgba(45,74,31,0.2)] transition-all duration-150 disabled:cursor-not-allowed disabled:bg-[#D8CFBC] disabled:text-[#7A7060]/70 disabled:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35"
+                  data-mobile-hit-target="chat-send"
+                  className="group -my-0.5 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-sm font-medium disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:my-0 md:min-h-0 md:min-w-0"
                 >
-                  {isReplyPending ? copy.chat.sending : copy.chat.send}
+                  <span className="pointer-events-none inline-flex items-center justify-center rounded-xl bg-[#2D4A1F] px-4 py-2.5 text-[#F3EDE0] transition-all duration-150 group-hover:bg-[#2D4A1F]/85 group-hover:shadow-[0_4px_12px_rgba(45,74,31,0.3)] group-active:translate-y-0.5 group-active:shadow-[0_2px_6px_rgba(45,74,31,0.2)] group-disabled:bg-[#D8CFBC] group-disabled:text-[#7A7060]/70 group-disabled:shadow-none md:px-5">
+                    {isReplyPending ? copy.chat.sending : copy.chat.send}
+                  </span>
                 </button>
               </>
             ) : (
@@ -3095,12 +3107,15 @@ export default function ChatPage() {
                 disabled={isReplyPending || isTranscribing}
                 aria-label={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
                 title={isRecording ? copy.chat.stopRecording : copy.chat.startRecording}
-                className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-center select-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 ${
-                  (isRecording || isTranscribing) ? "bg-[#2D4A1F] text-[#F3EDE0] scale-[0.98] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] hover:bg-[#D8CFBC] hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] active:bg-[#2D4A1F] active:text-[#F3EDE0] active:shadow-[0_4px_12px_rgba(45,74,31,0.3)]"
-                }`}
+                data-mobile-hit-target="chat-hold-to-talk"
+                className="group -my-0.5 inline-flex min-h-11 min-w-11 flex-1 items-center justify-center rounded-xl text-center text-sm font-medium select-none disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/35 md:my-0 md:min-h-0 md:min-w-0"
               >
-                <MicIcon size={15} />
-                <span>{isTranscribing ? transcribingLabel : isRecording ? copy.chat.recordingRelease : copy.chat.holdToTalk}</span>
+                <span className={`pointer-events-none inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl py-2.5 transition-all duration-150 ${
+                  (isRecording || isTranscribing) ? "scale-[0.98] bg-[#2D4A1F] text-[#F3EDE0] shadow-[0_0_0_2px_rgba(201,168,76,0.18)]" : "bg-[#E8E0CE] text-[#28231A] group-hover:bg-[#D8CFBC] group-hover:shadow-[0_3px_10px_rgba(40,35,26,0.08)] group-active:bg-[#2D4A1F] group-active:text-[#F3EDE0] group-active:shadow-[0_4px_12px_rgba(45,74,31,0.3)]"
+                }`}>
+                  <MicIcon size={15} />
+                  <span>{isTranscribing ? transcribingLabel : isRecording ? copy.chat.recordingRelease : copy.chat.holdToTalk}</span>
+                </span>
               </button>
             )}
           </div>

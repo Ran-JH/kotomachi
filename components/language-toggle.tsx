@@ -18,17 +18,26 @@ export function LanguageToggle({
 }: LanguageToggleProps) {
   const copy = getUiCopy(language).languageToggle;
   const isDark = variant === "dark";
+  const surfaceClass = isDark
+    ? "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)]"
+    : "border-[rgba(40,35,26,0.09)] bg-[#F6F0E3]/82 backdrop-blur-[1.5px]";
 
   return (
     <div
-      className={`font-ui inline-flex rounded-full border p-0.5 text-[10px] shadow-sm ${
+      className={`font-ui relative inline-flex h-7 w-[4.75rem] text-[10px] md:h-auto md:w-auto md:rounded-full md:border md:p-0.5 md:shadow-sm ${
         isDark
-          ? "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] text-[#D4C8A8]/65"
-          : "border-[rgba(40,35,26,0.1)] bg-[#FAF6EE]/75 text-[#7A7060]"
+          ? "text-[#D4C8A8]/65 md:border-[rgba(255,255,255,0.08)] md:bg-[rgba(255,255,255,0.04)]"
+          : "text-[#7A7060] md:border-[rgba(40,35,26,0.09)] md:bg-[#F6F0E3]/82 md:backdrop-blur-[1.5px]"
       } ${className}`}
       role="group"
       aria-label={copy.ariaLabel}
     >
+      {/* Mobile targets are 44px; the inner tray keeps the compact visual size. */}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-0 rounded-full border shadow-sm md:hidden ${surfaceClass}`}
+      />
+      <div className="absolute -inset-x-1.5 -inset-y-2 flex md:static">
       {(["zh", "en"] as const).map((option) => {
         const active = language === option;
         return (
@@ -37,20 +46,34 @@ export function LanguageToggle({
             type="button"
             onClick={() => onChange(option)}
             aria-pressed={active}
-            className={`rounded-full px-2.5 py-1 transition-colors ${
+            data-mobile-hit-target="language-option"
+            className={`group relative z-10 flex h-11 w-11 items-center justify-center rounded-full transition-colors md:h-auto md:w-auto md:px-2.5 md:py-1 ${
               active
                 ? isDark
-                  ? "bg-[#C9A84C] text-[#1E2A16]"
-                  : "bg-[#2D4A1F] text-[#F3EDE0]"
+                  ? "text-[#1E2A16] md:bg-[#C9A84C]"
+                  : "text-[#F3EDE0] md:bg-[#2D4A1F]"
                 : isDark
-                  ? "hover:bg-[rgba(255,255,255,0.07)] hover:text-[#D4C8A8]"
-                  : "hover:bg-[#E8E0CE] hover:text-[#28231A]"
+                  ? "hover:text-[#D4C8A8] md:hover:bg-[rgba(255,255,255,0.07)]"
+                  : "hover:text-[#28231A] md:hover:bg-[#E8E0CE]"
             }`}
           >
-            {option === "zh" ? copy.zh : copy.en}
+            <span
+              className={`rounded-full px-2.5 py-1 transition-colors md:bg-transparent md:p-0 md:group-hover:bg-transparent ${
+                active
+                  ? isDark
+                    ? "bg-[#C9A84C]"
+                    : "bg-[#2D4A1F]"
+                  : isDark
+                    ? "group-hover:bg-[rgba(255,255,255,0.07)]"
+                    : "group-hover:bg-[#E8E0CE]"
+              }`}
+            >
+              {option === "zh" ? copy.zh : copy.en}
+            </span>
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

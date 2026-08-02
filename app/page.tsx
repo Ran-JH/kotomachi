@@ -66,7 +66,7 @@ export default function Home() {
                 <LanguageToggle
                   language={uiLanguage}
                   onChange={handleLanguageChange}
-                  className="relative z-20 shrink-0 mt-0.5 rounded-full bg-[#F6F0E3]/82 backdrop-blur-[1.5px] border border-[rgba(40,35,26,0.09)] p-0.5"
+                  className="relative z-20 shrink-0 mt-0.5"
                 />
               </div>
 
